@@ -1,0 +1,24 @@
+# Flutter/Dart
+.dart_tool/
+.build/
+pubspec.lock
+*.iml
+
+# Go
+server/server
+go.mod.backup
+go.sum.backup
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
