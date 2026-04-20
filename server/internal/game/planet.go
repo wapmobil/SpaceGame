@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"spacegame/internal/game/battle"
 	"spacegame/internal/game/research"
 	"spacegame/internal/game/ship"
 )
@@ -24,6 +25,18 @@ type PlanetResources struct {
 	AlienTech float64 `json:"alien_tech"`
 }
 
+// BattleRecord stores the result of a completed battle.
+type BattleRecord struct {
+	ID         string            `json:"id"`
+	Opponent   string            `json:"opponent"`
+	Result     string            `json:"result"`
+	Loot       map[string]float64 `json:"loot"`
+	LostShips  map[string]int    `json:"lost_ships"`
+	Refund     map[string]float64 `json:"refund"`
+	Rounds     int               `json:"rounds"`
+	Timestamp  time.Time         `json:"timestamp"`
+}
+
 // Planet manages a single planet's game state.
 type Planet struct {
 	ID            string
@@ -39,6 +52,7 @@ type Planet struct {
 	Research      *research.ResearchSystem
 	Fleet         *ship.Fleet
 	Shipyard      *ship.Shipyard
+	Battles       []BattleRecord
 	game          *Game
 }
 
@@ -474,6 +488,98 @@ func (p *Planet) GetTotalShipCount() int {
 // GetShipEnergyConsumption returns the energy consumed by the fleet.
 func (p *Planet) GetShipEnergyConsumption() float64 {
 	return p.Fleet.TotalEnergyConsumption()
+}
+
+// AutoBattle simulates an auto-battle against an NPC planet fleet.
+func (p *Planet) AutoBattle(npcFleet *ship.Fleet) *BattleRecord {
+	attackerSnapshot := battle.NewFleetSnapshot(p.Fleet)
+	defenderSnapshot := battle.NewFleetSnapshot(npcFleet)
+
+	result := battle.CalculateBattle(attackerSnapshot, defenderSnapshot)
+
+	battleRecord := BattleRecord{
+		Opponent:  "npc",
+		Result:    result.Winner,
+		Loot:      result.AttackerLoot,
+		LostShips: result.AttackerLost,
+		Refund:    result.AttackerRefund,
+		Rounds:    result.Rounds,
+		Timestamp: time.Now(),
+	}
+
+	if result.Winner == "attacker" {
+		// Apply loot to planet resources
+		p.Resources.Money += result.AttackerLoot["money"]
+		p.Resources.AlienTech += result.AttackerLoot["alien_tech"]
+		p.Resources.Food += result.AttackerLoot["food"]
+		p.Resources.Composite += result.AttackerLoot["composite"]
+		p.Resources.Mechanisms += result.AttackerLoot["mechanisms"]
+		p.Resources.Reagents += result.AttackerLoot["reagents"]
+
+		// Apply refund for lost ships
+		p.Resources.Money += result.AttackerRefund["money"]
+		p.Resources.Food += result.AttackerRefund["food"]
+		p.Resources.Composite += result.AttackerRefund["composite"]
+		p.Resources.Mechanisms += result.AttackerRefund["mechanisms"]
+		p.Resources.Reagents += result.AttackerRefund["reagents"]
+
+		// Remove destroyed ships from fleet
+		for typeID, count := range result.AttackerLost {
+			p.Fleet.RemoveShips(typeID, count)
+		}
+
+		log.Printf("Planet %s won battle in %d rounds, loot: %v", p.ID, result.Rounds, result.AttackerLoot)
+	} else if result.Winner == "defender" {
+		// Remove destroyed ships from fleet
+		for typeID, count := range result.AttackerLost {
+			p.Fleet.RemoveShips(typeID, count)
+		}
+
+		log.Printf("Planet %s lost battle in %d rounds", p.ID, result.Rounds)
+	} else {
+		// Draw - both sides lost ships
+		for typeID, count := range result.AttackerLost {
+			p.Fleet.RemoveShips(typeID, count)
+		}
+
+		log.Printf("Planet %s drew battle in %d rounds", p.ID, result.Rounds)
+	}
+
+	p.Battles = append(p.Battles, battleRecord)
+
+	// Keep only last 50 battles
+	if len(p.Battles) > 50 {
+		p.Battles = p.Battles[len(p.Battles)-50:]
+	}
+
+	return &battleRecord
+}
+
+// GetBattleHistory returns the planet's battle history.
+func (p *Planet) GetBattleHistory() []BattleRecord {
+	return p.Battles
+}
+
+// GetFleetSnapshot creates a battle snapshot of the current fleet.
+func (p *Planet) GetFleetSnapshot() *battle.FleetSnapshot {
+	return battle.NewFleetSnapshot(p.Fleet)
+}
+
+// GetFleetStrength returns the total combat strength of the fleet.
+func (p *Planet) GetFleetStrength() float64 {
+	snapshot := p.GetFleetSnapshot()
+	return snapshot.TotalDPS() + snapshot.TotalHP()*0.1
+}
+
+// HasFleet returns true if the planet has any ships.
+func (p *Planet) HasFleet() bool {
+	return p.Fleet.TotalShipCount() > 0
+}
+
+// HasCombatFleet returns true if the planet has ships with weapons.
+func (p *Planet) HasCombatFleet() bool {
+	snapshot := p.GetFleetSnapshot()
+	return snapshot.HasCombatShips()
 }
 
 // PlanetError represents an error that occurred during a planet operation.

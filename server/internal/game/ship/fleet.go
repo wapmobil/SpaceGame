@@ -52,6 +52,14 @@ func (f *Fleet) RemoveShip(typeID TypeID, count int) int {
 	return 0
 }
 
+// RemoveShips removes ships by string typeID.
+func (f *Fleet) RemoveShips(typeID string, count int) {
+	if count <= 0 {
+		return
+	}
+	f.RemoveShip(TypeID(typeID), count)
+}
+
 // GetShipCount returns the number of ships of a given type.
 func (f *Fleet) GetShipCount(typeID TypeID) int {
 	key := string(typeID)

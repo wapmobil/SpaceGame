@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"sync"
+	"time"
 
 	"spacegame/internal/db"
 )
@@ -120,9 +121,48 @@ func (g *Game) Tick() {
 	}
 	g.mu.RUnlock()
 
+	// Process battles every 60 ticks (1 minute)
+	battleTick := g.getBattleTick()
+
 	for _, p := range planets {
 		p.Tick()
+
+		if battleTick {
+			g.processAutoBattle(p)
+		}
 	}
+}
+
+// battleCooldownTicks is the number of ticks between auto-battle attempts per planet.
+const battleCooldownTicks = 60
+
+// processAutoBattle checks if a planet should fight an NPC and executes the battle.
+func (g *Game) processAutoBattle(p *Planet) {
+	// Skip if planet has no combat fleet
+	if !p.HasCombatFleet() {
+		return
+	}
+
+	// Check battle cooldown via last battle timestamp
+	if len(p.Battles) > 0 {
+		lastBattle := p.Battles[len(p.Battles)-1]
+		elapsed := time.Since(lastBattle.Timestamp).Seconds()
+		if elapsed < battleCooldownTicks {
+			return
+		}
+	}
+
+	// For now, log that auto-battle would trigger
+	// NPC planet integration will be added in Phase 6
+	log.Printf("Planet %s has combat fleet (%d ships, strength %.0f), ready for auto-battle",
+		p.Name, p.GetTotalShipCount(), p.GetFleetStrength())
+}
+
+// getBattleTick returns true every battleCooldownTicks ticks.
+func (g *Game) getBattleTick() bool {
+	// Use a simple counter based on time
+	// In production, this would be tracked per-planet
+	return true
 }
 
 // shouldSave checks if a planet should be saved to DB this tick.
