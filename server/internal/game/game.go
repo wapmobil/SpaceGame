@@ -23,11 +23,12 @@ func SetInstance(g *Game) {
 
 // Game is the core game engine managing all planets.
 type Game struct {
-	planets     map[string]*Planet
-	mu          sync.RWMutex
-	saveCount   map[string]int
-	db          *db.Database
-	Marketplace *Marketplace
+	planets       map[string]*Planet
+	mu            sync.RWMutex
+	saveCount     map[string]int
+	db            *db.Database
+	Marketplace   *Marketplace
+	broadcastFunc func(planetID, playerID string, state map[string]interface{})
 }
 
 // New creates a new Game instance.
@@ -228,16 +229,31 @@ func (g *Game) savePlanet(p *Planet) {
 }
 
 // broadcastPlanetUpdate sends a state update to all connected clients for a planet.
-func (g *Game) broadcastPlanetUpdate(p *Planet) {
-	_ = p.GetState()
+func (g *Planet) broadcastPlanetUpdate() {
+	if g.game == nil {
+		return
+	}
 
-	// TODO: Send to WebSocket clients
-	// For now, just log
-	log.Printf("Broadcasting update for planet %s", p.ID)
+	state := g.GetState()
+	playerID := g.OwnerID
+	planetID := g.ID
+
+	// Import the broadcast function from api package
+	// We'll use a callback pattern to avoid circular imports
+	if g.game.broadcastFunc != nil {
+		g.game.broadcastFunc(planetID, playerID, state)
+	}
 }
 
-// RegisterHandler adds a WebSocket handler for planet updates.
-func (g *Game) RegisterHandler(handler func(planetID string, data []byte)) {
-	// TODO: Implement WebSocket handler registration
-	log.Println("WebSocket handler registered (stub)")
+// RegisterBroadcastHandler sets the broadcast callback function.
+func (g *Game) RegisterBroadcastHandler(fn func(planetID, playerID string, state map[string]interface{})) {
+	g.broadcastFunc = fn
+}
+
+// broadcastFunc is the callback for broadcasting planet updates.
+var broadcastFunc func(planetID, playerID string, state map[string]interface{})
+
+// SetBroadcastFunc sets the global broadcast function.
+func SetBroadcastFunc(fn func(planetID, playerID string, state map[string]interface{})) {
+	broadcastFunc = fn
 }

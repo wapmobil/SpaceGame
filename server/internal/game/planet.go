@@ -323,7 +323,7 @@ func (p *Planet) Tick() {
 	}
 
 	// Broadcast state update
-	p.game.broadcastPlanetUpdate(p)
+	p.broadcastPlanetUpdate()
 }
 
 // GetState returns the planet's state as a JSON-serializable map.

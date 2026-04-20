@@ -15,8 +15,9 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Post("/api/register", handleRegister(db))
 	r.Get("/api/planets", handleListPlanets(db))
 	r.Post("/api/planets", handleCreatePlanet(db))
-	r.Get("/ws", handleWebSocket(db))
+	r.Get("/ws", handleWebSocket(nil))
 	r.Get("/health", handleHealth)
+	r.Get("/ws/health", handleWebSocketHealth)
 
 	r.Get("/api/planets/{id}/research", handleGetResearch(db))
 	r.Post("/api/planets/{id}/research/start", handleStartResearch(db))
