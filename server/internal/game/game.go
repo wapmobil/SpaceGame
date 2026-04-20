@@ -23,17 +23,19 @@ func SetInstance(g *Game) {
 
 // Game is the core game engine managing all planets.
 type Game struct {
-	planets   map[string]*Planet
-	mu        sync.RWMutex
-	saveCount map[string]int
-	db        *db.Database
+	planets     map[string]*Planet
+	mu          sync.RWMutex
+	saveCount   map[string]int
+	db          *db.Database
+	Marketplace *Marketplace
 }
 
 // New creates a new Game instance.
 func New() *Game {
 	return &Game{
-		planets:   make(map[string]*Planet),
-		saveCount: make(map[string]int),
+		planets:     make(map[string]*Planet),
+		saveCount:   make(map[string]int),
+		Marketplace: NewMarketplace(),
 	}
 }
 

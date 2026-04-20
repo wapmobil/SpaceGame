@@ -141,3 +141,52 @@ type ExpeditionsListResponse struct {
 	CanStartNew      bool                 `json:"can_start_new"`
 	ExpeditionsUnlocked bool              `json:"expeditions_unlocked"`
 }
+
+// CreateMarketOrderRequest is the request body for creating a market order.
+type CreateMarketOrderRequest struct {
+	Resource  string  `json:"resource"`
+	OrderType string  `json:"order_type"`
+	Amount    float64 `json:"amount"`
+	Price     float64 `json:"price"`
+	IsPrivate bool    `json:"is_private"`
+}
+
+// MarketOrderResponse represents a market order in API responses.
+type MarketOrderResponse struct {
+	ID               string                 `json:"id"`
+	PlanetID         string                 `json:"planet_id"`
+	PlayerID         string                 `json:"player_id"`
+	Resource         string                 `json:"resource"`
+	OrderType        string                 `json:"order_type"`
+	Amount           float64                `json:"amount"`
+	Price            float64                `json:"price"`
+	IsPrivate        bool                   `json:"is_private"`
+	Link             string                 `json:"link,omitempty"`
+	Status           string                 `json:"status"`
+	CreatedAt        string                 `json:"created_at"`
+	UpdatedAt        string                 `json:"updated_at"`
+	ReservedResources map[string]float64    `json:"reserved_resources,omitempty"`
+}
+
+// NPCTraderResponse represents an NPC trader in API responses.
+type NPCTraderResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	PlanetID  string `json:"planet_id"`
+	OrderID   string `json:"order_id"`
+	CreatedAt string `json:"created_at"`
+}
+
+// MarketMatchingResponse represents the result of order matching.
+type MarketMatchingResponse struct {
+	MatchedOrders  []string `json:"matched_orders"`
+	ExecutedTrades int      `json:"executed_trades"`
+	TotalVolume    float64  `json:"total_volume"`
+}
+
+// MarketStatsResponse represents marketplace statistics.
+type MarketStatsResponse struct {
+	TotalOrders   int `json:"total_orders"`
+	ActiveOrders  int `json:"active_orders"`
+	NPCTraderCount int `json:"npc_trader_count"`
+}

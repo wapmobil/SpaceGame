@@ -3,6 +3,8 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -560,6 +562,15 @@ func chiURLParam(r *http.Request, key string) string {
 			rest = strings.TrimSuffix(rest, "/action")
 			return rest
 		}
+		// Try market prefix
+		marketPrefix := "/api/market/"
+		if strings.HasPrefix(path, marketPrefix) {
+			rest := strings.TrimPrefix(path, marketPrefix)
+			rest = strings.TrimSuffix(rest, "/orders")
+			rest = strings.TrimSuffix(rest, "/match")
+			rest = strings.TrimSuffix(rest, "/traders")
+			return rest
+		}
 		return ""
 	}
 	rest := strings.TrimPrefix(path, prefix)
@@ -570,6 +581,7 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/ships/available")
 	rest = strings.TrimSuffix(rest, "/battles")
 	rest = strings.TrimSuffix(rest, "/expeditions")
+	rest = strings.TrimSuffix(rest, "/market/orders")
 	return rest
 }
 
@@ -953,6 +965,570 @@ func handleExpeditionAction(db *sql.DB) http.HandlerFunc {
 			"status":  "action_completed",
 			"action":  req.Action,
 			"expedition_id": expeditionID,
+		})
+	}
+}
+
+// getMarketplace returns the global marketplace instance.
+func getMarketplace() *game.Marketplace {
+	g := game.Instance()
+	if g == nil {
+		return nil
+	}
+	return g.Marketplace
+}
+
+func handleCreateMarketOrder(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req CreateMarketOrderRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Resource == "" {
+			http.Error(w, "Missing resource", http.StatusBadRequest)
+			return
+		}
+		if req.OrderType == "" {
+			http.Error(w, "Missing order_type", http.StatusBadRequest)
+			return
+		}
+		if req.Amount <= 0 {
+			http.Error(w, "Amount must be positive", http.StatusBadRequest)
+			return
+		}
+		if req.Price <= 0 {
+			http.Error(w, "Price must be positive", http.StatusBadRequest)
+			return
+		}
+
+		// Validate order type
+		if req.OrderType != "buy" && req.OrderType != "sell" {
+			http.Error(w, "Invalid order_type: must be 'buy' or 'sell'", http.StatusBadRequest)
+			return
+		}
+
+		// Validate resource
+		validResources := map[string]bool{
+			"food": true, "composite": true, "mechanisms": true, "reagents": true,
+		}
+		if !validResources[req.Resource] {
+			http.Error(w, "Invalid resource", http.StatusBadRequest)
+			return
+		}
+
+		// Check energy cost
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		if p.Resources.Energy < game.OrderCreationCost {
+			http.Error(w, fmt.Sprintf("Insufficient energy. Need %.0f energy, have %.0f", game.OrderCreationCost, p.Resources.Energy), http.StatusConflict)
+			return
+		}
+
+		// Check resource availability
+		orderType := game.OrderType(req.OrderType)
+		if orderType == game.OrderSell {
+			switch req.Resource {
+			case "food":
+				if p.Resources.Food < req.Amount {
+					http.Error(w, fmt.Sprintf("Insufficient %s. Need %.0f, have %.0f", req.Resource, req.Amount, p.Resources.Food), http.StatusConflict)
+					return
+				}
+			case "composite":
+				if p.Resources.Composite < req.Amount {
+					http.Error(w, fmt.Sprintf("Insufficient %s. Need %.0f, have %.0f", req.Resource, req.Amount, p.Resources.Composite), http.StatusConflict)
+					return
+				}
+			case "mechanisms":
+				if p.Resources.Mechanisms < req.Amount {
+					http.Error(w, fmt.Sprintf("Insufficient %s. Need %.0f, have %.0f", req.Resource, req.Amount, p.Resources.Mechanisms), http.StatusConflict)
+					return
+				}
+			case "reagents":
+				if p.Resources.Reagents < req.Amount {
+					http.Error(w, fmt.Sprintf("Insufficient %s. Need %.0f, have %.0f", req.Resource, req.Amount, p.Resources.Reagents), http.StatusConflict)
+					return
+				}
+			}
+		}
+
+		// Create order
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		order, err := mp.CreateOrder(planetID, playerID, req.Resource, orderType, req.Amount, req.Price, req.IsPrivate)
+		if err != nil {
+			errMsg := err.Error()
+			switch {
+			case strings.Contains(errMsg, "exceeds maximum"):
+				http.Error(w, errMsg, http.StatusBadRequest)
+			case strings.Contains(errMsg, "price must be"):
+				http.Error(w, errMsg, http.StatusBadRequest)
+			case strings.Contains(errMsg, "invalid resource"):
+				http.Error(w, errMsg, http.StatusBadRequest)
+			case strings.Contains(errMsg, "invalid order type"):
+				http.Error(w, errMsg, http.StatusBadRequest)
+			default:
+				http.Error(w, "Failed to create order", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		// Deduct order creation cost
+		p.Resources.Energy -= game.OrderCreationCost
+		if p.Resources.Energy < 0 {
+			p.Resources.Energy = 0
+		}
+
+		// Deduct resources for sell orders (reserved)
+		if orderType == game.OrderSell {
+			switch req.Resource {
+			case "food":
+				p.Resources.Food -= req.Amount
+			case "composite":
+				p.Resources.Composite -= req.Amount
+			case "mechanisms":
+				p.Resources.Mechanisms -= req.Amount
+			case "reagents":
+				p.Resources.Reagents -= req.Amount
+			}
+		}
+
+		// Reserve resources for buy orders
+		if orderType == game.OrderBuy {
+			switch req.Resource {
+			case "food":
+				p.Resources.Food -= req.Amount * req.Price
+			case "composite":
+				p.Resources.Composite -= req.Amount * req.Price
+			case "mechanisms":
+				p.Resources.Mechanisms -= req.Amount * req.Price
+			case "reagents":
+				p.Resources.Reagents -= req.Amount * req.Price
+			}
+		}
+
+		resp := MarketOrderResponse{
+			ID:               order.ID,
+			PlanetID:         order.PlanetID,
+			PlayerID:         order.PlayerID,
+			Resource:         order.Resource,
+			OrderType:        string(order.OrderType),
+			Amount:           order.Amount,
+			Price:            order.Price,
+			IsPrivate:        order.IsPrivate,
+			Link:             order.Link,
+			Status:           string(order.Status),
+			CreatedAt:        order.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:        order.UpdatedAt.Format(time.RFC3339),
+			ReservedResources: order.ReservedResources,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleGetMyOrders(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		orders := mp.GetMyOrders(playerID)
+
+		resp := make([]MarketOrderResponse, 0, len(orders))
+		for _, order := range orders {
+			resp = append(resp, MarketOrderResponse{
+				ID:               order.ID,
+				PlanetID:         order.PlanetID,
+				PlayerID:         order.PlayerID,
+				Resource:         order.Resource,
+				OrderType:        string(order.OrderType),
+				Amount:           order.Amount,
+				Price:            order.Price,
+				IsPrivate:        order.IsPrivate,
+				Link:             order.Link,
+				Status:           string(order.Status),
+				CreatedAt:        order.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:        order.UpdatedAt.Format(time.RFC3339),
+				ReservedResources: order.ReservedResources,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleGetGlobalMarket(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		orders := mp.GetVisibleOrders(playerID)
+
+		// Group by resource and type for better display
+		buyOrders := make(map[string][]MarketOrderResponse)
+		sellOrders := make(map[string][]MarketOrderResponse)
+
+		for _, order := range orders {
+			resp := MarketOrderResponse{
+				ID:               order.ID,
+				PlanetID:         order.PlanetID,
+				PlayerID:         order.PlayerID,
+				Resource:         order.Resource,
+				OrderType:        string(order.OrderType),
+				Amount:           order.Amount,
+				Price:            order.Price,
+				IsPrivate:        order.IsPrivate,
+				Link:             order.Link,
+				Status:           string(order.Status),
+				CreatedAt:        order.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:        order.UpdatedAt.Format(time.RFC3339),
+				ReservedResources: order.ReservedResources,
+			}
+			if order.OrderType == game.OrderBuy {
+				buyOrders[order.Resource] = append(buyOrders[order.Resource], resp)
+			} else {
+				sellOrders[order.Resource] = append(sellOrders[order.Resource], resp)
+			}
+		}
+
+		// Calculate best prices
+		bestBuyPrice := 0.0
+		bestSellPrice := math.MaxFloat64
+
+		for _, orders := range buyOrders {
+			for _, order := range orders {
+				if order.Price > bestBuyPrice {
+					bestBuyPrice = order.Price
+				}
+			}
+		}
+		for _, orders := range sellOrders {
+			for _, order := range orders {
+				if order.Price < bestSellPrice {
+					bestSellPrice = order.Price
+				}
+			}
+		}
+		if bestSellPrice == math.MaxFloat64 {
+			bestSellPrice = 0
+		}
+
+		// Calculate total volume
+		totalVolume := 0.0
+		for _, orders := range buyOrders {
+			for _, order := range orders {
+				totalVolume += order.Amount * order.Price
+			}
+		}
+		for _, orders := range sellOrders {
+			for _, order := range orders {
+				totalVolume += order.Amount * order.Price
+			}
+		}
+
+		// Count NPC traders
+		npcTraderCount := len(mp.GetAllNPCTraders())
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"buy_orders":       buyOrders,
+			"sell_orders":      sellOrders,
+			"best_buy_price":   bestBuyPrice,
+			"best_sell_price":  bestSellPrice,
+			"total_volume":     totalVolume,
+			"active_orders":    len(orders),
+			"npc_trader_count": npcTraderCount,
+		})
+	}
+}
+
+func handleDeleteMarketOrder(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		orderID := chiURLParam(r, "id")
+		if orderID == "" {
+			http.Error(w, "Missing order id", http.StatusBadRequest)
+			return
+		}
+
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		order := mp.GetOrder(orderID)
+		if order == nil {
+			http.Error(w, "Order not found", http.StatusNotFound)
+			return
+		}
+
+		// Check ownership
+		if order.PlayerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Find the planet to refund resources
+		p := game.Instance().GetPlanet(order.PlanetID)
+		if p == nil {
+			// Try to find any planet owned by this player
+			var planetID string
+			err = db.QueryRow("SELECT id FROM planets WHERE player_id = $1 LIMIT 1", playerID).Scan(&planetID)
+			if err == nil {
+				p = game.Instance().GetPlanet(planetID)
+				if p == nil {
+					p = game.NewPlanet(planetID, playerID, "", game.Instance())
+				}
+			}
+		}
+
+		// Refund reserved resources
+		if p != nil {
+			for resource, amount := range order.ReservedResources {
+				switch resource {
+				case "food":
+					p.Resources.Food += amount
+				case "composite":
+					p.Resources.Composite += amount
+				case "mechanisms":
+					p.Resources.Mechanisms += amount
+				case "reagents":
+					p.Resources.Reagents += amount
+				}
+			}
+
+			// Refund energy cost
+			p.Resources.Energy += game.OrderCreationCost
+		}
+
+		// Delete the order
+		err = mp.DeleteOrder(orderID)
+		if err != nil {
+			errMsg := err.Error()
+			switch {
+			case strings.Contains(errMsg, "not found"):
+				http.Error(w, "Order not found", http.StatusNotFound)
+			case strings.Contains(errMsg, "not active"):
+				http.Error(w, "Order is not active and cannot be deleted", http.StatusConflict)
+			default:
+				http.Error(w, "Failed to delete order", http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "deleted",
+			"order_id": orderID,
+			"refunded_energy": game.OrderCreationCost,
+		})
+	}
+}
+
+func handleGetNPCTraders(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		_ = playerID // authenticated user
+
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		traders := mp.GetAllNPCTraders()
+
+		resp := make([]NPCTraderResponse, 0, len(traders))
+		for _, trader := range traders {
+			resp = append(resp, NPCTraderResponse{
+				ID:        trader.ID,
+				Name:      trader.Name,
+				PlanetID:  trader.PlanetID,
+				OrderID:   trader.OrderID,
+				CreatedAt: trader.CreatedAt.Format(time.RFC3339),
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleMatchOrders(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		_ = playerID // authenticated user
+
+		mp := getMarketplace()
+		if mp == nil {
+			http.Error(w, "Marketplace not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		result := mp.MatchOrders()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(MarketMatchingResponse{
+			MatchedOrders:  result.MatchedOrders,
+			ExecutedTrades: result.ExecutedTrades,
+			TotalVolume:    result.TotalVolume,
 		})
 	}
 }
