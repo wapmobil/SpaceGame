@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS ratings;
+DROP TABLE IF EXISTS npc_planets;
+DROP TABLE IF EXISTS market_orders;
+DROP TABLE IF EXISTS battles;
+DROP TABLE IF EXISTS expeditions;
+DROP TABLE IF EXISTS fleets;
+DROP TABLE IF EXISTS ships;
+DROP TABLE IF EXISTS research;
+DROP TABLE IF EXISTS buildings;
+DROP TABLE IF EXISTS planets;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS schema_migrations;
+DROP FUNCTION IF EXISTS update_updated_at_column();

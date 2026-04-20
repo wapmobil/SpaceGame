@@ -1,0 +1,201 @@
+package game
+
+import (
+	"encoding/json"
+	"log"
+	"sync"
+
+	"spacegame/internal/db"
+)
+
+var globalInstance *Game
+
+// Instance returns the global Game singleton.
+func Instance() *Game {
+	return globalInstance
+}
+
+// SetInstance sets the global Game singleton.
+func SetInstance(g *Game) {
+	globalInstance = g
+}
+
+// Game is the core game engine managing all planets.
+type Game struct {
+	planets   map[string]*Planet
+	mu        sync.RWMutex
+	saveCount map[string]int
+	db        *db.Database
+}
+
+// New creates a new Game instance.
+func New() *Game {
+	return &Game{
+		planets:   make(map[string]*Planet),
+		saveCount: make(map[string]int),
+	}
+}
+
+// SetDB sets the database connection for saving planet state.
+func (g *Game) SetDB(d *db.Database) {
+	g.db = d
+}
+
+// AddPlanet adds a planet to the game engine.
+func (g *Game) AddPlanet(p *Planet) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.planets[p.ID] = p
+	log.Printf("Added planet %s (%s) to game engine", p.Name, p.ID)
+}
+
+// GetPlanet returns a planet by ID.
+func (g *Game) GetPlanet(id string) *Planet {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.planets[id]
+}
+
+// GetAllPlanets returns all planets.
+func (g *Game) GetAllPlanets() []*Planet {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	result := make([]*Planet, 0, len(g.planets))
+	for _, p := range g.planets {
+		result = append(result, p)
+	}
+	return result
+}
+
+// LoadPlanetsFromDB loads all active planets from the database.
+func (g *Game) LoadPlanetsFromDB() error {
+	if g.db == nil {
+		log.Println("No database connection, skipping planet load")
+		return nil
+	}
+
+	rows, err := g.db.Query(`
+		SELECT id, player_id, name, level, resources, 
+		       (SELECT COUNT(*) FROM buildings WHERE planet_id = p.id) as building_count
+		FROM planets p
+		ORDER BY updated_at DESC
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, ownerID, name string
+		var level int
+		var resourcesJSON []byte
+		var buildingCount int
+		if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &buildingCount); err != nil {
+			log.Printf("Error scanning planet row: %v", err)
+			continue
+		}
+
+		planet := NewPlanet(id, ownerID, name, g)
+		planet.Level = level
+
+		// Parse resources from JSON
+		var resources PlanetResources
+		if err := json.Unmarshal(resourcesJSON, &resources); err == nil {
+			planet.Resources = resources
+		}
+
+		g.AddPlanet(planet)
+	}
+
+	log.Printf("Loaded %d planets from database", len(g.planets))
+	return nil
+}
+
+// Tick processes one game tick for all planets.
+func (g *Game) Tick() {
+	g.mu.RLock()
+	planets := make([]*Planet, 0, len(g.planets))
+	for _, p := range g.planets {
+		planets = append(planets, p)
+	}
+	g.mu.RUnlock()
+
+	for _, p := range planets {
+		p.Tick()
+	}
+}
+
+// shouldSave checks if a planet should be saved to DB this tick.
+func (g *Game) shouldSave(planetID string) bool {
+	g.saveCount[planetID]++
+	return g.saveCount[planetID] >= 10 // Save every 10 ticks
+}
+
+// savePlanet saves planet state to the database.
+func (g *Game) savePlanet(p *Planet) {
+	if g.db == nil {
+		return
+	}
+
+	_, err := g.db.Exec(`
+		UPDATE planets 
+		SET resources = $1, updated_at = NOW()
+		WHERE id = $3
+	`, p.Resources, p.ID)
+
+	if err != nil {
+		log.Printf("Error saving planet %s: %v", p.ID, err)
+	}
+
+	// Save research state
+	if err := p.Research.SaveToDB(); err != nil {
+		log.Printf("Error saving research for planet %s: %v", p.ID, err)
+	}
+
+	// Save fleet state
+	fleetData, err := json.Marshal(p.Fleet.GetShipState())
+	if err != nil {
+		log.Printf("Error marshaling fleet for planet %s: %v", p.ID, err)
+	} else {
+		_, err = g.db.Exec(`
+			UPDATE planets 
+			SET fleet_state = $1, updated_at = NOW()
+			WHERE id = $3
+		`, string(fleetData), p.ID)
+		if err != nil {
+			log.Printf("Error saving fleet for planet %s: %v", p.ID, err)
+		}
+	}
+
+	// Save shipyard state
+	shipyardData, err := json.Marshal(p.Shipyard)
+	if err != nil {
+		log.Printf("Error marshaling shipyard for planet %s: %v", p.ID, err)
+	} else {
+		_, err = g.db.Exec(`
+			UPDATE planets 
+			SET shipyard_state = $1, updated_at = NOW()
+			WHERE id = $3
+		`, string(shipyardData), p.ID)
+		if err != nil {
+			log.Printf("Error saving shipyard for planet %s: %v", p.ID, err)
+		}
+	}
+
+	g.saveCount[p.ID] = 0
+}
+
+// broadcastPlanetUpdate sends a state update to all connected clients for a planet.
+func (g *Game) broadcastPlanetUpdate(p *Planet) {
+	_ = p.GetState()
+
+	// TODO: Send to WebSocket clients
+	// For now, just log
+	log.Printf("Broadcasting update for planet %s", p.ID)
+}
+
+// RegisterHandler adds a WebSocket handler for planet updates.
+func (g *Game) RegisterHandler(handler func(planetID string, data []byte)) {
+	// TODO: Implement WebSocket handler registration
+	log.Println("WebSocket handler registered (stub)")
+}
