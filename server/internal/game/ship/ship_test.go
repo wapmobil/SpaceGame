@@ -240,17 +240,17 @@ func TestShipyardMaxSlots(t *testing.T) {
 
 func TestShipyardCanQueueShip(t *testing.T) {
 	sy := NewShipyard()
-	sy.Level = 3
+	sy.Level = 4
 
 	st := GetShipType(TypeCruiser)
 
 	if !sy.CanQueueShip(st, 2000, 2000, 2000, 2000, 2000) {
-		t.Error("expected to be able to queue cruiser with level 3 shipyard and enough resources")
+		t.Error("expected to be able to queue cruiser with level 4 shipyard and enough resources")
 	}
 
-	sy.Level = 2
+	sy.Level = 3
 	if sy.CanQueueShip(st, 2000, 2000, 2000, 2000, 2000) {
-		t.Error("expected to not queue cruiser with level 2 shipyard (needs level 4)")
+		t.Error("expected to not queue cruiser with level 3 shipyard (needs level 4)")
 	}
 }
 
@@ -280,13 +280,10 @@ func TestShipyardQueueAndTick(t *testing.T) {
 		t.Errorf("expected food 90 after deduct, got %f", food)
 	}
 
-	// Tick until complete
-	for sy.GetQueueProgress() < 100 {
+	// Tick until the ship is completed (removed from queue)
+	for sy.GetQueuedCount() > 0 {
 		sy.Tick()
 	}
-
-	// One more tick to get the completion
-	_ = sy.Tick()
 
 	if sy.GetQueuedCount() != 0 {
 		t.Errorf("expected 0 ships in queue after completion, got %d", sy.GetQueuedCount())
