@@ -1,0 +1,294 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/game_provider.dart';
+import '../core/app_theme.dart';
+import '../utils/constants.dart';
+
+class MarketScreen extends StatelessWidget {
+  const MarketScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Marketplace')),
+      body: Consumer<GameProvider>(
+        builder: (context, gameProvider, _) {
+          final planet = gameProvider.selectedPlanet;
+          if (planet == null) return const Center(child: Text('No planet selected'));
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              await gameProvider.loadMarketData(planet.id);
+              await gameProvider.loadMyOrders(planet.id);
+            },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildMarketOverview(context, gameProvider),
+                  const SizedBox(height: 16),
+                  _buildCreateOrder(context, gameProvider),
+                  const SizedBox(height: 16),
+                  _buildBuyOrders(context, gameProvider),
+                  const SizedBox(height: 16),
+                  _buildSellOrders(context, gameProvider),
+                  const SizedBox(height: 16),
+                  _buildMyOrders(context, gameProvider),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMarketOverview(BuildContext context, GameProvider gameProvider) {
+    final market = gameProvider.marketData;
+    if (market == null) return const Center(child: CircularProgressIndicator());
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Market Overview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _InfoTile('Buy Orders', market.buyOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
+                _InfoTile('Sell Orders', market.sellOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
+                _InfoTile('NPC Traders', market.npcTraderCount.toString()),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCreateOrder(BuildContext context, GameProvider gameProvider) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Create Order', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const SizedBox(height: 12),
+            _OrderForm(gameProvider: gameProvider),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBuyOrders(BuildContext context, GameProvider gameProvider) {
+    final market = gameProvider.marketData;
+    if (market == null) return const SizedBox.shrink();
+
+    return _buildOrderList(context, market.buyOrders, 'Buy Orders', AppTheme.accentColor);
+  }
+
+  Widget _buildSellOrders(BuildContext context, GameProvider gameProvider) {
+    final market = gameProvider.marketData;
+    if (market == null) return const SizedBox.shrink();
+
+    return _buildOrderList(context, market.sellOrders, 'Sell Orders', AppTheme.successColor);
+  }
+
+  Widget _buildOrderList(BuildContext context, Map<String, List> orders, String title, Color color) {
+    final allOrders = orders.values.expand((l) => l).toList();
+    if (allOrders.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 8),
+            ...allOrders.take(10).map((order) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      radius: 12,
+                      backgroundColor: color.withOpacity(0.2),
+                      child: Text(Constants.resourceIcons[order.resource] ?? '📦'),
+                    ),
+                    title: Text(
+                      '${Constants.resourceNames[order.resource] ?? order.resource}: ${order.amount.toStringAsFixed(0)} @ ${order.price.toStringAsFixed(0)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    subtitle: Text(
+                      'Total: ${(order.amount * order.price).toStringAsFixed(0)}',
+                      style: const TextStyle(fontSize: 10, color: Colors.white54),
+                    ),
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyOrders(BuildContext context, GameProvider gameProvider) {
+    final orders = gameProvider.myOrders;
+    if (orders.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('My Orders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const SizedBox(height: 8),
+            ...orders.map((order) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: ListTile(
+                    dense: true,
+                    leading: CircleAvatar(
+                      backgroundColor: order.isBuy
+                          ? AppTheme.accentColor.withOpacity(0.2)
+                          : AppTheme.successColor.withOpacity(0.2),
+                      child: Text(order.isBuy ? 'B' : 'S'),
+                    ),
+                    title: Text(
+                      '${order.isBuy ? "Buy" : "Sell"} ${Constants.resourceNames[order.resource] ?? order.resource} ${order.amount.toStringAsFixed(0)} @ ${order.price.toStringAsFixed(0)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    subtitle: Text(order.status, style: TextStyle(fontSize: 10, color: order.isActive ? AppTheme.successColor : Colors.white54)),
+                    trailing: order.isActive
+                        ? IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            onPressed: () => gameProvider.deleteMarketOrder(order.id),
+                          )
+                        : null,
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderForm extends StatefulWidget {
+  final GameProvider gameProvider;
+
+  const _OrderForm({required this.gameProvider});
+
+  @override
+  State<_OrderForm> createState() => _OrderFormState();
+}
+
+class _OrderFormState extends State<_OrderForm> {
+  final _amountController = TextEditingController();
+  final _priceController = TextEditingController();
+  String _resource = 'food';
+  String _orderType = 'buy';
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _priceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _resource,
+                decoration: const InputDecoration(labelText: 'Resource'),
+                items: Constants.resourceNames.keys
+                    .where((k) => k != 'energy' && k != 'money' && k != 'alien_tech')
+                    .map((k) => DropdownMenuItem(value: k, child: Text(Constants.resourceNames[k]!)))
+                    .toList(),
+                onChanged: (v) => setState(() => _resource = v!),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                value: _orderType,
+                decoration: const InputDecoration(labelText: 'Type'),
+                items: const [
+                  DropdownMenuItem(value: 'buy', child: Text('Buy')),
+                  DropdownMenuItem(value: 'sell', child: Text('Sell')),
+                ],
+                onChanged: (v) => setState(() => _orderType = v!),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _amountController,
+                decoration: const InputDecoration(labelText: 'Amount'),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _priceController,
+                decoration: const InputDecoration(labelText: 'Price'),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(_amountController.text);
+              final price = double.tryParse(_priceController.text);
+              if (amount != null && price != null && amount > 0 && price > 0) {
+                widget.gameProvider.createMarketOrder(
+                  resource: _resource,
+                  orderType: _orderType,
+                  amount: amount,
+                  price: price,
+                );
+              }
+            },
+            child: Text('Create ${_orderType.toUpperCase()} Order'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoTile(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+      ],
+    );
+  }
+}

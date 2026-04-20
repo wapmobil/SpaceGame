@@ -4,6 +4,7 @@ class Building {
   final String type;
   final int level;
   final double buildProgress;
+  final DateTime? createdAt;
 
   Building({
     required this.id,
@@ -11,6 +12,7 @@ class Building {
     required this.type,
     this.level = 1,
     this.buildProgress = 0,
+    this.createdAt,
   });
 
   factory Building.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,9 @@ class Building {
       type: json['type'] as String,
       level: json['level'] as int? ?? 1,
       buildProgress: (json['build_progress'] as num?)?.toDouble() ?? 0,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
     );
   }
 

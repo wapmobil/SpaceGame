@@ -4,6 +4,7 @@ class Planet {
   final String name;
   final int level;
   final Map<String, dynamic> resources;
+  final DateTime? createdAt;
 
   Planet({
     required this.id,
@@ -11,6 +12,7 @@ class Planet {
     required this.name,
     this.level = 1,
     Map<String, dynamic>? resources,
+    this.createdAt,
   }) : resources = {...defaultResources, ...?resources};
 
   static const Map<String, dynamic> defaultResources = {
@@ -33,6 +35,9 @@ class Planet {
       resources: json['resources'] != null
           ? Map<String, dynamic>.from(json['resources'] as Map)
           : {},
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
     );
   }
 
@@ -44,5 +49,22 @@ class Planet {
       'level': level,
       'resources': resources,
     };
+  }
+
+  Planet copyWith({
+    String? id,
+    String? playerId,
+    String? name,
+    int? level,
+    Map<String, dynamic>? resources,
+  }) {
+    return Planet(
+      id: id ?? this.id,
+      playerId: playerId ?? this.playerId,
+      name: name ?? this.name,
+      level: level ?? this.level,
+      resources: resources ?? this.resources,
+      createdAt: createdAt,
+    );
   }
 }

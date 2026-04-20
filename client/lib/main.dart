@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/websocket_manager.dart';
+import 'core/app_theme.dart';
+import 'providers/game_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/landing_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const SpaceGameApp());
@@ -15,18 +19,23 @@ class SpaceGameApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => WebSocketManager()),
+        ChangeNotifierProvider(
+          create: (context) {
+            final ws = context.read<WebSocketManager>();
+            return GameProvider(websocket: ws);
+          },
+        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: MaterialApp(
         title: 'SpaceGame',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1a1a2e),
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
-        home: const LandingScreen(),
+        theme: AppTheme.theme,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const LandingScreen(),
+          '/home': (context) => const HomeScreen(),
+        },
       ),
     );
   }
