@@ -21,6 +21,7 @@ func New(g *game.Game) *Scheduler {
 func (s *Scheduler) Start() {
 	go s.gameTick()
 	go s.ratingsUpdate()
+	go s.randomEventsTick()
 	log.Println("Scheduler started")
 }
 
@@ -36,7 +37,15 @@ func (s *Scheduler) ratingsUpdate() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 	for range ticker.C {
-		// TODO: Update player ratings
-		log.Println("Ratings update tick")
+		log.Println("Computing ratings...")
+		s.game.ComputeRatings()
+	}
+}
+
+func (s *Scheduler) randomEventsTick() {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.game.TriggerRandomEvents()
 	}
 }

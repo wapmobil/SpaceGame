@@ -134,6 +134,9 @@ func (g *Game) Tick() {
 			g.processAutoBattle(p)
 		}
 	}
+
+	// Check for random events
+	g.TriggerRandomEvents()
 }
 
 // battleCooldownTicks is the number of ticks between auto-battle attempts per planet.

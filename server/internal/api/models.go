@@ -281,3 +281,56 @@ type MiningStartResponse struct {
 	Monsters       []MonsterResponse `json:"monsters"`
 	AvailableMoves []string   `json:"available_moves"`
 }
+
+// RatingEntryResponse represents a single entry in the leaderboard.
+type RatingEntryResponse struct {
+	Rank       int     `json:"rank"`
+	PlanetID   string  `json:"planet_id"`
+	PlayerName string  `json:"player_name"`
+	Category   string  `json:"category"`
+	Value      float64 `json:"value"`
+	Updated    string  `json:"updated"`
+}
+
+// RatingsResponse is the response for a ratings query.
+type RatingsResponse struct {
+	Category string                `json:"category"`
+	Entries  []RatingEntryResponse `json:"entries"`
+	Total    int                   `json:"total"`
+}
+
+// StatsResponse represents player statistics.
+type StatsResponse struct {
+	Lifetime      map[string]float64 `json:"lifetime"`
+	CategoryTotals map[string]interface{} `json:"category_totals"`
+	PlanetID      string             `json:"planet_id,omitempty"`
+	PlanetName    string             `json:"planet_name,omitempty"`
+}
+
+// EventHistoryEntry represents a single event log entry.
+type EventHistoryEntry struct {
+	ID          int       `json:"id"`
+	PlanetID    string    `json:"planet_id"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	Resolved    bool      `json:"resolved"`
+	CreatedAt   string    `json:"created_at"`
+	ResolvedAt  string    `json:"resolved_at,omitempty"`
+}
+
+// EventHistoryResponse represents the event history response.
+type EventHistoryResponse struct {
+	Events []EventHistoryEntry `json:"events"`
+	Total  int                 `json:"total"`
+}
+
+// ResolveEventRequest is the request body for resolving a random event.
+type ResolveEventRequest struct {
+	EventType string `json:"event_type"`
+}
+
+// ResolveEventResponse is the response for resolving a random event.
+type ResolveEventResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}

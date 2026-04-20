@@ -2030,3 +2030,273 @@ func handleGetMining(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(response)
 	}
 }
+
+func handleGetRatings(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		category := r.URL.Query().Get("category")
+		planetID := r.URL.Query().Get("planet_id")
+		limitStr := r.URL.Query().Get("limit")
+
+		limit := 100
+		if limitStr != "" {
+			fmt.Sscanf(limitStr, "%d", &limit)
+			if limit <= 0 || limit > 1000 {
+				limit = 100
+			}
+		}
+
+		g := game.Instance()
+		if g == nil {
+			http.Error(w, "Game not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		var result *game.RatingsResult
+		if planetID != "" {
+			var ownerID string
+			err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+			if err != nil {
+				http.Error(w, "Planet not found", http.StatusNotFound)
+				return
+			}
+			if ownerID != playerID {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+
+			entry, err := g.GetPlayerRank(category, planetID)
+			if err != nil {
+				http.Error(w, "Failed to get player rank", http.StatusInternalServerError)
+				return
+			}
+
+			result = &game.RatingsResult{
+				Category: category,
+				Entries:  []game.RatingEntry{*entry},
+				Total:    1,
+			}
+		} else {
+			result, err = g.GetRatings(category, limit, "")
+			if err != nil {
+				http.Error(w, "Failed to get ratings", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	}
+}
+
+func handleGetStats(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID != "" {
+			var ownerID string
+			err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+			if err != nil {
+				http.Error(w, "Planet not found", http.StatusNotFound)
+				return
+			}
+			if ownerID != playerID {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+				return
+			}
+		}
+
+		g := game.Instance()
+		if g == nil {
+			http.Error(w, "Game not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		statsTracker := game.NewStatsTracker(g)
+		var response map[string]interface{}
+
+		if planetID != "" {
+			response, err = statsTracker.GetStatsForPlanet(planetID)
+		} else {
+			response, err = statsTracker.GetStatsSummary(playerID)
+		}
+
+		if err != nil {
+			http.Error(w, "Failed to get stats", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func handleGetEventHistory(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		limitStr := r.URL.Query().Get("limit")
+		limit := 50
+		if limitStr != "" {
+			fmt.Sscanf(limitStr, "%d", &limit)
+			if limit <= 0 || limit > 100 {
+				limit = 50
+			}
+		}
+
+		g := game.Instance()
+		if g == nil {
+			http.Error(w, "Game not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		events, err := g.GetEventHistory(playerID, limit)
+		if err != nil {
+			http.Error(w, "Failed to get event history", http.StatusInternalServerError)
+			return
+		}
+
+		if events == nil {
+			events = []map[string]interface{}{}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"events": events,
+			"total":  len(events),
+		})
+	}
+}
+
+func handleResolveEvent(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req struct {
+			EventType string `json:"event_type"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.EventType == "" {
+			http.Error(w, "Missing event_type", http.StatusBadRequest)
+			return
+		}
+
+		g := game.Instance()
+		if g == nil {
+			http.Error(w, "Game not initialized", http.StatusInternalServerError)
+			return
+		}
+
+		message, err := g.ResolveEvent(planetID, req.EventType)
+		if err != nil {
+			errMsg := err.Error()
+			switch {
+			case strings.Contains(errMsg, "planet_not_found"):
+				http.Error(w, "Planet not found", http.StatusNotFound)
+			case strings.Contains(errMsg, "unknown_event_type"):
+				http.Error(w, "Unknown event type", http.StatusBadRequest)
+			default:
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"success": false,
+					"message": errMsg,
+				})
+				return
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"message": message,
+		})
+	}
+}

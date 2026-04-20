@@ -45,6 +45,17 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Post("/api/planets/{id}/mining/move", handleMiningMove(db))
 	r.Get("/api/planets/{id}/mining", handleGetMining(db))
 
+	// Ratings / Leaderboards
+	r.Get("/api/ratings", handleGetRatings(db))
+
+	// Statistics
+	r.Get("/api/stats", handleGetStats(db))
+	r.Get("/api/planets/{id}/stats", handleGetStats(db))
+
+	// Events
+	r.Get("/api/events", handleGetEventHistory(db))
+	r.Post("/api/planets/{id}/events/resolve", handleResolveEvent(db))
+
 	return r
 }
 
