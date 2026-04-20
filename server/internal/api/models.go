@@ -186,7 +186,98 @@ type MarketMatchingResponse struct {
 
 // MarketStatsResponse represents marketplace statistics.
 type MarketStatsResponse struct {
-	TotalOrders   int `json:"total_orders"`
-	ActiveOrders  int `json:"active_orders"`
+	TotalOrders    int `json:"total_orders"`
+	ActiveOrders   int `json:"active_orders"`
 	NPCTraderCount int `json:"npc_trader_count"`
+}
+
+// StartMiningRequest is the request body for starting a mining session.
+type StartMiningRequest struct {
+	BaseLevel int `json:"base_level"`
+}
+
+// MiningMoveRequest is the request body for moving in a mining session.
+type MiningMoveRequest struct {
+	Direction string `json:"direction"` // "up", "down", "left", "right"
+	Slide     bool   `json:"slide"`     // if true, slide to wall
+}
+
+// MiningStateResponse represents the current state of a mining session.
+type MiningStateResponse struct {
+	SessionID      string     `json:"session_id"`
+	PlanetID       string     `json:"planet_id"`
+	PlayerID       string     `json:"player_id"`
+	Maze           [][]string `json:"maze"`
+	PlayerX        int        `json:"player_x"`
+	PlayerY        int        `json:"player_y"`
+	PlayerHP       int        `json:"player_hp"`
+	PlayerMaxHP    int        `json:"player_max_hp"`
+	PlayerBombs    int        `json:"player_bombs"`
+	MoneyCollected float64    `json:"money_collected"`
+	Status         string     `json:"status"`
+	ExitX          int        `json:"exit_x"`
+	ExitY          int        `json:"exit_y"`
+	BaseLevel      int        `json:"base_level"`
+	Monsters       []MonsterResponse `json:"monsters"`
+	AvailableMoves []string    `json:"available_moves"`
+	StartTime      string    `json:"start_time"`
+	CompletedAt    string    `json:"completed_at,omitempty"`
+}
+
+// MonsterResponse represents a monster in API responses.
+type MonsterResponse struct {
+	ID        string  `json:"id"`
+	Type      string  `json:"type"`
+	Name      string  `json:"name"`
+	Icon      string  `json:"icon"`
+	X         int     `json:"x"`
+	Y         int     `json:"y"`
+	HP        int     `json:"hp"`
+	MaxHP     int     `json:"max_hp"`
+	Damage    int     `json:"damage"`
+	Reward    float64 `json:"reward"`
+	Alive     bool    `json:"alive"`
+}
+
+// MiningMoveResponse represents the result of a move action.
+type MiningMoveResponse struct {
+	Success        bool            `json:"success"`
+	Message        string          `json:"message,omitempty"`
+	Maze           [][]string      `json:"maze"`
+	PlayerX        int             `json:"player_x"`
+	PlayerY        int             `json:"player_y"`
+	PlayerHP       int             `json:"player_hp"`
+	PlayerBombs    int             `json:"player_bombs"`
+	MoneyCollected float64         `json:"money_collected"`
+	Encounter      *EncounterResponse `json:"encounter,omitempty"`
+	GameEnded      bool            `json:"game_ended"`
+	EndReason      string          `json:"end_reason,omitempty"`
+}
+
+// EncounterResponse represents a monster encounter.
+type EncounterResponse struct {
+	MonsterID   string  `json:"monster_id"`
+	MonsterName string  `json:"monster_name"`
+	MonsterIcon string  `json:"monster_icon"`
+	Damage      int     `json:"damage"`
+	Reward      float64 `json:"reward"`
+	Killed      bool    `json:"killed"`
+}
+
+// MiningStartResponse is the response for starting a mining session.
+type MiningStartResponse struct {
+	Status         string     `json:"status"`
+	SessionID      string     `json:"session_id"`
+	Maze           [][]string `json:"maze"`
+	PlayerX        int        `json:"player_x"`
+	PlayerY        int        `json:"player_y"`
+	PlayerHP       int        `json:"player_hp"`
+	PlayerMaxHP    int        `json:"player_max_hp"`
+	PlayerBombs    int        `json:"player_bombs"`
+	MoneyCollected float64    `json:"money_collected"`
+	ExitX          int        `json:"exit_x"`
+	ExitY          int        `json:"exit_y"`
+	BaseLevel      int        `json:"base_level"`
+	Monsters       []MonsterResponse `json:"monsters"`
+	AvailableMoves []string   `json:"available_moves"`
 }

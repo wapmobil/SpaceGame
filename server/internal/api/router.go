@@ -39,6 +39,11 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/api/market/traders", handleGetNPCTraders(db))
 	r.Post("/api/market/match", handleMatchOrders(db))
 
+	// Mining mini-game
+	r.Post("/api/planets/{id}/mining/start", handleStartMining(db))
+	r.Post("/api/planets/{id}/mining/move", handleMiningMove(db))
+	r.Get("/api/planets/{id}/mining", handleGetMining(db))
+
 	return r
 }
 
