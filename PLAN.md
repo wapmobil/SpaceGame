@@ -70,25 +70,25 @@
 
 ---
 
-## Фаза 6: Expeditions
+## Фаза 6: Expeditions ✅
 **Экспедиции: разведка, торговля, поддержка**
 
 ### Что реализовать:
-- [ ] Expedition struct (planet_id, fleet_id, target, progress, status)
-- [ ] 3 типа экспедиций:
+- [x] Expedition struct (planet_id, fleet_id, target, progress, status)
+- [x] 3 типа экспедиций:
   - Exploration — обнаружение NPC планет
   - Trade — торговля через маркетплейс
   - Support — помощь другим игрокам
-- [ ] NPC планеты (генерация, ресурсы, вражеские корабли)
-- [ ] Механика обнаружения (шанс зависит от длительности и размера флота)
-- [ ] Точки интереса: abandoned stations, debris, asteroids, unknown planets, alien bases
-- [ ] Действия в точках: loot, attack, wait for reinforcements
-- [ ] Energy cost для экспедиций
-- [ ] API endpoints:
+- [x] NPC планеты (генерация, ресурсы, вражеские корабли)
+- [x] Механика обнаружения (шанс зависит от длительности и размера флота)
+- [x] Точки интереса: abandoned stations, debris, asteroids, unknown planets, alien bases
+- [x] Действия в точках: loot, attack, wait for reinforcements
+- [x] Energy cost для экспедиций
+- [x] API endpoints:
   - POST /api/planets/:id/expeditions — создать экспедицию
   - GET /api/planets/:id/expeditions — список экспедиций
   - POST /api/expeditions/:id/action — действие в экспедиции
-- [ ] Unit тесты
+- [x] Unit тесты (11 тестов)
 
 ### Reference:
 - `/home/andrey/projects/SpaceTimeBot/main.qs` — expedition handling
@@ -221,6 +221,6 @@
 ---
 
 ## Итого
-- **Сделано:** 5/11 фаз
-- **Осталось:** 6 фаз
-- **Тестов пройдено:** 42+ (Go)
+- **Сделано:** 6/11 фаз
+- **Осталось:** 5 фаз
+- **Тестов пройдено:** 53+ (Go)
