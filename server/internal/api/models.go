@@ -77,3 +77,67 @@ type Cost struct {
 	Reagents   float64 `json:"reagents"`
 	Money      float64 `json:"money"`
 }
+
+// StartExpeditionRequest is the request body for starting an expedition.
+type StartExpeditionRequest struct {
+	ExpeditionType string  `json:"expedition_type"`
+	Target         string  `json:"target"`
+	Duration       float64 `json:"duration"`
+	ShipTypes      []string `json:"ship_types"` // ship types to include in expedition
+	ShipCounts     []int    `json:"ship_counts"` // counts for each ship type
+}
+
+// ExpeditionActionRequest is the request body for expedition actions.
+type ExpeditionActionRequest struct {
+	Action string `json:"action"` // "loot", "attack", "wait", "leave"
+}
+
+// ExpeditionResponse represents an expedition in API responses.
+type ExpeditionResponse struct {
+	ID             string                   `json:"id"`
+	PlanetID       string                   `json:"planet_id"`
+	Target         string                   `json:"target"`
+	Progress       float64                  `json:"progress"`
+	Status         string                   `json:"status"`
+	ExpeditionType string                   `json:"expedition_type"`
+	Duration       float64                  `json:"duration"`
+	ElapsedTime    float64                  `json:"elapsed_time"`
+	FleetShips     map[string]interface{}   `json:"fleet_ships"`
+	FleetTotal     int                      `json:"fleet_total"`
+	FleetCargo     float64                  `json:"fleet_cargo"`
+	FleetEnergy    float64                  `json:"fleet_energy"`
+	FleetDamage    float64                  `json:"fleet_damage"`
+	DiscoveredNPC  *NPCPlanetResponse       `json:"discovered_npc,omitempty"`
+	Actions        []ExpeditionActionResp   `json:"actions"`
+	CreatedAt      string                   `json:"created_at"`
+	UpdatedAt      string                   `json:"updated_at"`
+}
+
+// NPCPlanetResponse represents a discovered NPC planet.
+type NPCPlanetResponse struct {
+	ID              string                 `json:"id"`
+	Name            string                 `json:"name"`
+	Type            string                 `json:"type"`
+	Resources       map[string]float64     `json:"resources"`
+	TotalResources  float64                `json:"total_resources"`
+	HasCombat       bool                   `json:"has_combat"`
+	FleetStrength   float64                `json:"fleet_strength"`
+	EnemyFleet      map[string]interface{} `json:"enemy_fleet,omitempty"`
+}
+
+// ExpeditionActionResp represents an available expedition action.
+type ExpeditionActionResp struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Label    string `json:"label"`
+	Required string `json:"required,omitempty"`
+}
+
+// ExpeditionsListResponse is the response for listing expeditions.
+type ExpeditionsListResponse struct {
+	Expeditions      []ExpeditionResponse `json:"expeditions"`
+	ActiveCount      int                  `json:"active_count"`
+	MaxExpeditions   int                  `json:"max_expeditions"`
+	CanStartNew      bool                 `json:"can_start_new"`
+	ExpeditionsUnlocked bool              `json:"expeditions_unlocked"`
+}

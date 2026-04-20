@@ -26,6 +26,11 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/api/planets/{id}/ships/available", handleGetAvailableShips(db))
 	r.Get("/api/planets/{id}/battles", handleGetBattles(db))
 
+	// Expeditions
+	r.Post("/api/planets/{id}/expeditions", handleCreateExpedition(db))
+	r.Get("/api/planets/{id}/expeditions", handleGetExpeditions(db))
+	r.Post("/api/expeditions/{id}/action", handleExpeditionAction(db))
+
 	return r
 }
 

@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"spacegame/internal/auth"
 	"spacegame/internal/game"
+	"spacegame/internal/game/expedition"
 	"spacegame/internal/game/research"
 	"spacegame/internal/game/ship"
 )
@@ -551,6 +553,13 @@ func chiURLParam(r *http.Request, key string) string {
 	path := r.URL.Path
 	prefix := "/api/planets/"
 	if !strings.HasPrefix(path, prefix) {
+		// Try expedition prefix
+		expPrefix := "/api/expeditions/"
+		if strings.HasPrefix(path, expPrefix) {
+			rest := strings.TrimPrefix(path, expPrefix)
+			rest = strings.TrimSuffix(rest, "/action")
+			return rest
+		}
 		return ""
 	}
 	rest := strings.TrimPrefix(path, prefix)
@@ -560,6 +569,7 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/ship/build")
 	rest = strings.TrimSuffix(rest, "/ships/available")
 	rest = strings.TrimSuffix(rest, "/battles")
+	rest = strings.TrimSuffix(rest, "/expeditions")
 	return rest
 }
 
@@ -611,6 +621,338 @@ func handleGetBattles(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"battles": battles,
 			"total":   len(battles),
+		})
+	}
+}
+
+func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req StartExpeditionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.ExpeditionType == "" {
+			http.Error(w, "Missing expedition_type", http.StatusBadRequest)
+			return
+		}
+
+		// Validate expedition type
+		var expType expedition.Type
+		switch req.ExpeditionType {
+		case "exploration":
+			expType = expedition.TypeExploration
+		case "trade":
+			expType = expedition.TypeTrade
+		case "support":
+			expType = expedition.TypeSupport
+		default:
+			http.Error(w, "Invalid expedition_type", http.StatusBadRequest)
+			return
+		}
+
+		// Validate duration
+		duration := req.Duration
+		if duration <= 0 {
+			duration = 3600 // default 1 hour
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		// Build expedition fleet from requested ship types
+		expFleet := ship.NewFleet()
+		for i, shipType := range req.ShipTypes {
+			count := 0
+			if i < len(req.ShipCounts) {
+				count = req.ShipCounts[i]
+			}
+			if count <= 0 {
+				continue
+			}
+			st := ship.GetShipType(ship.TypeID(shipType))
+			if st != nil {
+				expFleet.AddShip(st, count)
+			}
+		}
+
+		if expFleet.TotalShipCount() == 0 {
+			// Use entire fleet
+			expFleet = p.GetFleet()
+		}
+
+		target := req.Target
+		if target == "" {
+			target = string(expType)
+		}
+
+		exp, err := p.StartExpedition(expType, expFleet, target, duration)
+		if err != nil {
+			errMsg := err.Error()
+			switch {
+			case strings.Contains(errMsg, "expeditions_not_researched"):
+				http.Error(w, "Expeditions not researched yet", http.StatusConflict)
+			case strings.Contains(errMsg, "max_expeditions_reached"):
+				http.Error(w, "Maximum concurrent expeditions reached", http.StatusConflict)
+			case strings.Contains(errMsg, "no_ships_available"):
+				http.Error(w, "No ships available for expedition", http.StatusBadRequest)
+			case strings.Contains(errMsg, "insufficient_energy"):
+				http.Error(w, "Insufficient energy for expedition", http.StatusConflict)
+			default:
+				http.Error(w, "Failed to start expedition", http.StatusConflict)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":          "started",
+			"expedition_id":   exp.ID,
+			"expedition_type": exp.ExpeditionType,
+			"duration":        exp.Duration,
+			"fleet_size":      exp.Fleet.TotalShipCount(),
+		})
+	}
+}
+
+func handleGetExpeditions(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		expeditions := p.GetExpeditions()
+		expeditionsUnlocked := false
+		if _, ok := p.GetResearchCompleted()["expeditions"]; ok {
+			expeditionsUnlocked = true
+		}
+
+		resp := ExpeditionsListResponse{
+			Expeditions:         make([]ExpeditionResponse, 0, len(expeditions)),
+			ActiveCount:         p.GetActiveExpeditionsCount(),
+			MaxExpeditions:      p.GetMaxExpeditions(),
+			ExpeditionsUnlocked: expeditionsUnlocked,
+		}
+
+		resp.CanStartNew = !expeditionsUnlocked || resp.ActiveCount < resp.MaxExpeditions
+
+		for _, exp := range expeditions {
+			npcResp := (*NPCPlanetResponse)(nil)
+			if exp.DiscoveredNPC != nil {
+				npc := exp.DiscoveredNPC
+				npcResp = &NPCPlanetResponse{
+					ID:             npc.ID,
+					Name:           npc.Name,
+					Type:           string(npc.Type),
+					Resources:      npc.Resources,
+					TotalResources: npc.TotalResources(),
+					HasCombat:      npc.HasCombatShips(),
+					FleetStrength:  npc.TotalFleetStrength(),
+				}
+				if npc.EnemyFleet != nil {
+					npcResp.EnemyFleet = npc.EnemyFleet.GetShipState()
+				}
+			}
+
+			actionResp := make([]ExpeditionActionResp, 0, len(exp.Actions))
+			for _, a := range exp.Actions {
+				actionResp = append(actionResp, ExpeditionActionResp{
+					ID:       a.ID,
+					Type:     a.Type,
+					Label:    a.Label,
+					Required: a.Required,
+				})
+			}
+
+			resp.Expeditions = append(resp.Expeditions, ExpeditionResponse{
+				ID:             exp.ID,
+				PlanetID:       exp.PlanetID,
+				Target:         exp.Target,
+				Progress:       exp.Progress,
+				Status:         string(exp.Status),
+				ExpeditionType: string(exp.ExpeditionType),
+				Duration:       exp.Duration,
+				ElapsedTime:    exp.ElapsedTime,
+				FleetShips:     exp.Fleet.GetShipState(),
+				FleetTotal:     exp.Fleet.TotalShipCount(),
+				FleetCargo:     exp.Fleet.TotalCargoCapacity(),
+				FleetEnergy:    exp.Fleet.TotalEnergyConsumption(),
+				FleetDamage:    exp.Fleet.TotalDamage(),
+				DiscoveredNPC:  npcResp,
+				Actions:        actionResp,
+				CreatedAt:      exp.CreatedAt.Format(time.RFC3339),
+				UpdatedAt:      exp.UpdatedAt.Format(time.RFC3339),
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleExpeditionAction(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		expeditionID := chiURLParam(r, "id")
+		if expeditionID == "" {
+			http.Error(w, "Missing expedition id", http.StatusBadRequest)
+			return
+		}
+
+		var req ExpeditionActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Action == "" {
+			http.Error(w, "Missing action", http.StatusBadRequest)
+			return
+		}
+
+		// Find the planet that owns this expedition
+		var planetID string
+		err = db.QueryRow(`
+			SELECT planet_id FROM expeditions WHERE id = $1
+		`, expeditionID).Scan(&planetID)
+		if err != nil {
+			http.Error(w, "Expedition not found", http.StatusNotFound)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		err = p.DoExpeditionAction(expeditionID, req.Action)
+		if err != nil {
+			errMsg := err.Error()
+			switch {
+			case strings.Contains(errMsg, "expedition_not_found"):
+				http.Error(w, "Expedition not found", http.StatusNotFound)
+			case strings.Contains(errMsg, "expedition_not_at_point"):
+				http.Error(w, "Expedition not at a point of interest", http.StatusConflict)
+			case strings.Contains(errMsg, "no_npc_discovered"):
+				http.Error(w, "No NPC discovered yet", http.StatusConflict)
+			case strings.Contains(errMsg, "no_combat_ships"):
+				http.Error(w, "No combat ships in expedition fleet", http.StatusConflict)
+			case strings.Contains(errMsg, "unknown_action"):
+				http.Error(w, "Unknown action type", http.StatusBadRequest)
+			default:
+				http.Error(w, "Action failed", http.StatusConflict)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "action_completed",
+			"action":  req.Action,
+			"expedition_id": expeditionID,
 		})
 	}
 }
