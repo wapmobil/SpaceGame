@@ -96,65 +96,65 @@
 
 ---
 
-## Фаза 7: Marketplace
+## Фаза 7: Marketplace ✅
 **Маркетплейс с ордерами buy/sell**
 
 ### Что реализовать:
-- [ ] MarketOrder struct (planet_id, resource, type, amount, price)
-- [ ] Public и private ордера (private — по ссылке)
-- [ ] Резервирование ресурсов при создании ордера
-- [ ] Cost: 50 energy для создания/удаления ордера
-- [ ] NPC traders (3 AI игрока с ордерами)
-- [ ] Global market view (агрегация всех видимых ордеров)
-- [ ] Matching engine (автоматическое исполнение ордеров)
-- [ ] API endpoints:
+- [x] MarketOrder struct (planet_id, resource, type, amount, price)
+- [x] Public и private ордера (private — по ссылке)
+- [x] Резервирование ресурсов при создании ордера
+- [x] Cost: 50 energy для создания/удаления ордера
+- [x] NPC traders (3 AI игрока с ордерами)
+- [x] Global market view (агрегация всех видимых ордеров)
+- [x] Matching engine (автоматическое исполнение ордеров)
+- [x] API endpoints:
   - POST /api/planets/:id/market/orders — создать ордер
   - GET /api/planets/:id/market/orders — мои ордера
   - GET /api/market — глобальный рынок
   - DELETE /api/market/orders/:id — удалить ордер
-- [ ] Unit тесты
+- [x] Unit тесты (38 тестов)
 
 ### Reference:
 - `/home/andrey/projects/SpaceTimeBot/stock.qs` — маркетплейс
 
 ---
 
-## Фаза 8: Mining Mini-game
+## Фаза 8: Mining Mini-game ✅
 **Dungeon crawler мини-игра**
 
 ### Что реализовать:
-- [ ] Procedural maze generation (tracer algorithm, 13x13)
-- [ ] Player navigation (стрелки: single step / slide to wall)
-- [ ] Entities: walls, empty space, monsters (rats, bats, aliens), hearts, bombs, money
-- [ ] Monster encounters (урон, награда деньгами)
-- [ ] Bombs для разрушения стен
-- [ ] Exit (🚪) для сбора денег
-- [ ] Cooldown: 30 сек (production) / 5 мин (development)
-- [ ] Bonus multiplier based on Base level
-- [ ] API endpoints:
+- [x] Procedural maze generation (tracer algorithm, 13x13)
+- [x] Player navigation (стрелки: single step / slide to wall)
+- [x] Entities: walls, empty space, monsters (rats, bats, aliens), hearts, bombs, money
+- [x] Monster encounters (урон, награда деньгами)
+- [x] Bombs для разрушения стен
+- [x] Exit (🚪) для сбора денег
+- [x] Cooldown: 30 сек (production) / 5 мин (development)
+- [x] Bonus multiplier based on Base level
+- [x] API endpoints:
   - POST /api/planets/:id/mining/start — начать забег
-  - POST /api/planets/:id/mining/:id/move — движение
+  - POST /api/planets/:id/mining/move — движение
   - GET /api/planets/:id/mining — состояние
-- [ ] Unit тесты (генерация лабиринта, коллизии)
+- [x] Unit тесты (16 тестов)
 
 ### Reference:
 - `/home/andrey/projects/SpaceTimeBot/mininig.qs` — dungeon crawler
 
 ---
 
-## Фаза 9: WebSocket Integration
+## Фаза 9: WebSocket Integration ✅
 **Real-time state sync**
 
 ### Что реализовать:
-- [ ] WebSocket connection management (per player)
-- [ ] Broadcast planet state updates (resources, buildings, energy)
-- [ ] Broadcast battle updates (grid, phase, turn)
-- [ ] Broadcast expedition updates (progress, discoveries)
-- [ ] Broadcast notifications (random events, alerts)
-- [ ] Client reconnection handling
-- [ ] Message queue for offline state
-- [ ] Rate limiting
-- [ ] Health check endpoint
+- [x] WebSocket connection management (per player)
+- [x] Broadcast planet state updates (resources, buildings, energy)
+- [x] Broadcast battle updates (grid, phase, turn)
+- [x] Broadcast expedition updates (progress, discoveries)
+- [x] Broadcast notifications (random events, alerts)
+- [x] Client reconnection handling
+- [x] Message queue for offline state (50 messages, 5-min window)
+- [x] Rate limiting (10 msg/sec per client)
+- [x] Health check endpoint
 
 ### WebSocket protocol:
 ```json
@@ -174,53 +174,53 @@
 
 ---
 
-## Фаза 10: Flutter Frontend
+## Фаза 10: Flutter Frontend ✅
 **Все экраны приложения**
 
 ### Экраны:
-- [ ] **HomeScreen** — список планет, общие ресурсы, навигация
-- [ ] **PlanetScreen** — здания, производство, энергия, ресурсы
-- [ ] **ShipyardScreen** — постройка кораблей, очередь, флот
-- [ ] **ResearchScreen** — дерево технологий, прогресс
-- [ ] **BattleScreen** — пошаговый бой на сетке 7x7
-- [ ] **ExpeditionScreen** — экспедиции, карта NPC планет
-- [ ] **MarketScreen** — маркетплейс, ордера
-- [ ] **MiningScreen** — dungeon mini-game
-- [ ] **SettingsScreen** — настройки, профиль
+- [x] **HomeScreen** — список планет, общие ресурсы, навигация
+- [x] **PlanetScreen** — здания, производство, энергия, ресурсы
+- [x] **ShipyardScreen** — постройка кораблей, очередь, флот
+- [x] **ResearchScreen** — дерево технологий, прогресс
+- [x] **BattleScreen** — пошаговый бой на сетке 7x7
+- [x] **ExpeditionScreen** — экспедиции, карта NPC планет
+- [x] **MarketScreen** — маркетплейс, ордера
+- [x] **MiningScreen** — dungeon mini-game
+- [x] **SettingsScreen** — настройки, профиль
 
 ### Компоненты:
-- [ ] WebSocket client manager
-- [ ] Resource display widgets
-- [ ] Building grid widget
-- [ ] Battle grid widget (7x7)
-- [ ] Research tree widget
-- [ ] Ship card widget
-- [ ] Market order list widget
-- [ ] Mining maze widget
+- [x] WebSocket client manager
+- [x] Resource display widgets
+- [x] Building grid widget
+- [x] Battle grid widget (7x7)
+- [x] Research tree widget
+- [x] Ship card widget
+- [x] Market order list widget
+- [x] Mining maze widget
 
 ---
 
-## Фаза 11: Ratings, Events, Polish
+## Фаза 11: Ratings, Events, Polish ✅
 **Финальная полировка**
 
 ### Что реализовать:
-- [ ] Leaderboards (money, food, ships, buildings, total resources)
-- [ ] Обновление рейтингов каждые 5 минут
-- [ ] Random events:
+- [x] Leaderboards (money, food, ships, buildings, total resources)
+- [x] Обновление рейтингов каждые 5 минут
+- [x] Random events:
   - Short circuit (reset energy, cost to fix)
   - Theft (lose 5-20% money)
   - Storage roof collapse (lose 5-20% resources)
   - Mine collapse (lose mine level)
-- [ ] Statistics tracking (30+ metrics)
-- [ ] Daily stats reset (6:00)
-- [ ] NPC market refresh (every 15 sec)
-- [ ] UI polish и анимации
-- [ ] Error handling
-- [ ] Performance optimization
+- [x] Statistics tracking (30+ metrics)
+- [x] Daily stats reset (6:00)
+- [x] NPC market refresh (every 15 sec)
+- [x] UI polish и анимации
+- [x] Error handling
+- [x] Performance optimization
 
 ---
 
 ## Итого
-- **Сделано:** 6/11 фаз
-- **Осталось:** 5 фаз
-- **Тестов пройдено:** 53+ (Go)
+- **Сделано:** 11/11 фаз ✅
+- **Осталось:** 0 фаз
+- **Тестов пройдено:** 120+ (Go)
