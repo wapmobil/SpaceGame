@@ -204,14 +204,18 @@ func (g *Game) savePlanet(p *Planet) {
 		return
 	}
 
-	_, err := g.db.Exec(`
-		UPDATE planets 
-		SET resources = $1, updated_at = NOW()
-		WHERE id = $3
-	`, p.Resources, p.ID)
-
+	resourcesJSON, err := json.Marshal(p.Resources)
 	if err != nil {
-		log.Printf("Error saving planet %s: %v", p.ID, err)
+		log.Printf("Error marshaling resources for planet %s: %v", p.ID, err)
+	} else {
+		_, err = g.db.Exec(`
+			UPDATE planets 
+			SET resources = $1, updated_at = NOW()
+			WHERE id = $3
+		`, resourcesJSON, p.ID)
+		if err != nil {
+			log.Printf("Error saving planet %s: %v", p.ID, err)
+		}
 	}
 
 	// Save building state

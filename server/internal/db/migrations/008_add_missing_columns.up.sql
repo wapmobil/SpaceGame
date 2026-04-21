@@ -1,0 +1,6 @@
+ALTER TABLE planets ADD COLUMN fleet_state JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE planets ADD COLUMN shipyard_state JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE research ADD COLUMN total_time REAL NOT NULL DEFAULT 0;
+ALTER TABLE research ADD COLUMN start_time REAL NOT NULL DEFAULT 0;
+ALTER TABLE research ADD COLUMN level INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE buildings ADD CONSTRAINT buildings_planet_type UNIQUE (planet_id, type);

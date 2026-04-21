@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
 
 typedef MessageListener = void Function(Map<String, dynamic> message);
 
@@ -25,16 +24,22 @@ class WebSocketManager extends ChangeNotifier {
     final uri = Uri.parse(wsUrl)
         .replace(path: '/ws', queryParameters: {'token': authToken});
 
-    _channel = IOWebSocketChannel.connect(uri);
-    _isConnected = true;
-    _startPing();
-    notifyListeners();
+    debugPrint('WebSocket connecting to: $uri');
+    try {
+      _channel = WebSocketChannel.connect(uri);
+      _startPing();
+      debugPrint('WebSocket channel created');
 
-    _channel?.stream.listen(
-      _onMessage,
-      onError: _onError,
-      onDone: _onDone,
-    );
+      _channel?.stream.listen(
+        _onMessage,
+        onError: _onError,
+        onDone: _onDone,
+      );
+    } catch (e) {
+      debugPrint('WebSocket connection error: $e');
+      _isConnected = false;
+      notifyListeners();
+    }
   }
 
   void send(Map<String, dynamic> message) {
@@ -113,6 +118,8 @@ class WebSocketManager extends ChangeNotifier {
 
     if (message['type'] == 'welcome') {
       _playerId = message['player_id'] ?? message['data']?['player_id'];
+      _isConnected = true;
+      notifyListeners();
     }
 
     for (final listener in List.from(_listeners)) {

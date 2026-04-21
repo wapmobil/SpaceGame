@@ -47,6 +47,7 @@ func main() {
 	sched := scheduler.New(gameEngine)
 	sched.Start()
 
+	api.InitWS()
 	httpServer := api.NewServer(database.DB)
 
 	go func() {
