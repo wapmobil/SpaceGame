@@ -209,6 +209,13 @@ func handleCreatePlanet(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Add planet to game engine
+		g := game.Instance()
+		if g != nil {
+			planet := game.NewPlanet(planetID, playerID, req.Name, g)
+			g.AddPlanet(planet)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"id": planetID})
@@ -332,6 +339,82 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(buildings)
+	}
+}
+
+func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req BuildBuildingRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Type == "" {
+			http.Error(w, "Missing building type", http.StatusBadRequest)
+			return
+		}
+
+		validBuildings := map[string]bool{
+			"farm": true, "solar": true, "storage": true, "base": true,
+			"factory": true, "energy_storage": true, "shipyard": true,
+			"comcenter": true, "composite_drone": true, "mechanism_factory": true,
+			"reagent_lab": true,
+		}
+		if !validBuildings[req.Type] {
+			http.Error(w, "Unknown building type", http.StatusBadRequest)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		p.AddBuilding(req.Type)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":   "started",
+			"type":     req.Type,
+			"progress": p.BuildProgress[req.Type],
+		})
 	}
 }
 
@@ -757,6 +840,7 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/mining")
 	rest = strings.TrimSuffix(rest, "/mining/start")
 	rest = strings.TrimSuffix(rest, "/market/orders")
+	rest = strings.TrimSuffix(rest, "/buildings")
 	return rest
 }
 

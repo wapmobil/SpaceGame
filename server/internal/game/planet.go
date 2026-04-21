@@ -142,6 +142,12 @@ func (p *Planet) getBuildTime(bt string, level int) float64 {
 			return 10000000
 		}
 		return 10000000 * float64(level)
+	case "composite_drone":
+		return float64(level*level+1) * 100
+	case "mechanism_factory":
+		return float64(level*level+1) * 100
+	case "reagent_lab":
+		return float64(level*level+1) * 100
 	default:
 		return 100
 	}
@@ -166,6 +172,12 @@ func (p *Planet) getEnergyConsumption(bt string, level int) float64 {
 		return float64(level) * 16
 	case "comcenter":
 		return float64(level) * 100
+	case "composite_drone":
+		return float64(level) * 10
+	case "mechanism_factory":
+		return float64(level) * 10
+	case "reagent_lab":
+		return float64(level) * 10
 	default:
 		return 0
 	}
@@ -195,6 +207,12 @@ func (p *Planet) getProduction(bt string, level int) ProductionResult {
 		// No direct production
 	case "storage":
 		// No direct production
+	case "composite_drone":
+		prod.Composite = float64(level) * 0.5
+	case "mechanism_factory":
+		prod.Mechanisms = float64(level) * 0.5
+	case "reagent_lab":
+		prod.Reagents = float64(level) * 0.5
 	}
 	return prod
 }

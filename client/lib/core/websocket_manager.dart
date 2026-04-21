@@ -19,7 +19,10 @@ class WebSocketManager extends ChangeNotifier {
   List<Map<String, dynamic>> get messageHistory => List.unmodifiable(_messageHistory);
 
   void connect(String baseUrl, String authToken) {
-    final uri = Uri.parse(baseUrl.replaceFirst('http', 'ws'))
+    final wsUrl = baseUrl.startsWith('https')
+        ? baseUrl.replaceFirst('https', 'wss')
+        : baseUrl.replaceFirst('http', 'ws');
+    final uri = Uri.parse(wsUrl)
         .replace(path: '/ws', queryParameters: {'token': authToken});
 
     _channel = IOWebSocketChannel.connect(uri);

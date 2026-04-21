@@ -108,6 +108,27 @@ func (g *Game) LoadPlanetsFromDB() error {
 			planet.Resources = resources
 		}
 
+		// Load buildings from DB
+		buildingRows, err := g.db.Query(`
+			SELECT type, level, build_progress FROM buildings WHERE planet_id = $1
+		`, id)
+		if err == nil {
+			defer buildingRows.Close()
+			for buildingRows.Next() {
+				var bType string
+				var bLevel int
+				var bProgress float32
+				if err := buildingRows.Scan(&bType, &bLevel, &bProgress); err == nil {
+					planet.Buildings[bType] = bLevel
+					if bProgress > 0 {
+						planet.BuildProgress[bType] = float64(bProgress)
+					}
+				}
+			}
+		} else {
+			log.Printf("Error loading buildings for planet %s: %v", id, err)
+		}
+
 		g.AddPlanet(planet)
 	}
 
@@ -191,6 +212,20 @@ func (g *Game) savePlanet(p *Planet) {
 
 	if err != nil {
 		log.Printf("Error saving planet %s: %v", p.ID, err)
+	}
+
+	// Save building state
+	for bType, level := range p.Buildings {
+		progress := p.BuildProgress[bType]
+		_, err = g.db.Exec(`
+			INSERT INTO buildings (planet_id, type, level, build_progress)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (planet_id, type) DO UPDATE
+			SET level = $3, build_progress = $4, updated_at = NOW()
+		`, p.ID, bType, level, float32(progress))
+		if err != nil {
+			log.Printf("Error saving building %s for planet %s: %v", bType, p.ID, err)
+		}
 	}
 
 	// Save research state

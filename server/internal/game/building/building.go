@@ -4,14 +4,17 @@ package building
 type BuildingType string
 
 const (
-	TypeFarm        BuildingType = "farm"
-	TypeSolar       BuildingType = "solar"
-	TypeStorage     BuildingType = "storage"
-	TypeBase        BuildingType = "base"
-	TypeFactory     BuildingType = "factory"
-	TypeEnergyStorage BuildingType = "energy_storage"
-	TypeShipyard    BuildingType = "shipyard"
-	TypeComCenter   BuildingType = "comcenter"
+	TypeFarm           BuildingType = "farm"
+	TypeSolar          BuildingType = "solar"
+	TypeStorage        BuildingType = "storage"
+	TypeBase           BuildingType = "base"
+	TypeFactory        BuildingType = "factory"
+	TypeEnergyStorage  BuildingType = "energy_storage"
+	TypeShipyard       BuildingType = "shipyard"
+	TypeComCenter      BuildingType = "comcenter"
+	TypeCompositeDrone BuildingType = "composite_drone"
+	TypeMechanismFactory BuildingType = "mechanism_factory"
+	TypeReagentLab     BuildingType = "reagent_lab"
 )
 
 // Building represents a game building with level and construction progress.

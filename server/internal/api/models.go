@@ -36,6 +36,11 @@ type BuildShipRequest struct {
 	ShipType string `json:"ship_type"`
 }
 
+// BuildBuildingRequest is the request body for building a structure.
+type BuildBuildingRequest struct {
+	Type string `json:"type"`
+}
+
 // FleetResponse represents fleet state in API responses.
 type FleetResponse struct {
 	Ships            map[string]interface{} `json:"ships"`
