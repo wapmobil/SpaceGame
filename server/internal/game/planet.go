@@ -102,7 +102,7 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 func (p *Planet) AddBuilding(bt string) {
 	currentLevel := p.Buildings[bt]
 	p.Buildings[bt] = currentLevel + 1
-	p.BuildProgress[bt] = p.getBuildTime(bt, currentLevel+1)
+	p.BuildProgress[bt] = p.GetBuildTime(bt, currentLevel+1)
 }
 
 // GetBuildingLevel returns the level of a building.
@@ -120,8 +120,8 @@ func (p *Planet) StepBuilding(bt string) {
 	}
 }
 
-// getBuildTime returns the build time for a building at the given level.
-func (p *Planet) getBuildTime(bt string, level int) float64 {
+// GetBuildTime returns the build time for a building at the given level.
+func (p *Planet) GetBuildTime(bt string, level int) float64 {
 	switch bt {
 	case "farm":
 		return float64(level*level*level*20 + 100)

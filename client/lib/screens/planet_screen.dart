@@ -264,10 +264,7 @@ class PlanetScreen extends StatelessWidget {
   }
 
   void _showBuildDialog(BuildContext context, GameProvider gameProvider) {
-    final availableBuildings = Constants.buildingTypes.keys.where((key) {
-      final existing = gameProvider.buildings.where((b) => b.type == key).toList();
-      return existing.isEmpty;
-    }).toList();
+    final allBuildings = Constants.buildingTypes.keys.toList();
 
     showModalBottomSheet(
       context: context,
@@ -282,12 +279,22 @@ class PlanetScreen extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            ...availableBuildings.map((key) {
+            ...allBuildings.map((key) {
               final info = Constants.buildingTypes[key]!;
+              final existing = gameProvider.buildings.where((b) => b.type == key).toList();
+              final currentLevel = existing.isNotEmpty ? existing.first.level : 0;
+              final isBuilding = existing.isNotEmpty && existing.first.totalBuildTime > 0 && existing.first.buildProgress < 1;
               return ListTile(
                 leading: Text(info['icon'] as String, style: const TextStyle(fontSize: 24)),
                 title: Text(info['name'] as String),
-                subtitle: Text(info['description'] as String),
+                subtitle: Text(
+                  isBuilding
+                      ? 'Building... Lv.${currentLevel}'
+                      : existing.isNotEmpty
+                          ? 'Lv.${currentLevel} - Upgrade'
+                          : info['description'] as String,
+                ),
+                enabled: !isBuilding,
                 onTap: () {
                   Navigator.pop(context);
                   gameProvider.buildStructure(key);

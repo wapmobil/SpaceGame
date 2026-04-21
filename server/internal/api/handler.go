@@ -322,18 +322,21 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 		}
 
 		type buildingInfo struct {
-			Type         string  `json:"type"`
-			Level        int     `json:"level"`
+			Type          string  `json:"type"`
+			Level         int     `json:"level"`
 			BuildProgress float64 `json:"build_progress"`
+			TotalBuildTime float64 `json:"total_build_time"`
 		}
 
 		var buildings []buildingInfo
 		for bType, level := range p.Buildings {
 			progress := p.BuildProgress[bType]
+			totalTime := p.GetBuildTime(bType, level)
 			buildings = append(buildings, buildingInfo{
-				Type:         bType,
-				Level:        level,
+				Type:          bType,
+				Level:         level,
 				BuildProgress: progress,
+				TotalBuildTime: totalTime,
 			})
 		}
 
@@ -407,6 +410,9 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 		}
 
 		p.AddBuilding(req.Type)
+
+		level := p.Buildings[req.Type]
+		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, req.Type, level)
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:html' show window;
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,6 +93,7 @@ class GameProvider extends ChangeNotifier {
         _player = Player.fromJson(data);
         await _savePlayer();
         notifyListeners();
+        connectWebSocket();
       } else {
         _setError('Failed to login: ${response.statusCode}');
       }
@@ -183,15 +185,125 @@ class GameProvider extends ChangeNotifier {
           data['state']?['resources'] as Map<String, dynamic>?;
       if (resources != null) {
         _selectedPlanet = _selectedPlanet!.copyWith(resources: resources);
+      }
+
+      final state = data['state'] as Map<String, dynamic>? ?? data;
+      final buildProgress = state['build_progress'] as Map<String, dynamic>?;
+      final buildingsMap = state['buildings'] as Map<String, dynamic>?;
+      final buildSpeed = (state['build_speed'] as num?)?.toDouble() ?? 1.0;
+
+      if (buildingsMap != null && _selectedPlanet != null) {
+        final planetId = _selectedPlanet!.id;
+        final updatedBuildings = <Building>[];
+
+        for (final entry in buildingsMap.entries) {
+          final type = entry.key as String;
+          final level = (entry.value as num).toInt();
+          final remainingTicks = buildProgress?[type] as num? ?? 0;
+          final remainingTicksDouble = remainingTicks.toDouble();
+
+          final totalBuildTime = _getTotalBuildTime(type, level, buildSpeed);
+          final isUnderConstruction = buildProgress != null && buildProgress.containsKey(type);
+          final progress = isUnderConstruction
+              ? (totalBuildTime > 0 && remainingTicksDouble > 0
+                  ? 1.0 - (remainingTicksDouble / totalBuildTime)
+                  : 1.0)
+              : 1.0;
+
+          final existing = _buildings.where((b) => b.type == type).toList();
+          if (existing.isNotEmpty) {
+            updatedBuildings.add(Building(
+              id: existing.first.id,
+              planetId: planetId,
+              type: type,
+              level: level,
+              buildProgress: progress,
+              totalBuildTime: totalBuildTime,
+            ));
+          } else {
+            updatedBuildings.add(Building(
+              planetId: planetId,
+              type: type,
+              level: level,
+              buildProgress: progress,
+              totalBuildTime: totalBuildTime,
+            ));
+          }
+        }
+
+        _buildings = updatedBuildings;
         notifyListeners();
       }
     }
   }
 
+  double _getTotalBuildTime(String type, int level, double buildSpeed) {
+    double raw = 100.0;
+    switch (type) {
+      case 'farm':
+        raw = (level * level * level * 20 + 100).toDouble();
+        break;
+      case 'solar':
+        raw = (level * level * 200 + 80).toDouble();
+        break;
+      case 'storage':
+        raw = ((level * level + 1) * 100).toDouble();
+        break;
+      case 'base':
+        raw = math.pow(2, level + 3) + 100;
+        break;
+      case 'factory':
+        raw = ((level * 2 + 1) * 100000).toDouble();
+        break;
+      case 'energy_storage':
+        raw = (level * level + 1000).toDouble();
+        break;
+      case 'shipyard':
+        raw = math.pow(2, level + 7) + 3000;
+        break;
+      case 'comcenter':
+        raw = level == 0 ? 10000000.0 : (10000000 * level).toDouble();
+        break;
+      case 'composite_drone':
+      case 'mechanism_factory':
+      case 'reagent_lab':
+        raw = ((level * level + 1) * 100).toDouble();
+        break;
+    }
+    return raw / buildSpeed;
+  }
+
   void _handleBuildingUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      loadBuildings(_selectedPlanet?.id ?? '');
-      notifyListeners();
+    if (data != null && _selectedPlanet != null) {
+      final buildingType = data['building'] as String?;
+      final newLevel = (data['level'] as num?)?.toInt() ?? 0;
+      if (buildingType != null && newLevel > 0) {
+        final planetId = _selectedPlanet!.id;
+        final totalBuildTime = _getTotalBuildTime(buildingType, newLevel, 1.0);
+        final existing = _buildings.where((b) => b.type == buildingType).toList();
+        if (existing.isNotEmpty) {
+          final idx = _buildings.indexWhere((b) => b.type == buildingType);
+          if (idx >= 0) {
+            _buildings[idx] = Building(
+              id: existing.first.id,
+              planetId: planetId,
+              type: buildingType,
+              level: newLevel,
+              buildProgress: 1.0,
+              totalBuildTime: totalBuildTime,
+            );
+          }
+        } else {
+          _buildings.add(Building(
+            planetId: planetId,
+            type: buildingType,
+            level: newLevel,
+            buildProgress: 1.0,
+            totalBuildTime: totalBuildTime,
+          ));
+        }
+        notifyListeners();
+      }
     }
   }
 

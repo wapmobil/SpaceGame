@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"spacegame/internal/game"
 )
 
 // WSMaxMessagesPerSecond is the maximum messages a client can send per second.
@@ -676,6 +678,11 @@ var wsBroadcast *WSBroadcastService
 func InitWS() {
 	wsManager = NewWSConnectionManager()
 	wsBroadcast = NewWSBroadcastService(wsManager)
+	if g := game.Instance(); g != nil {
+		g.RegisterBroadcastHandler(func(planetID, playerID string, state map[string]interface{}) {
+			wsBroadcast.BroadcastStateUpdate(playerID, planetID, state)
+		})
+	}
 }
 
 // handleWebSocket upgrades the connection to WebSocket and handles real-time messages.

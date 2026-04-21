@@ -52,13 +52,25 @@ class BuildingCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 10, color: AppTheme.accentColor),
               ),
             ),
-            if (building.buildProgress > 0 && building.buildProgress < 1) ...[
+            if (building.totalBuildTime > 0 && building.buildProgress > 0 && building.buildProgress < 1) ...[
               const SizedBox(height: 4),
               LinearProgressIndicator(
                 value: building.buildProgress,
                 minHeight: 3,
                 borderRadius: BorderRadius.circular(2),
                 color: AppTheme.accentColor,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${((1 - building.buildProgress) * building.totalBuildTime).toInt()}s',
+                style: const TextStyle(fontSize: 8, color: AppTheme.accentColor),
+              ),
+            ],
+            if (building.totalBuildTime > 0 && building.buildProgress >= 1) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Complete',
+                style: const TextStyle(fontSize: 8, color: Colors.green),
               ),
             ],
           ],
