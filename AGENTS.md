@@ -37,6 +37,8 @@ Environment variables (optional, defaults shown):
 http://localhost:8088/
 ```
 
+Public address: `http://home.signalmodelling.ru:8088/`
+
 ### Useful commands
 
 ```bash
