@@ -57,8 +57,8 @@ func handleRegister(db *sql.DB) http.HandlerFunc {
 		}
 
 		_, err = db.Exec(
-			"INSERT INTO players (id, auth_token) VALUES ($1, $2)",
-			playerID, authToken,
+			"INSERT INTO players (id, auth_token, name) VALUES ($1, $2, $3)",
+			playerID, authToken, req.Name,
 		)
 		if err != nil {
 			http.Error(w, "Failed to create player", http.StatusInternalServerError)
@@ -67,6 +67,57 @@ func handleRegister(db *sql.DB) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(PlayerResponse{
+			ID:        playerID,
+			AuthToken: authToken,
+			Name:      req.Name,
+		})
+	}
+}
+
+func handleLogin(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req PlayerRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Name == "" {
+			http.Error(w, "Name is required", http.StatusBadRequest)
+			return
+		}
+
+		var playerID, authToken string
+		err := db.QueryRow("SELECT id, auth_token FROM players WHERE name = $1", req.Name).Scan(&playerID, &authToken)
+		if err == sql.ErrNoRows {
+			playerID, err = auth.GeneratePlayerID()
+			if err != nil {
+				http.Error(w, "Failed to generate player ID", http.StatusInternalServerError)
+				return
+			}
+			authToken, err = auth.GenerateAuthToken()
+			if err != nil {
+				http.Error(w, "Failed to generate auth token", http.StatusInternalServerError)
+				return
+			}
+			_, err = db.Exec("INSERT INTO players (id, auth_token, name) VALUES ($1, $2, $3)", playerID, authToken, req.Name)
+			if err != nil {
+				http.Error(w, "Failed to create player", http.StatusInternalServerError)
+				return
+			}
+		} else if err != nil {
+			http.Error(w, "Failed to query player", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(PlayerResponse{
 			ID:        playerID,
 			AuthToken: authToken,
@@ -161,6 +212,126 @@ func handleCreatePlanet(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"id": planetID})
+	}
+}
+
+func handleGetPlanet(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		resp := map[string]interface{}{
+			"id":           p.ID,
+			"player_id":    p.OwnerID,
+			"name":         p.Name,
+			"level":        p.Level,
+			"resources":    p.Resources,
+			"buildings":    p.Buildings,
+			"build_progress": p.BuildProgress,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleGetBuildings(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		type buildingInfo struct {
+			Type         string  `json:"type"`
+			Level        int     `json:"level"`
+			BuildProgress float64 `json:"build_progress"`
+		}
+
+		var buildings []buildingInfo
+		for bType, level := range p.Buildings {
+			progress := p.BuildProgress[bType]
+			buildings = append(buildings, buildingInfo{
+				Type:         bType,
+				Level:        level,
+				BuildProgress: progress,
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(buildings)
 	}
 }
 

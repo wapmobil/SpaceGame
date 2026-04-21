@@ -584,7 +584,7 @@ func TestWebSocketHandlerIntegration(t *testing.T) {
 				return
 			}
 
-			playerID := extractPlayerIDFromToken(token)
+			playerID := "test_player_" + token[:8]
 			if playerID == "" {
 				conn.WriteJSON(WSMessage{Type: "error", Error: "Invalid auth token"})
 				return

@@ -97,17 +97,20 @@ func (s *Shipyard) GetQueueProgress() float64 {
 	return (entry.Progress / entry.BuildTime) * 100
 }
 
-// CancelShip removes the first ship from the queue and refunds resources.
-func (s *Shipyard) CancelShip() (*ShipType, bool) {
+// CancelShip removes the first ship from the queue and returns its cost for refund.
+func (s *Shipyard) CancelShip() (*ShipType, Cost, bool) {
 	if len(s.Queue) == 0 {
-		return nil, false
+		return nil, Cost{}, false
 	}
 
 	entry := s.Queue[0]
 	s.Queue = s.Queue[1:]
 
 	st := GetShipType(entry.TypeID)
-	return st, st != nil
+	if st == nil {
+		return nil, Cost{}, false
+	}
+	return st, st.Cost, true
 }
 
 // ShipyardError represents an error in shipyard operations.

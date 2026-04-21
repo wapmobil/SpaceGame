@@ -740,9 +740,22 @@ func (p *Planet) lootNPCPlanet(exp *expedition.Expedition, npc *expedition.NPCPl
 	cargoCapacity := exp.Fleet.TotalCargoCapacity()
 	collected, _ := expedition.CollectResources(npc, cargoCapacity)
 
-	// Add collected resources to fleet (stored in a simplified way)
 	for resName, amount := range collected {
 		log.Printf("Collected %f %s from %s", amount, resName, npc.Name)
+		switch resName {
+		case "food":
+			p.Resources.Food += amount
+		case "composite":
+			p.Resources.Composite += amount
+		case "mechanisms":
+			p.Resources.Mechanisms += amount
+		case "reagents":
+			p.Resources.Reagents += amount
+		case "money":
+			p.Resources.Money += amount
+		case "alien_tech":
+			p.Resources.AlienTech += amount
+		}
 	}
 
 	// Check if all resources collected

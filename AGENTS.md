@@ -1,5 +1,74 @@
 # SpaceGame — Agent Instructions
 
+## Quick Start
+
+### Prerequisites
+- Go 1.23+
+- Flutter 3.41+
+- PostgreSQL 16+
+
+### 1. Setup PostgreSQL
+
+```bash
+# Install PostgreSQL
+sudo apt install postgresql
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Create database and user
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
+sudo -u postgres createdb spacegame
+```
+
+### 2. Start Backend (port 8088)
+
+```bash
+cd server
+export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
+nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
+```
+
+### 3. Build & deploy Flutter web
+
+```bash
+cd client
+flutter build web
+cp -r build/web/* ../server/web/
+```
+
+### 4. Restart backend (re-embeds web assets)
+
+```bash
+kill -9 $(lsof -ti:8088)
+sleep 2
+export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
+nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
+```
+
+### 5. Open in browser
+
+```
+http://localhost:8088/
+```
+
+### Useful commands
+
+```bash
+# View logs
+tail -f /tmp/spacegame.log
+
+# Restart server
+kill -9 $(lsof -ti:8088)
+sleep 2
+export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
+nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
+
+# Build binary (for production)
+cd server
+go build -o spacegame ./cmd/server/
+./spacegame
+```
+
 ## Repo layout
 
 ```

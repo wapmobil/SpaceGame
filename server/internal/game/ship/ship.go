@@ -138,8 +138,8 @@ func AllShipTypes() []*ShipType {
 			Energy:       400,
 			HP:           100,
 			Armor:        5,
-			WeaponMinDmg: 6,
-			WeaponMaxDmg: 4,
+			WeaponMinDmg: 4,
+			WeaponMaxDmg: 6,
 			Cost: Cost{
 				Food: 500, Composite: 500, Mechanisms: 500, Reagents: 500, Money: 500,
 			},

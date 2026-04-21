@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -678,7 +679,7 @@ func InitWS() {
 }
 
 // handleWebSocket upgrades the connection to WebSocket and handles real-time messages.
-func handleWebSocket(db interface{}) http.HandlerFunc {
+func handleWebSocket(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		conn, err := WSUpgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -697,9 +698,10 @@ func handleWebSocket(db interface{}) http.HandlerFunc {
 			return
 		}
 
-		// For now, extract playerID from token (in production, validate against DB)
-		playerID := extractPlayerIDFromToken(authToken)
-		if playerID == "" {
+		// Validate auth token against database
+		var playerID string
+		err = db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
 			conn.WriteJSON(WSMessage{
 				Type: "error",
 				Error: "Invalid auth token",
@@ -906,25 +908,14 @@ func (c *WSClient) handleMiningMove(msg WSMessage) {
 	}
 }
 
-// extractPlayerIDFromToken extracts player ID from auth token.
-// In production, this should validate against the database.
-func extractPlayerIDFromToken(token string) string {
-	// For now, just return a placeholder
-	// In production, query the database: SELECT id FROM players WHERE auth_token = $1
-	if token == "" {
-		return ""
+// extractPlayerIDFromToken extracts player ID from auth token by querying the database.
+func extractPlayerIDFromToken(db *sql.DB, token string) (string, error) {
+	var playerID string
+	err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", token).Scan(&playerID)
+	if err != nil {
+		return "", err
 	}
-	// This is a placeholder - actual implementation would query the DB
-	return "player_" + hashToken(token)
-}
-
-// hashToken creates a simple hash of the token for demonstration.
-func hashToken(token string) string {
-	h := 0
-	for i := 0; i < len(token); i++ {
-		h = (h*31 + int(token[i])) % 1000000
-	}
-	return fmt.Sprintf("%d", h)
+	return playerID, nil
 }
 
 // generateConnID generates a unique connection ID.

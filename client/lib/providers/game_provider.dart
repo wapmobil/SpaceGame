@@ -72,12 +72,12 @@ class GameProvider extends ChangeNotifier {
   Future<void> login(String name) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/register'),
+        Uri.parse('$_baseUrl/api/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'name': name}),
       );
 
-      if (response.statusCode == 201) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _player = Player.fromJson(data);
         await _savePlayer();

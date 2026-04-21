@@ -1,9 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"database/sql"
+	"io"
 	"net/http"
+	"strings"
 	"time"
+
+	"spacegame/web"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -12,13 +17,63 @@ import (
 func SetupRouter(db *sql.DB) *chi.Mux {
 	r := chi.NewRouter()
 
+	// Serve Flutter web app (SPA with static asset fallback)
+	webSub := web.Sub()
+	r.Use(func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Skip API, WS, health, and static asset paths
+			if strings.HasPrefix(r.URL.Path, "/api/") ||
+				strings.HasPrefix(r.URL.Path, "/ws") ||
+				r.URL.Path == "/health" ||
+				r.URL.Path == "/ws/health" {
+				h.ServeHTTP(w, r)
+				return
+			}
+
+			path := r.URL.Path
+			if path == "/" || path == "" {
+				path = "/index.html"
+			}
+
+			// Try to serve as static asset from embedded FS
+			testPath := path[1:] // strip leading /
+			f, err := webSub.Open(testPath)
+			if err == nil {
+				defer f.Close()
+				info, _ := f.Stat()
+				if info.IsDir() {
+					path = "/index.html"
+					testPath = path[1:]
+					f, _ = webSub.Open(testPath)
+				}
+				data, _ := io.ReadAll(f)
+				http.ServeContent(w, r, path, info.ModTime(), bytes.NewReader(data))
+				return
+			}
+
+			// Fallback to index.html for SPA routing
+			f, err = webSub.Open("index.html")
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			defer f.Close()
+			info, _ := f.Stat()
+			data, _ := io.ReadAll(f)
+			http.ServeContent(w, r, "/index.html", info.ModTime(), bytes.NewReader(data))
+		})
+	})
+
 	r.Post("/api/register", handleRegister(db))
+	r.Post("/api/login", handleLogin(db))
 	r.Get("/api/planets", handleListPlanets(db))
 	r.Post("/api/planets", handleCreatePlanet(db))
-	r.Get("/ws", handleWebSocket(nil))
+	r.Get("/ws", handleWebSocket(db))
 	r.Get("/health", handleHealth)
 	r.Get("/ws/health", handleWebSocketHealth)
 
+	r.Get("/api/planets/{id}", handleGetPlanet(db))
+	r.Get("/api/planets/{id}/buildings", handleGetBuildings(db))
 	r.Get("/api/planets/{id}/research", handleGetResearch(db))
 	r.Post("/api/planets/{id}/research/start", handleStartResearch(db))
 

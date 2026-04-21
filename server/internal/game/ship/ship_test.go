@@ -297,7 +297,7 @@ func TestShipyardCancelShip(t *testing.T) {
 	st := GetShipType(TypeSmallShip)
 
 	sy.QueueShip(st)
-	cancelled, _ := sy.CancelShip()
+	cancelled, _, _ := sy.CancelShip()
 
 	if cancelled == nil || cancelled.TypeID != TypeSmallShip {
 		t.Error("expected to cancel small ship")
