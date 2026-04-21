@@ -210,9 +210,9 @@ func (g *Game) savePlanet(p *Planet) {
 	} else {
 		_, err = g.db.Exec(`
 			UPDATE planets 
-			SET resources = $1, updated_at = NOW()
-			WHERE id = $3
-		`, resourcesJSON, p.ID)
+			SET resources = $1::jsonb, updated_at = NOW()
+			WHERE id = $2
+		`, string(resourcesJSON), p.ID)
 		if err != nil {
 			log.Printf("Error saving planet %s: %v", p.ID, err)
 		}
@@ -244,8 +244,8 @@ func (g *Game) savePlanet(p *Planet) {
 	} else {
 		_, err = g.db.Exec(`
 			UPDATE planets 
-			SET fleet_state = $1, updated_at = NOW()
-			WHERE id = $3
+			SET fleet_state = $1::jsonb, updated_at = NOW()
+			WHERE id = $2
 		`, string(fleetData), p.ID)
 		if err != nil {
 			log.Printf("Error saving fleet for planet %s: %v", p.ID, err)
@@ -259,8 +259,8 @@ func (g *Game) savePlanet(p *Planet) {
 	} else {
 		_, err = g.db.Exec(`
 			UPDATE planets 
-			SET shipyard_state = $1, updated_at = NOW()
-			WHERE id = $3
+			SET shipyard_state = $1::jsonb, updated_at = NOW()
+			WHERE id = $2
 		`, string(shipyardData), p.ID)
 		if err != nil {
 			log.Printf("Error saving shipyard for planet %s: %v", p.ID, err)
