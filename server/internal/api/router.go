@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"spacegame/web"
+	"spacegame/internal/web"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -74,6 +74,7 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 
 	r.Get("/api/planets/{id}", handleGetPlanet(db))
 	r.Get("/api/planets/{id}/buildings", handleGetBuildings(db))
+	r.Post("/api/planets/{id}/buildings", handleBuildBuilding(db))
 	r.Get("/api/planets/{id}/research", handleGetResearch(db))
 	r.Post("/api/planets/{id}/research/start", handleStartResearch(db))
 

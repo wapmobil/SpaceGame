@@ -20,32 +20,18 @@ sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
 sudo -u postgres createdb spacegame
 ```
 
-### 2. Start Backend (port 8088)
+### 2. Deploy (builds frontend, backend, starts server)
 
 ```bash
-cd server
-export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
-nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
+./deploy.sh
 ```
 
-### 3. Build & deploy Flutter web
+This script stops any running server, builds Flutter web, copies frontend to `server/web/`, builds the Go binary, and starts the server in the background with logs written to `spacegame.log`.
 
-```bash
-cd client
-flutter build web
-cp -r build/web/* ../server/web/
-```
+Environment variables (optional, defaults shown):
+`DB_HOST=localhost`, `DB_PORT=5432`, `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=spacegame`, `DB_SSLMODE=disable`, `PORT=8088`.
 
-### 4. Restart backend (re-embeds web assets)
-
-```bash
-kill -9 $(lsof -ti:8088)
-sleep 2
-export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
-nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
-```
-
-### 5. Open in browser
+### 3. Open in browser
 
 ```
 http://localhost:8088/
@@ -55,18 +41,13 @@ http://localhost:8088/
 
 ```bash
 # View logs
-tail -f /tmp/spacegame.log
+tail -f spacegame.log
 
-# Restart server
-kill -9 $(lsof -ti:8088)
-sleep 2
-export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=postgres DB_NAME=spacegame DB_SSLMODE=disable PORT=8088
-nohup go run ./cmd/server/ > /tmp/spacegame.log 2>&1 &
+# Deploy (full rebuild + restart)
+./deploy.sh
 
-# Build binary (for production)
-cd server
-go build -o spacegame ./cmd/server/
-./spacegame
+# Dev mode — run backend directly (hot reload not available, rebuild manually)
+cd server && go run ./cmd/server/
 ```
 
 ## Repo layout
@@ -125,7 +106,8 @@ flutter build linux           # release build
 
 ## Gotchas
 
-- **No Makefile / no CI / no pre-commit** — everything is raw `go` / `flutter` commands.
+- **deploy.sh** — single command to build frontend, backend, and start the server (`./deploy.sh`).
+- **No Makefile / no CI / no pre-commit** — everything else is raw `go` / `flutter` commands.
 - **Circular import guard**: `game` package cannot import `api` — uses callback pattern (`RegisterBroadcastHandler`) for WebSocket broadcast.
 - **Battle cooldown**: auto-battle checks `battleCooldownTicks = 60` (1 minute). The `getBattleTick()` stub always returns true; per-planet cooldown logic is in `processAutoBattle`.
 - **Mining mini-game**: cooldown is 30s in production, 5 min in development (check `mining.go` for the flag).
