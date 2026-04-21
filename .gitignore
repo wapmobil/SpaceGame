@@ -6,6 +6,7 @@ pubspec.lock
 
 # Go
 server/server
+server/web
 go.mod.backup
 go.sum.backup
 

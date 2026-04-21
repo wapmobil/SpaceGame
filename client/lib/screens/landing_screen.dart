@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/game_provider.dart';
 import '../providers/auth_provider.dart';
 import '../core/app_theme.dart';
@@ -17,7 +18,6 @@ class _LandingScreenState extends State<LandingScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   final _nameController = TextEditingController();
-  bool _hasSavedPlayer = false;
 
   @override
   void initState() {
@@ -31,13 +31,15 @@ class _LandingScreenState extends State<LandingScreen>
       curve: Curves.easeInOut,
     );
     _controller.forward();
-    _checkSavedPlayer();
+    _loadSavedName();
   }
 
-  Future<void> _checkSavedPlayer() async {
-    final gameProvider = context.read<GameProvider>();
-    await gameProvider.loadSavedPlayer();
-    setState(() => _hasSavedPlayer = gameProvider.isLoggedIn);
+  Future<void> _loadSavedName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString('player_name');
+    if (savedName != null && savedName.isNotEmpty) {
+      _nameController.text = savedName;
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -57,17 +59,6 @@ class _LandingScreenState extends State<LandingScreen>
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
-    }
-  }
-
-  Future<void> _handleContinue() async {
-    final gameProvider = context.read<GameProvider>();
-    if (gameProvider.isLoggedIn) {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      }
     }
   }
 
@@ -154,20 +145,10 @@ class _LandingScreenState extends State<LandingScreen>
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: _hasSavedPlayer ? null : _handleLogin,
+                          onPressed: _handleLogin,
                           child: const Text('Play'),
                         ),
                       ),
-                      if (_hasSavedPlayer) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            onPressed: _handleContinue,
-                            child: const Text('Continue'),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 24),
                       const Text(
                         'v1.0.0',
