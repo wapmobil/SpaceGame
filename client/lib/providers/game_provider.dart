@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:html' show window;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,8 +36,17 @@ class GameProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _events = [];
   String? _errorMessage;
 
-  GameProvider({required this.websocket, String baseUrl = 'http://localhost:8080'})
-      : _baseUrl = baseUrl;
+  GameProvider({required this.websocket, String? baseUrl})
+      : _baseUrl = baseUrl ?? _getBaseUri();
+
+  static String _getBaseUri() {
+    if (kIsWeb) {
+      final host = window.location.host;
+      final scheme = window.location.protocol == 'https:' ? 'https' : 'http';
+      return '$scheme://$host';
+    }
+    return 'http://localhost:8080';
+  }
 
   String get baseUrl => _baseUrl;
   Player? get player => _player;
