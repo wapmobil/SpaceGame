@@ -10,14 +10,40 @@ export PATH="$HOME/flutter/bin:$PATH"
 
 echo "=== SpaceGame Deploy ==="
 
+# Check dependencies
+echo "Checking dependencies..."
+for cmd in go flutter lsof; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "Error: '$cmd' is not installed or not in PATH"
+        exit 1
+    fi
+done
+echo "  All dependencies found"
+
 # 1. Stop existing server
 echo "[1/5] Stopping existing server..."
-SERVER_PID=$(lsof -ti:"$PORT" 2>/dev/null || true)
+SERVER_PID=$(lsof -ti :"$PORT" 2>/dev/null || true)
 if [ -n "$SERVER_PID" ]; then
     kill "$SERVER_PID" 2>/dev/null || true
     sleep 2
     kill -9 "$SERVER_PID" 2>/dev/null || true
-    echo "  Stopped (PID: $SERVER_PID)"
+    echo "  Waiting for server to stop..."
+    STOP_WAIT=10
+    STOPPED=0
+    while [ $STOP_WAIT -gt 0 ]; do
+        if ! lsof -ti :"$PORT" &>/dev/null; then
+            STOPPED=1
+            break
+        fi
+        sleep 1
+        STOP_WAIT=$((STOP_WAIT - 1))
+    done
+    if [ $STOPPED -eq 1 ]; then
+        echo "  Stopped (PID: $SERVER_PID)"
+    else
+        echo "  ERROR: Server failed to stop"
+        exit 1
+    fi
 else
     echo "  No running server found"
 fi
@@ -54,6 +80,29 @@ export PORT="$PORT"
 nohup "$SERVER_DIR/server" > "$SCRIPT_DIR/spacegame.log" 2>&1 &
 SERVER_PID=$!
 echo "  Started (PID: $SERVER_PID)"
+
+# Wait for server to be ready
+echo "  Waiting for server to be ready..."
+MAX_WAIT=30
+WAITED=0
+SERVER_READY=0
+while [ $WAITED -lt $MAX_WAIT ]; do
+    if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/" 2>/dev/null | grep -q "200"; then
+        SERVER_READY=1
+        break
+    fi
+    sleep 1
+    WAITED=$((WAITED + 1))
+done
+
+if [ $SERVER_READY -eq 1 ]; then
+    echo "  Server is ready"
+else
+    echo "  ERROR: Server failed to start within ${MAX_WAIT}s"
+    echo "  Check logs: tail -f $SCRIPT_DIR/spacegame.log"
+    kill "$SERVER_PID" 2>/dev/null || true
+    exit 1
+fi
 
 echo ""
 echo "=== Deploy complete ==="

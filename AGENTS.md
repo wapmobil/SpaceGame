@@ -90,7 +90,7 @@ flutter build linux           # release build
 ```
 
 **Environment variables (server):**
-`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` (defaults: localhost, 5432, postgres, postgres, spacegame, disable). Server port: `PORT` (default 8080).
+`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` (defaults: localhost, 5432, postgres, postgres, spacegame, disable). Server port: `PORT` (default 8088).
 
 ## Architecture notes
 
