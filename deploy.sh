@@ -22,11 +22,15 @@ echo "  All dependencies found"
 
 # 1. Stop existing server
 echo "[1/5] Stopping existing server..."
-SERVER_PID=$(lsof -ti :"$PORT" 2>/dev/null || true)
-if [ -n "$SERVER_PID" ]; then
-    kill "$SERVER_PID" 2>/dev/null || true
+SERVER_PIDS=$(lsof -ti :"$PORT" 2>/dev/null || true)
+if [ -n "$SERVER_PIDS" ]; then
+    for pid in $SERVER_PIDS; do
+        kill "$pid" 2>/dev/null || true
+    done
     sleep 2
-    kill -9 "$SERVER_PID" 2>/dev/null || true
+    for pid in $SERVER_PIDS; do
+        kill -9 "$pid" 2>/dev/null || true
+    done
     echo "  Waiting for server to stop..."
     STOP_WAIT=10
     STOPPED=0
@@ -39,7 +43,7 @@ if [ -n "$SERVER_PID" ]; then
         STOP_WAIT=$((STOP_WAIT - 1))
     done
     if [ $STOPPED -eq 1 ]; then
-        echo "  Stopped (PID: $SERVER_PID)"
+        echo "  Stopped (PIDs: $SERVER_PIDS)"
     else
         echo "  ERROR: Server failed to stop"
         exit 1
@@ -64,7 +68,7 @@ echo "  Done"
 # 4. Build Go server
 echo "[4/5] Building Go server..."
 cd "$SERVER_DIR"
-go build -o server ./cmd/server/
+go build -o SpaceGameServer ./cmd/server/
 echo "  Done"
 
 # 5. Start server in background
@@ -77,7 +81,7 @@ export DB_NAME="${DB_NAME:-spacegame}"
 export DB_SSLMODE="${DB_SSLMODE:-disable}"
 export PORT="$PORT"
 
-nohup "$SERVER_DIR/server" > "$SCRIPT_DIR/spacegame.log" 2>&1 &
+nohup "$SERVER_DIR/SpaceGameServer" > "$SCRIPT_DIR/spacegame.log" 2>&1 &
 SERVER_PID=$!
 echo "  Started (PID: $SERVER_PID)"
 

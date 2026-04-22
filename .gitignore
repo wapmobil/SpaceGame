@@ -5,7 +5,7 @@ pubspec.lock
 *.iml
 
 # Go
-server/server
+server/SpaceGameServer
 server/web
 go.mod.backup
 go.sum.backup
@@ -23,3 +23,4 @@ Thumbs.db
 
 # Logs
 *.log
+

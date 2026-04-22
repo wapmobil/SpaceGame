@@ -124,9 +124,31 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		alreadyConstructing = true
 	}
 
+	// Check prerequisites: farm must be built first, solar after farm
+	hasFarm := false
+	hasSolar := false
+	for _, b := range p.Buildings {
+		if b.Type == "farm" && !b.Pending && b.Level > 0 {
+			hasFarm = true
+		}
+		if b.Type == "solar" && !b.Pending && b.Level > 0 {
+			hasSolar = true
+		}
+	}
+	if bt != "farm" {
+		if !hasFarm {
+			return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "prerequisite_missing", Extra: "Build a Farm first."}
+		}
+	}
+	if bt != "farm" && bt != "solar" {
+		if !hasSolar {
+			return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "prerequisite_missing", Extra: "Build a Solar Panel first."}
+		}
+	}
+
 	// Check max concurrent construction limit
 	if p.ActiveConstruction >= p.GetMaxConcurrentBuildings() {
-		return 0, 0, &PlanetError{planetID: p.ID, reason: "max_constructions_reached", extra: fmt.Sprintf("Max constructions reached (%d/%d). Research Parallel Construction to unlock more.", p.ActiveConstruction, p.GetMaxConcurrentBuildings())}
+		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "max_constructions_reached", Extra: fmt.Sprintf("Max constructions reached (%d/%d). Research Parallel Construction to unlock more.", p.ActiveConstruction, p.GetMaxConcurrentBuildings())}
 	}
 
 	// Get cost for next level
@@ -134,10 +156,10 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 
 	// Check affordability
 	if cost.Food > p.Resources.Food {
-		return 0, 0, &PlanetError{planetID: p.ID, reason: "insufficient_food", extra: fmt.Sprintf("Need %.0f food, have %.0f", cost.Food, p.Resources.Food)}
+		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "insufficient_food", Extra: fmt.Sprintf("Need %.0f food, have %.0f", cost.Food, p.Resources.Food)}
 	}
 	if cost.Money > p.Resources.Money {
-		return 0, 0, &PlanetError{planetID: p.ID, reason: "insufficient_money", extra: fmt.Sprintf("Need %.0f money, have %.0f", cost.Money, p.Resources.Money)}
+		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "insufficient_money", Extra: fmt.Sprintf("Need %.0f money, have %.0f", cost.Money, p.Resources.Money)}
 	}
 
 	// Deduct resources
@@ -206,13 +228,25 @@ func (p *Planet) GetMaxConcurrentBuildings() int {
 func (p *Planet) ConfirmBuilding(bt string) error {
 	idx := p.FindBuildingIndex(bt)
 	if idx < 0 {
-		return &PlanetError{planetID: p.ID, reason: "building_not_found"}
+		return &PlanetError{PlanetID: p.ID, Reason: "building_not_found"}
 	}
 	if !p.Buildings[idx].Pending {
-		return &PlanetError{planetID: p.ID, reason: "building_not_pending"}
+		return &PlanetError{PlanetID: p.ID, Reason: "building_not_pending"}
 	}
 	p.Buildings[idx].Pending = false
+	p.Buildings[idx].BuildProgress = 0
 	p.PopulateBuildingEntry(idx)
+
+	if p.game != nil && p.game.db != nil {
+		_, err := p.game.db.Exec(`
+			UPDATE buildings SET pending = false, build_progress = 0, updated_at = NOW()
+			WHERE planet_id = $1 AND type = $2
+		`, p.ID, bt)
+		if err != nil {
+			log.Printf("Error saving building confirmation for %s on planet %s: %v", bt, p.ID, err)
+		}
+	}
+
 	return nil
 }
 
@@ -231,32 +265,29 @@ func (p *Planet) GetPendingBuildings() map[string]bool {
 func (p *Planet) GetBuildTime(bt string, level int) float64 {
 	switch bt {
 	case "farm":
-		return float64(level*level*level*20 + 100)
+		return float64(level*level*level*2 + 8)
 	case "solar":
-		return float64(level*level*200 + 80)
+		return float64(level*level*3 + 7)
 	case "storage":
-		return float64(level*level+1) * 100
+		return float64(level*level+1) * 5
 	case "base":
-		return math.Pow(2, float64(level+3)) + 100
+		return math.Pow(2, float64(level+2)) + 6
 	case "factory":
-		return float64(level*2+1) * 1500
+		return float64(level*2+1) * 10 + 10
 	case "energy_storage":
-		return float64(level*level) + 1000
+		return float64(level*level) * 5 + 8
 	case "shipyard":
-		return math.Pow(2, float64(level+7)) + 3000
+		return math.Pow(2, float64(level+4)) + 10
 	case "comcenter":
-		if level == 0 {
-			return 10000000
-		}
-		return 10000000 * float64(level)
+		return float64(level+1) * 30
 	case "composite_drone":
-		return float64(level*level+1) * 100
+		return float64(level*level+1) * 5
 	case "mechanism_factory":
-		return float64(level*level+1) * 100
+		return float64(level*level+1) * 5
 	case "reagent_lab":
-		return float64(level*level+1) * 100
+		return float64(level*level+1) * 5
 	default:
-		return 100
+		return 10
 	}
 }
 
@@ -568,6 +599,14 @@ func (p *Planet) Tick() {
 	var totalProduction ProdInfo
 	if !p.EnergyBuffer.Deficit {
 		totalProduction = p.calculateResourceProduction()
+	} else {
+		// In deficit, only farm works at 10%
+		totalProduction = ProdInfo{}
+		for i := range p.Buildings {
+			if p.Buildings[i].Type == "farm" && !p.Buildings[i].Pending {
+				totalProduction.Food = float64(p.Buildings[i].Level) * 0.1
+			}
+		}
 	}
 
 	// 11. Apply resource production to resources
@@ -771,11 +810,11 @@ func (p *Planet) BaseOperational() bool {
 // StartResearch begins researching a technology on this planet.
 func (p *Planet) StartResearch(techID string) error {
 	if !p.BaseOperational() {
-		return &PlanetError{planetID: p.ID, reason: "base_not_operational", extra: "Planet base requires food to operate. Produce food to unlock research."}
+		return &PlanetError{PlanetID: p.ID, Reason: "base_not_operational", Extra: "Planet base requires food to operate. Produce food to unlock research."}
 	}
 	tech := research.GetTechByID(techID)
 	if tech == nil {
-		return &PlanetError{planetID: p.ID, reason: "tech_not_found"}
+		return &PlanetError{PlanetID: p.ID, Reason: "tech_not_found"}
 	}
 	return p.Research.StartResearch(tech, p.Resources.Food, p.Resources.Money, p.Resources.AlienTech)
 }
@@ -819,15 +858,15 @@ func (p *Planet) CanBuildShip(typeID ship.TypeID) bool {
 func (p *Planet) BuildShip(typeID ship.TypeID) error {
 	st := ship.GetShipType(typeID)
 	if st == nil {
-		return &PlanetError{planetID: p.ID, reason: "unknown_ship_type"}
+		return &PlanetError{PlanetID: p.ID, Reason: "unknown_ship_type"}
 	}
 
 	if !p.CanBuildShip(typeID) {
-		return &PlanetError{planetID: p.ID, reason: "cannot_build"}
+		return &PlanetError{PlanetID: p.ID, Reason: "cannot_build"}
 	}
 
 	if err := p.Shipyard.QueueShip(st); err != nil {
-		return &PlanetError{planetID: p.ID, reason: "queue_failed"}
+		return &PlanetError{PlanetID: p.ID, Reason: "queue_failed"}
 	}
 
 	p.Shipyard.DeductCost(st, &p.Resources.Food, &p.Resources.Composite, &p.Resources.Mechanisms, &p.Resources.Reagents, &p.Resources.Money)
@@ -875,12 +914,12 @@ func (p *Planet) HasCombatFleet() bool {
 // CanStartExpedition checks if the planet can start a new expedition.
 func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) error {
 	if !p.BaseOperational() {
-		return &PlanetError{planetID: p.ID, reason: "base_not_operational", extra: "Planet base requires food to operate. Produce food to start expeditions."}
+		return &PlanetError{PlanetID: p.ID, Reason: "base_not_operational", Extra: "Planet base requires food to operate. Produce food to start expeditions."}
 	}
 
 	// Check if expeditions research is completed
 	if _, ok := p.Research.GetCompleted()["expeditions"]; !ok {
-		return &PlanetError{planetID: p.ID, reason: "expeditions_not_researched"}
+		return &PlanetError{PlanetID: p.ID, Reason: "expeditions_not_researched"}
 	}
 
 	// Check max concurrent expeditions
@@ -896,18 +935,18 @@ func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) 
 		}
 	}
 	if activeCount >= maxExpeditions {
-		return &PlanetError{planetID: p.ID, reason: "max_expeditions_reached"}
+		return &PlanetError{PlanetID: p.ID, Reason: "max_expeditions_reached"}
 	}
 
 	// Check fleet has ships
 	if fleet.TotalShipCount() == 0 {
-		return &PlanetError{planetID: p.ID, reason: "no_ships_available"}
+		return &PlanetError{PlanetID: p.ID, Reason: "no_ships_available"}
 	}
 
 	// Check energy
 	energyCost := fleet.TotalEnergyConsumption()
 	if p.Resources.Energy < energyCost {
-		return &PlanetError{planetID: p.ID, reason: "insufficient_energy"}
+		return &PlanetError{PlanetID: p.ID, Reason: "insufficient_energy"}
 	}
 
 	return nil
@@ -986,15 +1025,15 @@ func (p *Planet) TickExpeditions() {
 func (p *Planet) DoExpeditionAction(expID, actionType string) error {
 	exp, idx := p.findExpedition(expID)
 	if exp == nil {
-		return &PlanetError{planetID: p.ID, reason: "expedition_not_found"}
+		return &PlanetError{PlanetID: p.ID, Reason: "expedition_not_found"}
 	}
 
 	if exp.Status != expedition.StatusAtPoint {
-		return &PlanetError{planetID: p.ID, reason: "expedition_not_at_point"}
+		return &PlanetError{PlanetID: p.ID, Reason: "expedition_not_at_point"}
 	}
 
 	if exp.DiscoveredNPC == nil {
-		return &PlanetError{planetID: p.ID, reason: "no_npc_discovered"}
+		return &PlanetError{PlanetID: p.ID, Reason: "no_npc_discovered"}
 	}
 
 	npc := exp.DiscoveredNPC
@@ -1011,7 +1050,7 @@ func (p *Planet) DoExpeditionAction(expID, actionType string) error {
 	case "leave":
 		p.leaveNPCPlanet(exp)
 	default:
-		return &PlanetError{planetID: p.ID, reason: "unknown_action"}
+		return &PlanetError{PlanetID: p.ID, Reason: "unknown_action"}
 	}
 
 	return nil
@@ -1055,7 +1094,7 @@ func (p *Planet) lootNPCPlanet(exp *expedition.Expedition, npc *expedition.NPCPl
 func (p *Planet) attackNPCPlanet(exp *expedition.Expedition, npc *expedition.NPCPlanet, expIdx int) error {
 	expSnapshot := battle.NewFleetSnapshot(exp.Fleet)
 	if !expSnapshot.HasCombatShips() {
-		return &PlanetError{planetID: p.ID, reason: "no_combat_ships"}
+		return &PlanetError{PlanetID: p.ID, Reason: "no_combat_ships"}
 	}
 
 	attackerSnapshot := expSnapshot
@@ -1227,14 +1266,14 @@ func (p *Planet) GetExpeditionState() []map[string]interface{} {
 
 // PlanetError represents an error that occurred during a planet operation.
 type PlanetError struct {
-	planetID string
-	reason   string
-	extra    string
+	PlanetID string
+	Reason   string
+	Extra    string
 }
 
 func (e *PlanetError) Error() string {
-	if e.extra != "" {
-		return "planet error: " + e.reason + " - " + e.extra + " (planet: " + e.planetID + ")"
+	if e.Extra != "" {
+		return "planet error: " + e.Reason + " - " + e.Extra + " (planet: " + e.PlanetID + ")"
 	}
-	return "planet error: " + e.reason + " (planet: " + e.planetID + ")"
+	return "planet error: " + e.Reason + " (planet: " + e.PlanetID + ")"
 }

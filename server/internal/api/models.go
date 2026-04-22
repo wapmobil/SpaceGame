@@ -302,17 +302,18 @@ type EnergyBufferDetail struct {
 
 // BuildDetailsResponse is the response for GET /api/planets/{id}/build-details.
 type BuildDetailsResponse struct {
-	Resources          PlanetResources    `json:"resources"`
-	EnergyBuffer       EnergyBufferDetail `json:"energy_buffer"`
-	Buildings          []BuildingDetail   `json:"buildings"`
-	EnergyBalance      EnergyBalanceDetail `json:"energy_balance"`
-	ResourceProduction ProdDetail          `json:"production"`
-	ActiveConstruction int                `json:"active_constructions"`
-	MaxConstruction    int                `json:"max_constructions"`
-	BaseOperational    bool               `json:"base_operational"`
-	CanResearch        bool               `json:"can_research"`
-	CanExpedition      bool               `json:"can_expedition"`
-	CanMining          bool               `json:"can_mining"`
+	Resources          PlanetResources            `json:"resources"`
+	EnergyBuffer       EnergyBufferDetail         `json:"energy_buffer"`
+	Buildings          []BuildingDetail           `json:"buildings"`
+	EnergyBalance      EnergyBalanceDetail        `json:"energy_balance"`
+	ResourceProduction ProdDetail                 `json:"production"`
+	ActiveConstruction int                        `json:"active_constructions"`
+	MaxConstruction    int                        `json:"max_constructions"`
+	BaseOperational    bool                       `json:"base_operational"`
+	CanResearch        bool                       `json:"can_research"`
+	CanExpedition      bool                       `json:"can_expedition"`
+	CanMining          bool                       `json:"can_mining"`
+	BuildingCosts      map[string]CostDetail      `json:"building_costs"`
 }
 
 // EnergyBalanceDetail represents energy production and consumption.

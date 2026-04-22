@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"sync"
@@ -70,6 +71,88 @@ func (g *Game) GetAllPlanets() []*Planet {
 		result = append(result, p)
 	}
 	return result
+}
+
+// LoadPlanetFromDB loads a single planet from the database and registers it.
+func (g *Game) LoadPlanetFromDB(planetID string) error {
+	if g.db == nil {
+		return nil
+	}
+
+	hasEnergyBuffer, err := g.db.ColumnExists(context.Background(), "planets", "energy_buffer")
+	if err != nil {
+		hasEnergyBuffer = false
+	}
+
+	var query string
+	if hasEnergyBuffer {
+		query = `SELECT id, player_id, name, level, resources, energy_buffer FROM planets WHERE id = $1`
+	} else {
+		query = `SELECT id, player_id, name, level, resources FROM planets WHERE id = $1`
+	}
+
+	var id, ownerID, name string
+	var level int
+	var resourcesJSON []byte
+	var energyBufferValue float64
+
+	if hasEnergyBuffer {
+		err = g.db.QueryRow(query, planetID).Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue)
+	} else {
+		err = g.db.QueryRow(query, planetID).Scan(&id, &ownerID, &name, &level, &resourcesJSON)
+		energyBufferValue = 100
+	}
+
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	planet := NewPlanet(id, ownerID, name, g)
+	planet.Level = level
+	planet.EnergyBuffer.Value = energyBufferValue
+
+	var resources PlanetResources
+	if err := json.Unmarshal(resourcesJSON, &resources); err == nil {
+		planet.Resources = resources
+	}
+
+	buildingRows, err := g.db.Query(`
+		SELECT type, level, build_progress, pending FROM buildings WHERE planet_id = $1
+	`, planetID)
+	if err == nil {
+		defer buildingRows.Close()
+		for buildingRows.Next() {
+			var bType string
+			var bLevel int
+			var bProgress float32
+			var bPending bool
+			if err := buildingRows.Scan(&bType, &bLevel, &bProgress, &bPending); err == nil {
+				idx := planet.FindBuildingIndex(bType)
+				if idx >= 0 {
+					planet.Buildings[idx].Level = bLevel
+					planet.Buildings[idx].BuildProgress = float64(bProgress)
+					planet.Buildings[idx].Pending = bPending
+				} else {
+					planet.Buildings = append(planet.Buildings, BuildingEntry{
+						Type:          bType,
+						Level:         bLevel,
+						BuildProgress: float64(bProgress),
+						Pending:       bPending,
+					})
+				}
+			}
+		}
+	}
+
+	for i := range planet.Buildings {
+		planet.PopulateBuildingEntry(i)
+	}
+
+	g.AddPlanet(planet)
+	return nil
 }
 
 // LoadPlanetsFromDB loads all active planets from the database.

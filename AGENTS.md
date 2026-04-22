@@ -79,7 +79,7 @@ client/          Flutter app
 go run ./cmd/server/          # start dev server (depends on PostgreSQL)
 go test -timeout 10s ./...    # all tests (always use -timeout 10s to catch infinite loops)
 go test -timeout 10s ./internal/game/...   # a single package
-go build ./cmd/server/        # build binary to server/server
+go build -o SpaceGameServer ./cmd/server/        # build binary to server/SpaceGameServer
 ```
 
 **Frontend (run from `client/`):**

@@ -37,6 +37,7 @@ class GameProvider extends ChangeNotifier {
   String? _errorMessage;
   int _activeConstructions = 0;
   int _maxConstructions = 1;
+  Map<String, Map<String, double>> _buildingCosts = {};
 
   // Energy buffer
   double _energyBufferValue = 100;
@@ -96,6 +97,7 @@ class GameProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
+  Map<String, Map<String, double>> get buildingCosts => _buildingCosts;
   bool get isLoggedIn => _player != null;
 
   // Energy buffer getters
@@ -235,17 +237,19 @@ class GameProvider extends ChangeNotifier {
 
  void _handleStateUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
-      final planetId = data['id'] as String?;
+      // Backend sends {"planet_id": "...", "state": {...}}
+      final stateData = data['state'] as Map<String, dynamic>? ?? data;
+      final planetId = stateData['id'] as String?;
       if (planetId != _selectedPlanet!.id) return;
 
       // Update resources
-      final resources = data['resources'] as Map<String, dynamic>?;
+      final resources = stateData['resources'] as Map<String, dynamic>?;
       if (resources != null) {
         _selectedPlanet = _selectedPlanet!.copyWith(resources: resources);
       }
 
       // Update energy buffer
-      final energyBuffer = data['energy_buffer'] as Map<String, dynamic>?;
+      final energyBuffer = stateData['energy_buffer'] as Map<String, dynamic>?;
       if (energyBuffer != null) {
         _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
         _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
@@ -253,49 +257,19 @@ class GameProvider extends ChangeNotifier {
       }
 
       // Update buildings from slice
-      final buildingsJson = data['buildings'] as List<dynamic>?;
+      final buildingsJson = stateData['buildings'] as List<dynamic>?;
       if (buildingsJson != null) {
         _buildings = buildingsJson.map((b) => Building.fromJson(b as Map<String, dynamic>)).toList();
       }
 
-      // Update production
-      final production = data['production'] as Map<String, dynamic>?;
-      if (production != null) {
-        _productionFood = (production['food'] as num?)?.toDouble() ?? 0;
-        _productionComposite = (production['composite'] as num?)?.toDouble() ?? 0;
-        _productionMechanisms = (production['mechanisms'] as num?)?.toDouble() ?? 0;
-        _productionReagents = (production['reagents'] as num?)?.toDouble() ?? 0;
-        _productionEnergy = (production['energy'] as num?)?.toDouble() ?? 0;
-        _productionMoney = (production['money'] as num?)?.toDouble() ?? 0;
-        _productionAlienTech = (production['alien_tech'] as num?)?.toDouble() ?? 0;
-      }
-
       // Update construction limits
-      final activeConstr = data['active_constructions'];
+      final activeConstr = stateData['active_constructions'];
       if (activeConstr != null) {
         _activeConstructions = activeConstr is int ? activeConstr : (activeConstr as num).toInt();
       }
-      final maxConstr = data['max_constructions'];
+      final maxConstr = stateData['max_constructions'];
       if (maxConstr != null) {
         _maxConstructions = maxConstr is int ? maxConstr : (maxConstr as num).toInt();
-      }
-
-      // Update base operational flags
-      final baseOp = data['base_operational'];
-      if (baseOp != null) {
-        _baseOperational = baseOp as bool;
-      }
-      final canRes = data['can_research'];
-      if (canRes != null) {
-        _canResearch = canRes as bool;
-      }
-      final canExp = data['can_expedition'];
-      if (canExp != null) {
-        _canExpedition = canExp as bool;
-      }
-      final canMin = data['can_mining'];
-      if (canMin != null) {
-        _canMining = canMin as bool;
       }
 
       notifyListeners();
@@ -487,6 +461,19 @@ class GameProvider extends ChangeNotifier {
     _activeConstructions = (data['active_constructions'] as num?)?.toInt() ?? 0;
     _maxConstructions = (data['max_constructions'] as num?)?.toInt() ?? 1;
 
+    // Update building costs for unbuilt buildings
+    final costsJson = data['building_costs'] as Map<String, dynamic>?;
+    if (costsJson != null) {
+      _buildingCosts = {};
+      costsJson.forEach((key, value) {
+        final v = value as Map<String, dynamic>;
+        _buildingCosts[key] = {
+          'food': (v['food'] as num?)?.toDouble() ?? 0,
+          'money': (v['money'] as num?)?.toDouble() ?? 0,
+        };
+      });
+    }
+
     // Update base operational flags
     _baseOperational = data['base_operational'] as bool? ?? true;
     _canResearch = data['can_research'] as bool? ?? true;
@@ -516,6 +503,8 @@ class GameProvider extends ChangeNotifier {
         final errorMsg = _errorMessage ?? '';
         if (errorMsg.contains('max_constructions')) {
           _errorMessage = 'Max constructions reached. Research Parallel Construction to unlock more.';
+        } else if (errorMsg.contains('prerequisite_missing')) {
+          _errorMessage = errorData['extra'] as String? ?? 'Prerequisites not met.';
         }
       } else {
         _errorMessage = 'Build failed with status ${response.statusCode}';

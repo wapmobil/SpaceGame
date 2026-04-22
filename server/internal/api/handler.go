@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"os"
@@ -261,7 +262,10 @@ func handleGetPlanet(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		resp := map[string]interface{}{
@@ -317,7 +321,10 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		for i := range p.Buildings {
@@ -421,18 +428,25 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		foodCost, moneyCost, err := p.AddBuilding(req.Type)
 		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			resp := map[string]interface{}{
 				"error":               err.Error(),
 				"active_constructions": p.ActiveConstruction,
 				"max_constructions":   p.GetMaxConcurrentBuildings(),
-			})
+			}
+			if pe, ok := err.(*game.PlanetError); ok && pe.Extra != "" {
+				resp["extra"] = pe.Extra
+			}
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -503,7 +517,15 @@ func handleConfirmBuilding(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
+		}
+
+		if p == nil {
+			http.Error(w, "Planet not found in game instance", http.StatusNotFound)
+			return
 		}
 
 		if err := p.ConfirmBuilding(buildingType); err != nil {
@@ -570,7 +592,10 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		for i := range p.Buildings {
@@ -618,6 +643,22 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			AlienTech:  details.ResourceProduction.AlienTech,
 		}
 
+		// Calculate costs for buildings not yet built
+		buildingCosts := make(map[string]CostDetail)
+		existingTypes := make(map[string]bool)
+		for _, b := range buildings {
+			existingTypes[b.Type] = true
+		}
+		for _, bt := range game.BuildingsOrder {
+			if !existingTypes[bt] {
+				cost := p.GetBuildingCost(bt, 0)
+				buildingCosts[bt] = CostDetail{
+					Food:  cost.Food,
+					Money: cost.Money,
+				}
+			}
+		}
+
 		resp := BuildDetailsResponse{
 			Resources: PlanetResources{
 				Food:       details.Resources.Food,
@@ -647,6 +688,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			CanResearch:        details.CanResearch,
 			CanExpedition:      details.CanExpedition,
 			CanMining:          details.CanMining,
+			BuildingCosts:      buildingCosts,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -696,7 +738,10 @@ func handleGetResearch(db *sql.DB) http.HandlerFunc {
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
 			// Planet not loaded yet, load from DB
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		jsonBytes, err := p.GetResearchJSON()
@@ -776,7 +821,10 @@ func handleStartResearch(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		err = p.StartResearch(req.TechID)
@@ -849,7 +897,10 @@ func handleGetFleet(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		fleet := p.GetFleet()
@@ -932,7 +983,10 @@ func handleBuildShip(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		err = p.BuildShip(st.TypeID)
@@ -997,7 +1051,10 @@ func handleGetAvailableShips(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		shipyardLevel := p.GetBuildingLevel("shipyard")
@@ -1068,6 +1125,11 @@ func chiURLParam(r *http.Request, key string) string {
 		return ""
 	}
 	rest := strings.TrimPrefix(path, prefix)
+	// Extract first path segment as id (handles nested paths like id/buildings/type/confirm)
+	parts := strings.SplitN(rest, "/", 2)
+	id := parts[0]
+	// Trim known suffixes from the remaining path
+	rest = parts[1]
 	rest = strings.TrimSuffix(rest, "/research")
 	rest = strings.TrimSuffix(rest, "/research/start")
 	rest = strings.TrimSuffix(rest, "/fleet")
@@ -1081,7 +1143,11 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/buildings")
 	rest = strings.TrimSuffix(rest, "/confirm")
 	rest = strings.TrimSuffix(rest, "/build-details")
-	return rest
+	// If there's no remaining path, return just the id
+	if parts[1] == "" || rest == "" {
+		return id
+	}
+	return id
 }
 
 // chiBuildingTypeParam extracts the building type from the URL path for confirm endpoints.
@@ -1140,7 +1206,10 @@ func handleGetBattles(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		battles := p.GetBattleHistory()
@@ -1223,7 +1292,10 @@ func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		// Build expedition fleet from requested ship types
@@ -1323,7 +1395,10 @@ func handleGetExpeditions(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		expeditions := p.GetExpeditions()
@@ -1455,7 +1530,10 @@ func handleExpeditionAction(db *sql.DB) http.HandlerFunc {
 
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		err = p.DoExpeditionAction(expeditionID, req.Action)
@@ -1574,7 +1652,10 @@ func handleCreateMarketOrder(db *sql.DB) http.HandlerFunc {
 		// Check energy cost
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 
 		if p.Resources.Energy < game.OrderCreationCost {
@@ -2100,7 +2181,10 @@ func handleStartMining(db *sql.DB) http.HandlerFunc {
 		// Check if base is operational (has food)
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
-			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
 		}
 		if !p.BaseOperational() {
 			w.Header().Set("Content-Type", "application/json")

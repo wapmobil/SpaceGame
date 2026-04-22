@@ -386,7 +386,7 @@ func ComputePlanetFood(p *Planet) float64 {
 func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 	p := g.GetPlanet(planetID)
 	if p == nil {
-		return "", &PlanetError{planetID: planetID, reason: "planet_not_found"}
+		return "", &PlanetError{PlanetID: planetID, Reason: "planet_not_found"}
 	}
 
 	events := GetRandomEvents()
@@ -399,7 +399,7 @@ func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 	}
 
 	if eventDef == nil {
-		return "", &PlanetError{planetID: planetID, reason: "unknown_event_type"}
+		return "", &PlanetError{PlanetID: planetID, Reason: "unknown_event_type"}
 	}
 
 	// Check if player can afford the resolve cost
