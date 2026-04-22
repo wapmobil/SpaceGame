@@ -32,6 +32,15 @@ func (s *Storage) Cost() float64 {
 	return float64(s.BuildingLevel*s.BuildingLevel+1) * 100
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (s *Storage) CostMulti() CostMulti {
+	level := s.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level+1) * 60,
+		Money: float64(level*level+1) * 40,
+	}
+}
+
 // Produce returns no production (storage only increases capacity).
 func (s *Storage) Produce(level int) ProductionResult {
 	return ProductionResult{}

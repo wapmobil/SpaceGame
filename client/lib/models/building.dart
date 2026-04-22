@@ -5,6 +5,7 @@ class Building {
   final int level;
   final double buildProgress;
   final double totalBuildTime;
+  final bool pending;
   final DateTime? createdAt;
 
   Building({
@@ -14,6 +15,7 @@ class Building {
     this.level = 0,
     this.buildProgress = 0,
     this.totalBuildTime = 0,
+    this.pending = false,
     this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class Building {
       level: json['level'] as int? ?? 0,
       buildProgress: totalBuildTime > 0 ? 1.0 - (progress / totalBuildTime) : 1.0,
       totalBuildTime: totalBuildTime,
+      pending: json['pending'] as bool? ?? false,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -40,6 +43,7 @@ class Building {
       'type': type,
       'level': level,
       'build_progress': buildProgress,
+      'pending': pending,
     };
   }
 }

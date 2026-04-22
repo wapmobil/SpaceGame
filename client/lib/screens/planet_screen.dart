@@ -226,7 +226,12 @@ class PlanetScreen extends StatelessWidget {
               ),
               itemCount: buildings.length,
               itemBuilder: (context, index) {
-                return BuildingCard(building: buildings[index]);
+                final building = buildings[index];
+                final isPending = building.pending == true && building.buildProgress >= 1;
+                return BuildingCard(
+                  building: building,
+                  onTap: isPending ? () => gameProvider.confirmBuilding(building.type) : null,
+                );
               },
             ),
           ],
@@ -278,23 +283,43 @@ class PlanetScreen extends StatelessWidget {
               'Build Structure',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
+            Text(
+              'Construction: ${gameProvider.activeConstructions}/${gameProvider.maxConstructions}',
+              style: TextStyle(fontSize: 12, color: Colors.white54),
+            ),
+            if (gameProvider.activeConstructions >= gameProvider.maxConstructions) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Research Parallel Construction to build more simultaneously',
+                style: TextStyle(fontSize: 10, color: Colors.orange),
+              ),
+            ],
             const SizedBox(height: 16),
             ...allBuildings.map((key) {
               final info = Constants.buildingTypes[key]!;
               final existing = gameProvider.buildings.where((b) => b.type == key).toList();
               final currentLevel = existing.isNotEmpty ? existing.first.level : 0;
               final isBuilding = existing.isNotEmpty && existing.first.totalBuildTime > 0 && existing.first.buildProgress < 1;
+              final isPending = existing.isNotEmpty && existing.first.pending == true;
+              final nextLevel = currentLevel + 1;
+              final cost = Constants.getBuildingCost(key, nextLevel);
+              final canAfford = gameProvider.selectedPlanet != null &&
+                   ((gameProvider.selectedPlanet!.resources['food'] ?? 0) as num).toInt() >= cost['food'] &&
+                   ((gameProvider.selectedPlanet!.resources['money'] ?? 0) as num).toInt() >= cost['money'];
               return ListTile(
                 leading: Text(info['icon'] as String, style: const TextStyle(fontSize: 24)),
                 title: Text(info['name'] as String),
                 subtitle: Text(
                   isBuilding
                       ? 'Building... Lv.${currentLevel}'
-                      : existing.isNotEmpty
-                          ? 'Lv.${currentLevel} - Upgrade'
-                          : info['description'] as String,
+                      : isPending
+                          ? 'Pending confirmation - tap the building card to claim'
+                          : existing.isNotEmpty
+                              ? 'Lv.${currentLevel} → ${currentLevel + 1} | 🍖${cost['food']} 💰${cost['money']}'
+                              : '${info['description'] as String} | 🍖${cost['food']} 💰${cost['money']}',
                 ),
-                enabled: !isBuilding,
+                enabled: !isBuilding && !isPending && canAfford && gameProvider.activeConstructions < gameProvider.maxConstructions,
                 onTap: () {
                   Navigator.pop(context);
                   gameProvider.buildStructure(key);

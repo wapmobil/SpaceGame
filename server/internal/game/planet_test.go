@@ -7,8 +7,8 @@ import (
 
 func TestFarmProducesFood(t *testing.T) {
 	planet := NewPlanet("test-1", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar") // energy
-	planet.AddBuilding("farm")
+	planet.AddBuildingDirect("solar", 1) // energy
+	planet.AddBuildingDirect("farm", 1)
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 1 {
@@ -18,11 +18,8 @@ func TestFarmProducesFood(t *testing.T) {
 
 func TestFarmProductionScalesWithLevel(t *testing.T) {
 	planet := NewPlanet("test-2", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar") // 15 energy
-	planet.AddBuilding("solar") // 30 energy total
-	planet.AddBuilding("farm")
-	planet.AddBuilding("farm")
-	planet.AddBuilding("farm")
+	planet.AddBuildingDirect("solar", 2) // 30 energy total
+	planet.AddBuildingDirect("farm", 3)
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 3 {
@@ -32,7 +29,7 @@ func TestFarmProductionScalesWithLevel(t *testing.T) {
 
 func TestSolarProducesEnergy(t *testing.T) {
 	planet := NewPlanet("test-3", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar")
+	planet.AddBuildingDirect("solar", 1)
 
 	prod := planet.GetProductionResult()
 	if prod.Energy != 15 {
@@ -42,8 +39,8 @@ func TestSolarProducesEnergy(t *testing.T) {
 
 func TestEnergyBalanceNegative(t *testing.T) {
 	planet := NewPlanet("test-4", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("farm") // consumes 10 energy
-	planet.AddBuilding("solar") // produces 15 energy
+	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
+	planet.AddBuildingDirect("solar", 1) // produces 15 energy
 
 	balance := planet.GetEnergyBalance()
 	if balance != 5 {
@@ -53,7 +50,7 @@ func TestEnergyBalanceNegative(t *testing.T) {
 
 func TestEnergyBalanceDeficit(t *testing.T) {
 	planet := NewPlanet("test-5", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("farm") // consumes 10 energy
+	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
 	// No solar station - energy deficit
 
 	balance := planet.GetEnergyBalance()
@@ -64,7 +61,7 @@ func TestEnergyBalanceDeficit(t *testing.T) {
 
 func TestNoProductionWithoutEnergy(t *testing.T) {
 	planet := NewPlanet("test-6", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("farm") // consumes 10 energy, no solar
+	planet.AddBuildingDirect("farm", 1) // consumes 10 energy, no solar
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 0 {
@@ -74,8 +71,8 @@ func TestNoProductionWithoutEnergy(t *testing.T) {
 
 func TestTickProducesResources(t *testing.T) {
 	planet := NewPlanet("test-7", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar") // produces 15 energy
-	planet.AddBuilding("farm")  // consumes 10 energy, produces 1 food
+	planet.AddBuildingDirect("solar", 1) // produces 15 energy
+	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy, produces 1 food
 
 	// Simulate tick manually
 	production, consumption := planet.calculateEnergyBalance()
@@ -106,8 +103,7 @@ func TestStorageIncreasesCapacity(t *testing.T) {
 		t.Errorf("expected base capacity of 1000, got %f", capacity1)
 	}
 
-	planet.AddBuilding("storage")
-	planet.AddBuilding("storage")
+	planet.AddBuildingDirect("storage", 2)
 
 	capacity2 := planet.calculateStorageCapacity()
 	if capacity2 != 3000 {
@@ -122,8 +118,7 @@ func TestMaxEnergyIncreasesWithEnergyStorage(t *testing.T) {
 		t.Errorf("expected base max energy of 100, got %f", maxEnergy1)
 	}
 
-	planet.AddBuilding("energy_storage")
-	planet.AddBuilding("energy_storage")
+	planet.AddBuildingDirect("energy_storage", 2)
 
 	maxEnergy2 := planet.calculateMaxEnergy()
 	if maxEnergy2 != 300 {
@@ -155,12 +150,12 @@ func TestGetBuildingLevel(t *testing.T) {
 		t.Errorf("expected farm level 0, got %d", level)
 	}
 
-	planet.AddBuilding("farm")
+	planet.AddBuildingDirect("farm", 1)
 	if level := planet.GetBuildingLevel("farm"); level != 1 {
 		t.Errorf("expected farm level 1, got %d", level)
 	}
 
-	planet.AddBuilding("farm")
+	planet.AddBuildingDirect("farm", 2)
 	if level := planet.GetBuildingLevel("farm"); level != 2 {
 		t.Errorf("expected farm level 2, got %d", level)
 	}
@@ -168,9 +163,9 @@ func TestGetBuildingLevel(t *testing.T) {
 
 func TestTotalBuildingLevels(t *testing.T) {
 	planet := NewPlanet("test-12", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("farm")
-	planet.AddBuilding("solar")
-	planet.AddBuilding("storage")
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("storage", 1)
 
 	total := planet.GetTotalBuildingLevels()
 	if total != 3 {
@@ -180,9 +175,9 @@ func TestTotalBuildingLevels(t *testing.T) {
 
 func TestFactoryProducesResource(t *testing.T) {
 	planet := NewPlanet("test-13", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar") // energy
-	planet.AddBuilding("solar") // more energy
-	planet.AddBuilding("factory")
+	planet.AddBuildingDirect("solar", 1) // energy
+	planet.AddBuildingDirect("solar", 1) // more energy
+	planet.AddBuildingDirect("factory", 1)
 
 	prod := planet.GetProductionResult()
 	// Factory produces 0.5 of one resource type
@@ -195,9 +190,9 @@ func TestFactoryProducesResource(t *testing.T) {
 
 func TestBaseConsumesFood(t *testing.T) {
 	planet := NewPlanet("test-14", "owner-1", "Test Planet", nil)
-	planet.AddBuilding("solar") // energy
-	planet.AddBuilding("solar") // more energy
-	planet.AddBuilding("base")  // consumes food
+	planet.AddBuildingDirect("solar", 1) // energy
+	planet.AddBuildingDirect("solar", 1) // more energy
+	planet.AddBuildingDirect("base", 1)  // consumes food
 
 	prod := planet.GetProductionResult()
 	// Base consumes food (negative production)

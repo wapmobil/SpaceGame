@@ -326,17 +326,25 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 			Level         int     `json:"level"`
 			BuildProgress float64 `json:"build_progress"`
 			TotalBuildTime float64 `json:"total_build_time"`
+			FoodCost      float64 `json:"food_cost"`
+			MoneyCost     float64 `json:"money_cost"`
+			Pending       bool    `json:"pending"`
 		}
 
 		var buildings []buildingInfo
 		for bType, level := range p.Buildings {
 			progress := p.BuildProgress[bType]
 			totalTime := p.GetBuildTime(bType, level)
+			nextLevel := level + 1
+			cost := p.GetBuildingCost(bType, nextLevel)
 			buildings = append(buildings, buildingInfo{
 				Type:          bType,
 				Level:         level,
 				BuildProgress: progress,
 				TotalBuildTime: totalTime,
+				FoodCost:      cost.Food,
+				MoneyCost:     cost.Money,
+				Pending:       p.BuildPending[bType],
 			})
 		}
 
@@ -409,7 +417,17 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
 		}
 
-		p.AddBuilding(req.Type)
+		foodCost, moneyCost, err := p.AddBuilding(req.Type)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":               err.Error(),
+				"active_constructions": p.ActiveConstruction,
+				"max_constructions":   p.GetMaxConcurrentBuildings(),
+			})
+			return
+		}
 
 		level := p.Buildings[req.Type]
 		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, req.Type, level)
@@ -417,9 +435,81 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":   "started",
-			"type":     req.Type,
-			"progress": p.BuildProgress[req.Type],
+			"status":              "started",
+			"type":                req.Type,
+			"progress":            p.BuildProgress[req.Type],
+			"food_cost":           foodCost,
+			"money_cost":          moneyCost,
+			"active_constructions": p.ActiveConstruction,
+			"max_constructions":   p.GetMaxConcurrentBuildings(),
+		})
+	}
+}
+
+func handleConfirmBuilding(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		buildingType := chiBuildingTypeParam(r)
+		if buildingType == "" {
+			http.Error(w, "Missing building type", http.StatusBadRequest)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		if err := p.ConfirmBuilding(buildingType); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		level := p.Buildings[buildingType]
+		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, buildingType, level)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "confirmed",
+			"type":   buildingType,
 		})
 	}
 }
@@ -847,7 +937,25 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/mining/start")
 	rest = strings.TrimSuffix(rest, "/market/orders")
 	rest = strings.TrimSuffix(rest, "/buildings")
+	rest = strings.TrimSuffix(rest, "/confirm")
 	return rest
+}
+
+// chiBuildingTypeParam extracts the building type from the URL path for confirm endpoints.
+func chiBuildingTypeParam(r *http.Request) string {
+	path := r.URL.Path
+	prefix := "/api/planets/"
+	if !strings.HasPrefix(path, prefix) {
+		return ""
+	}
+	rest := strings.TrimPrefix(path, prefix)
+	// rest is like {planetId}/buildings/{buildingType}/confirm
+	parts := strings.Split(rest, "/")
+	if len(parts) < 4 {
+		return ""
+	}
+	// parts[0] = planetId, parts[1] = buildings, parts[2] = buildingType
+	return parts[2]
 }
 
 func handleGetBattles(db *sql.DB) http.HandlerFunc {

@@ -32,6 +32,15 @@ func (c *CompositeDrone) Cost() float64 {
 	return float64(c.BuildingLevel*c.BuildingLevel + 1) * 100
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (c *CompositeDrone) CostMulti() CostMulti {
+	level := c.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level+1) * 60,
+		Money: float64(level*level+1) * 40,
+	}
+}
+
 // Produce returns the composite production for one tick at current level.
 func (c *CompositeDrone) Produce(level int) ProductionResult {
 	if level <= 0 {

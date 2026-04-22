@@ -38,6 +38,16 @@ func (s *Shipyard) Cost() float64 {
 	return math.Pow(2, float64(s.Building.BuildingLevel+7))
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (s *Shipyard) CostMulti() CostMulti {
+	level := s.Building.BuildingLevel
+	val := math.Pow(2, float64(level+5)) * 0.5
+	return CostMulti{
+		Food:  val,
+		Money: val,
+	}
+}
+
 // Produce returns no production (shipyard only enables ship building).
 func (s *Shipyard) Produce(level int) ProductionResult {
 	return ProductionResult{}

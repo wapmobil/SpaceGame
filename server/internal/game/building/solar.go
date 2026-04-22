@@ -32,6 +32,15 @@ func (s *Solar) Cost() float64 {
 	return float64(s.BuildingLevel*s.BuildingLevel*200 + 80)
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (s *Solar) CostMulti() CostMulti {
+	level := s.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level*120 + 48),
+		Money: float64(level*level*80 + 32),
+	}
+}
+
 // Produce returns the energy production for one tick at current level.
 func (s *Solar) Produce(level int) ProductionResult {
 	if level <= 0 {

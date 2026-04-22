@@ -32,6 +32,15 @@ func (r *ReagentLab) Cost() float64 {
 	return float64(r.BuildingLevel*r.BuildingLevel + 1) * 100
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (r *ReagentLab) CostMulti() CostMulti {
+	level := r.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level+1) * 60,
+		Money: float64(level*level+1) * 40,
+	}
+}
+
 // Produce returns the reagents production for one tick at current level.
 func (r *ReagentLab) Produce(level int) ProductionResult {
 	if level <= 0 {

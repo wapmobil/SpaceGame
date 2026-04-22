@@ -23,9 +23,10 @@ CREATE TABLE IF NOT EXISTS planets (
 CREATE TABLE IF NOT EXISTS buildings (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planet_id UUID NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK (type IN ('farm','solar','storage','base','factory','energy_storage','shipyard','comcenter')),
+    type TEXT NOT NULL CHECK (type IN ('farm','solar','storage','base','factory','energy_storage','shipyard','comcenter','composite_drone','mechanism_factory','reagent_lab')),
     level INTEGER NOT NULL DEFAULT 1,
     build_progress REAL NOT NULL DEFAULT 0,
+    pending BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

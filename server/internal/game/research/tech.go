@@ -115,6 +115,18 @@ func AllTechs() []*Tech {
 			Effect:      applyFastConstruction,
 		},
 		{
+			ID:          "parallel_construction",
+			Name:        "Parallel Construction",
+			Description: "+1 simultaneous construction project per level (up to 3 levels)",
+			CostFood:    2000,
+			CostMoney:   1500,
+			BuildTime:   300,
+			Tree:        TreeStandard,
+			MaxLevel:    3,
+			DependsOn:   []string{"fast_construction"},
+			Effect:      applyParallelConstruction,
+		},
+		{
 			ID:          "compact_storage",
 			Name:        "Compact Storage",
 			Description: "2x storage capacity per level (up to 3 levels)",
@@ -246,6 +258,8 @@ func (t *Tech) EffectName() string {
 		return "upgrade_accum"
 	case "fast_construction":
 		return "fastbuild"
+	case "parallel_construction":
+		return "parallel_construction"
 	case "compact_storage":
 		return "upgrade_capacity"
 	case "expeditions":

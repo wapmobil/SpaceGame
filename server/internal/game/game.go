@@ -110,7 +110,7 @@ func (g *Game) LoadPlanetsFromDB() error {
 
 		// Load buildings from DB
 		buildingRows, err := g.db.Query(`
-			SELECT type, level, build_progress FROM buildings WHERE planet_id = $1
+			SELECT type, level, build_progress, pending FROM buildings WHERE planet_id = $1
 		`, id)
 		if err == nil {
 			defer buildingRows.Close()
@@ -118,10 +118,14 @@ func (g *Game) LoadPlanetsFromDB() error {
 				var bType string
 				var bLevel int
 				var bProgress float32
-				if err := buildingRows.Scan(&bType, &bLevel, &bProgress); err == nil {
+				var bPending bool
+				if err := buildingRows.Scan(&bType, &bLevel, &bProgress, &bPending); err == nil {
 					planet.Buildings[bType] = bLevel
 					if bProgress > 0 {
 						planet.BuildProgress[bType] = float64(bProgress)
+					}
+					if bPending {
+						planet.BuildPending[bType] = true
 					}
 				}
 			}
@@ -222,11 +226,11 @@ func (g *Game) savePlanet(p *Planet) {
 	for bType, level := range p.Buildings {
 		progress := p.BuildProgress[bType]
 		_, err = g.db.Exec(`
-			INSERT INTO buildings (planet_id, type, level, build_progress)
-			VALUES ($1, $2, $3, $4)
+			INSERT INTO buildings (planet_id, type, level, build_progress, pending)
+			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (planet_id, type) DO UPDATE
-			SET level = $3, build_progress = $4, updated_at = NOW()
-		`, p.ID, bType, level, float32(progress))
+			SET level = $3, build_progress = $4, pending = $5, updated_at = NOW()
+		`, p.ID, bType, level, float32(progress), p.BuildPending[bType])
 		if err != nil {
 			log.Printf("Error saving building %s for planet %s: %v", bType, p.ID, err)
 		}

@@ -32,6 +32,15 @@ func (m *MechanismFactory) Cost() float64 {
 	return float64(m.BuildingLevel*m.BuildingLevel + 1) * 100
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (m *MechanismFactory) CostMulti() CostMulti {
+	level := m.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level+1) * 60,
+		Money: float64(level*level+1) * 40,
+	}
+}
+
 // Produce returns the mechanisms production for one tick at current level.
 func (m *MechanismFactory) Produce(level int) ProductionResult {
 	if level <= 0 {

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 class AppConfig {
   static const String appName = 'SpaceGame';
   static const String defaultBaseUrl = 'http://localhost:8080';
@@ -86,6 +88,7 @@ class Constants {
     {'id': 'ships', 'name': 'Ships', 'description': 'Unlocks Shipyard', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
     {'id': 'upgraded_energy_storage', 'name': 'Upgraded Energy Storage', 'description': '+20% energy capacity per level', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
     {'id': 'fast_construction', 'name': 'Fast Construction', 'description': 'Building speed bonus per level', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
+    {'id': 'parallel_construction', 'name': 'Parallel Construction', 'description': '+1 simultaneous construction per level (up to 3 levels)', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 300, 'max_level': 3, 'depends_on': ['fast_construction']},
     {'id': 'compact_storage', 'name': 'Compact Storage', 'description': '2x storage capacity per level', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
     {'id': 'expeditions', 'name': 'Expeditions', 'description': 'Unlocks expedition system', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
     {'id': 'command_center', 'name': 'Command Center', 'description': 'Unlocks alien technology tree', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
@@ -93,6 +96,33 @@ class Constants {
     {'id': 'additional_expedition', 'name': 'Additional Expedition', 'description': '+1 concurrent expedition', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
     {'id': 'super_energy_storage', 'name': 'Super Energy Storage', 'description': '+20% energy capacity per level', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
   ];
+
+  static Map<String, dynamic> getBuildingCost(String type, int level) {
+    switch (type) {
+      case 'farm':
+        return {'food': level * level * level * 20 + 100, 'money': level * level * level * 10 + 50};
+      case 'solar':
+        return {'food': level * level * 120 + 48, 'money': level * level * 80 + 32};
+      case 'storage':
+        return {'food': (level * level + 1) * 60, 'money': (level * level + 1) * 40};
+      case 'base':
+        return {'food': (math.pow(2, level + 2)).toInt(), 'money': (math.pow(2, level + 3)).toInt()};
+      case 'factory':
+        return {'food': (level * 2 + 1) * 2500, 'money': (level * 2 + 1) * 1500};
+      case 'energy_storage':
+        return {'food': level * level * 300, 'money': level * level * 200};
+      case 'shipyard':
+        return {'food': (math.pow(2, level + 5) * 0.5).toInt(), 'money': (math.pow(2, level + 5) * 0.5).toInt()};
+      case 'comcenter':
+        return {'food': level * 10000, 'money': level * 10000};
+      case 'composite_drone':
+      case 'mechanism_factory':
+      case 'reagent_lab':
+        return {'food': (level * level + 1) * 60, 'money': (level * level + 1) * 40};
+      default:
+        return {'food': 0, 'money': 0};
+    }
+  }
 
   static String formatResources(double amount) {
     if (amount >= 1000000) {

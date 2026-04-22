@@ -353,6 +353,10 @@ func applyFastConstruction(planetID string, level int) {
 	log.Printf("[Research] Planet %s Fast Construction level %d: building speed bonus", planetID, level)
 }
 
+func applyParallelConstruction(planetID string, level int) {
+	log.Printf("[Research] Planet %s Parallel Construction level %d: +%d simultaneous construction", planetID, level, level)
+}
+
 func applyCompactStorage(planetID string, level int) {
 	log.Printf("[Research] Planet %s Compact Storage level %d: 2x storage capacity", planetID, level)
 }

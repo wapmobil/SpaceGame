@@ -36,6 +36,15 @@ func (e *EnergyStorage) Cost() float64 {
 	return float64(e.BuildingLevel*e.BuildingLevel) * 1000
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (e *EnergyStorage) CostMulti() CostMulti {
+	level := e.BuildingLevel
+	return CostMulti{
+		Food:  float64(level*level) * 300,
+		Money: float64(level*level) * 200,
+	}
+}
+
 // Produce returns no direct production (energy storage only stores).
 func (e *EnergyStorage) Produce(level int) ProductionResult {
 	return ProductionResult{}

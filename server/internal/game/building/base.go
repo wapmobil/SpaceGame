@@ -36,6 +36,15 @@ func (b *Base) Cost() float64 {
 	return math.Pow(2, float64(b.Building.BuildingLevel+3))
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (b *Base) CostMulti() CostMulti {
+	level := b.Building.BuildingLevel
+	return CostMulti{
+		Food:  math.Pow(2, float64(level+2)),
+		Money: math.Pow(2, float64(level+3)),
+	}
+}
+
 // Produce returns the food consumption (negative production) for one tick at current level.
 func (b *Base) Produce(level int) ProductionResult {
 	if level <= 0 {

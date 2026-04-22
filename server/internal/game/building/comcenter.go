@@ -35,6 +35,15 @@ func (c *ComCenter) Cost() float64 {
 	return 10000000 * float64(c.BuildingLevel)
 }
 
+// CostMulti returns the multi-resource cost to build next level.
+func (c *ComCenter) CostMulti() CostMulti {
+	level := c.BuildingLevel
+	return CostMulti{
+		Food:  float64(level) * 10000,
+		Money: float64(level) * 10000,
+	}
+}
+
 // Produce returns no production (comcenter only unlocks features).
 func (c *ComCenter) Produce(level int) ProductionResult {
 	return ProductionResult{}

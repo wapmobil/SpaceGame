@@ -76,9 +76,20 @@ func (b *Building) BuildTime() float64 {
 	return float64(b.BuildingLevel+2*(b.BuildingLevel*b.BuildingLevel))/1.0 + 10
 }
 
+// CostMulti represents the multi-resource cost to build the next level.
+type CostMulti struct {
+	Food  float64 `json:"food"`
+	Money float64 `json:"money"`
+}
+
 // Cost returns the food cost to build the next level.
 func (b *Building) Cost() float64 {
 	return 0
+}
+
+// CostMulti returns the multi-resource cost to build the next level.
+func (b *Building) CostMulti() CostMulti {
+	return CostMulti{}
 }
 
 // Producer is the interface that all buildings implement.
@@ -86,5 +97,6 @@ type Producer interface {
 	Consumption() int
 	BuildTime() float64
 	Cost() float64
+	CostMulti() CostMulti
 	Produce(level int) ProductionResult
 }

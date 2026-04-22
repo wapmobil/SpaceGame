@@ -2,12 +2,14 @@ package game
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"math/rand"
 	"time"
 
 	"spacegame/internal/game/battle"
+	"spacegame/internal/game/building"
 	"spacegame/internal/game/expedition"
 	"spacegame/internal/game/research"
 	"spacegame/internal/game/ship"
@@ -46,9 +48,11 @@ type Planet struct {
 	Name             string
 	Level            int
 	Buildings        map[string]int
-	BuildProgress    map[string]float64
-	Resources        PlanetResources
-	BuildSpeed       float64
+	BuildProgress      map[string]float64
+	BuildPending      map[string]bool
+	ActiveConstruction int
+	Resources          PlanetResources
+	BuildSpeed         float64
 	LastTick         time.Time
 	EnergyBalance    float64
 	Research         *research.ResearchSystem
@@ -69,6 +73,7 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Level:          1,
 		Buildings:      make(map[string]int),
 		BuildProgress:  make(map[string]float64),
+		BuildPending:   make(map[string]bool),
 		Resources: PlanetResources{
 			Food:      100,
 			Composite: 0,
@@ -99,15 +104,61 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 }
 
 // AddBuilding adds or upgrades a building on the planet.
-func (p *Planet) AddBuilding(bt string) {
+func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	currentLevel := p.Buildings[bt]
+
+	// Check if already under construction (don't count as active if already in BuildProgress)
+	_, alreadyConstructing := p.BuildProgress[bt]
+
+	// Check max concurrent construction limit
+	if p.ActiveConstruction >= p.GetMaxConcurrentBuildings() {
+		return 0, 0, &PlanetError{planetID: p.ID, reason: "max_constructions_reached", extra: fmt.Sprintf("Max constructions reached (%d/%d). Research Parallel Construction to unlock more.", p.ActiveConstruction, p.GetMaxConcurrentBuildings())}
+	}
+
+	// Get cost for next level (currentLevel)
+	cost := p.GetBuildingCost(bt, currentLevel)
+
+	// Check affordability
+	if cost.Food > p.Resources.Food {
+		return 0, 0, &PlanetError{planetID: p.ID, reason: "insufficient_food", extra: fmt.Sprintf("Need %.0f food, have %.0f", cost.Food, p.Resources.Food)}
+	}
+	if cost.Money > p.Resources.Money {
+		return 0, 0, &PlanetError{planetID: p.ID, reason: "insufficient_money", extra: fmt.Sprintf("Need %.0f money, have %.0f", cost.Money, p.Resources.Money)}
+	}
+
+	// Deduct resources
+	p.Resources.Food -= cost.Food
+	p.Resources.Money -= cost.Money
+
+	// Start construction
 	p.Buildings[bt] = currentLevel + 1
 	p.BuildProgress[bt] = p.GetBuildTime(bt, currentLevel+1)
+
+	// Track active construction (only if not already counting)
+	if !alreadyConstructing {
+		p.ActiveConstruction++
+	}
+
+	return cost.Food, cost.Money, nil
+}
+
+// AddBuildingDirect sets a building level without any checks (for testing).
+func (p *Planet) AddBuildingDirect(bt string, level int) {
+	p.Buildings[bt] = level
 }
 
 // GetBuildingLevel returns the level of a building.
 func (p *Planet) GetBuildingLevel(bt string) int {
 	return p.Buildings[bt]
+}
+
+// GetMaxConcurrentBuildings returns the maximum number of simultaneous construction projects.
+func (p *Planet) GetMaxConcurrentBuildings() int {
+	max := 1
+	if lvl, ok := p.Research.GetCompleted()["parallel_construction"]; ok && lvl > 0 {
+		max += lvl
+	}
+	return max
 }
 
 // StepBuilding advances construction progress for a building.
@@ -116,8 +167,32 @@ func (p *Planet) StepBuilding(bt string) {
 		p.BuildProgress[bt] -= p.BuildSpeed
 		if p.BuildProgress[bt] <= 0 {
 			delete(p.BuildProgress, bt)
+			p.ActiveConstruction--
+			if p.ActiveConstruction < 0 {
+				p.ActiveConstruction = 0
+			}
+			p.BuildPending[bt] = true
 		}
 	}
+}
+
+// ConfirmBuilding confirms a pending building construction, making it operational.
+func (p *Planet) ConfirmBuilding(bt string) error {
+	if !p.BuildPending[bt] {
+		return &PlanetError{planetID: p.ID, reason: "building_not_pending"}
+	}
+	delete(p.BuildPending, bt)
+	return nil
+}
+
+// IsBuildingPending returns true if a building is pending confirmation.
+func (p *Planet) IsBuildingPending(bt string) bool {
+	return p.BuildPending[bt]
+}
+
+// GetPendingBuildings returns all pending building types.
+func (p *Planet) GetPendingBuildings() map[string]bool {
+	return p.BuildPending
 }
 
 // GetBuildTime returns the build time for a building at the given level.
@@ -150,6 +225,64 @@ func (p *Planet) GetBuildTime(bt string, level int) float64 {
 		return float64(level*level+1) * 100
 	default:
 		return 100
+	}
+}
+
+// GetBuildingCost returns the multi-resource cost to build a building at the given level.
+func (p *Planet) GetBuildingCost(bt string, level int) building.CostMulti {
+	switch bt {
+	case "farm":
+		return building.CostMulti{
+			Food:  float64(level*level*level*20 + 100),
+			Money: float64(level*level*level*10 + 50),
+		}
+	case "solar":
+		return building.CostMulti{
+			Food:  float64(level*level*120 + 48),
+			Money: float64(level*level*80 + 32),
+		}
+	case "storage":
+		return building.CostMulti{
+			Food:  float64(level*level+1) * 60,
+			Money: float64(level*level+1) * 40,
+		}
+	case "base":
+		return building.CostMulti{
+			Food:  math.Pow(2, float64(level+2)),
+			Money: math.Pow(2, float64(level+3)),
+		}
+	case "factory":
+		return building.CostMulti{
+			Food:  float64(level*2+1) * 2500,
+			Money: float64(level*2+1) * 1500,
+		}
+	case "energy_storage":
+		return building.CostMulti{
+			Food:  float64(level*level) * 300,
+			Money: float64(level*level) * 200,
+		}
+	case "shipyard":
+		val := math.Pow(2, float64(level+5)) * 0.5
+		return building.CostMulti{
+			Food:  val,
+			Money: val,
+		}
+	case "comcenter":
+		return building.CostMulti{
+			Food:  float64(level) * 10000,
+			Money: float64(level) * 10000,
+		}
+	case "composite_drone":
+		fallthrough
+	case "mechanism_factory":
+		fallthrough
+	case "reagent_lab":
+		return building.CostMulti{
+			Food:  float64(level*level+1) * 60,
+			Money: float64(level*level+1) * 40,
+		}
+	default:
+		return building.CostMulti{}
 	}
 }
 
@@ -292,6 +425,9 @@ func (p *Planet) Tick() {
 	// Calculate production
 	var totalProduction ProductionResult
 	for bt, level := range p.Buildings {
+		if p.BuildPending[bt] {
+			continue
+		}
 		if !hasEnergy {
 			continue
 		}
@@ -367,8 +503,11 @@ func (p *Planet) GetState() map[string]interface{} {
 		"shipyard_max":     maxSlots,
 		"shipyard_progress": p.Shipyard.GetQueueProgress(),
 		"expeditions":       p.GetExpeditionState(),
-		"active_expeditions": p.GetActiveExpeditionsCount(),
-		"max_expeditions":   p.GetMaxExpeditions(),
+		"active_expeditions":   p.GetActiveExpeditionsCount(),
+		"max_expeditions":      p.GetMaxExpeditions(),
+		"active_constructions": p.ActiveConstruction,
+		"max_constructions":    p.GetMaxConcurrentBuildings(),
+		"pending_buildings":    p.BuildPending,
 	}
 }
 
@@ -965,8 +1104,12 @@ func (p *Planet) GetExpeditionState() []map[string]interface{} {
 type PlanetError struct {
 	planetID string
 	reason   string
+	extra    string
 }
 
 func (e *PlanetError) Error() string {
+	if e.extra != "" {
+		return "planet error: " + e.reason + " - " + e.extra + " (planet: " + e.planetID + ")"
+	}
 	return "planet error: " + e.reason + " (planet: " + e.planetID + ")"
 }

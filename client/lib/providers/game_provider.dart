@@ -36,6 +36,8 @@ class GameProvider extends ChangeNotifier {
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _events = [];
   String? _errorMessage;
+  int _activeConstructions = 0;
+  int _maxConstructions = 1;
 
   GameProvider({required this.websocket, String? baseUrl})
       : _baseUrl = baseUrl ?? _getBaseUri();
@@ -67,6 +69,8 @@ class GameProvider extends ChangeNotifier {
   Map<String, dynamic>? get stats => _stats;
   List<Map<String, dynamic>> get events => _events;
   String? get errorMessage => _errorMessage;
+  int get activeConstructions => _activeConstructions;
+  int get maxConstructions => _maxConstructions;
   bool get isLoggedIn => _player != null;
   String? get authToken => _player?.authToken;
 
@@ -191,6 +195,12 @@ class GameProvider extends ChangeNotifier {
       final buildProgress = state['build_progress'] as Map<String, dynamic>?;
       final buildingsMap = state['buildings'] as Map<String, dynamic>?;
       final buildSpeed = (state['build_speed'] as num?)?.toDouble() ?? 1.0;
+      final pendingBuildings = state['pending_buildings'] as Map<String, dynamic>? ?? {};
+
+      final activeConstructions = (state['active_constructions'] as num?)?.toInt() ?? 0;
+      final maxConstructions = (state['max_constructions'] as num?)?.toInt() ?? 1;
+      _activeConstructions = activeConstructions;
+      _maxConstructions = maxConstructions;
 
       if (buildingsMap != null && _selectedPlanet != null) {
         final planetId = _selectedPlanet!.id;
@@ -210,6 +220,8 @@ class GameProvider extends ChangeNotifier {
                   : 1.0)
               : 1.0;
 
+          final isPending = pendingBuildings[type] as bool? ?? false;
+
           final existing = _buildings.where((b) => b.type == type).toList();
           if (existing.isNotEmpty) {
             updatedBuildings.add(Building(
@@ -219,6 +231,7 @@ class GameProvider extends ChangeNotifier {
               level: level,
               buildProgress: progress,
               totalBuildTime: totalBuildTime,
+              pending: isPending,
             ));
           } else {
             updatedBuildings.add(Building(
@@ -227,6 +240,7 @@ class GameProvider extends ChangeNotifier {
               level: level,
               buildProgress: progress,
               totalBuildTime: totalBuildTime,
+              pending: isPending,
             ));
           }
         }
@@ -291,6 +305,7 @@ class GameProvider extends ChangeNotifier {
               level: newLevel,
               buildProgress: 1.0,
               totalBuildTime: totalBuildTime,
+              pending: false,
             );
           }
         } else {
@@ -300,6 +315,7 @@ class GameProvider extends ChangeNotifier {
             level: newLevel,
             buildProgress: 1.0,
             totalBuildTime: totalBuildTime,
+            pending: false,
           ));
         }
         notifyListeners();
@@ -457,11 +473,42 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 201) {
         await loadBuildings(_selectedPlanet!.id);
         await loadPlanetDetail(_selectedPlanet!.id);
+      } else if (response.statusCode == 400) {
+        final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
+        final errorMsg = errorBody['error'] as String? ?? 'Build failed';
+        if (errorMsg.contains('max_constructions')) {
+          final active = errorBody['active_constructions'] as int? ?? 0;
+          final max = errorBody['max_constructions'] as int? ?? 1;
+          _setError('Max constructions reached ($active/$max). Research Parallel Construction to unlock more.');
+        } else {
+          _setError(errorMsg);
+        }
       } else {
         _setError('Build failed: ${response.body}');
       }
     } catch (e) {
       _setError('Build error: $e');
+    }
+  }
+
+  Future<void> confirmBuilding(String buildingType) async {
+    if (_player == null || _selectedPlanet == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/buildings/${Uri.encodeComponent(buildingType)}/confirm'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+      if (response.statusCode == 200) {
+        await loadBuildings(_selectedPlanet!.id);
+        await loadPlanetDetail(_selectedPlanet!.id);
+      } else {
+        _setError('Failed to confirm building: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Confirm building error: $e');
     }
   }
 
