@@ -523,7 +523,7 @@ class GameProvider extends ChangeNotifier {
     if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
 
     final isPending = building.pending && building.buildProgress <= 0;
-    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите, чтобы забрать');
+    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
 
     final isBuilding = building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime;
     if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');

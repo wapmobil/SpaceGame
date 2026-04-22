@@ -83,7 +83,7 @@ class PlanetScreen extends StatelessWidget {
                         if (gameProvider.canMining)
                           PlanetActionChip(
                             icon: Icons.diamond_outlined,
-                            label: 'Горное дело',
+                            label: 'Копатель',
                             onTap: () => _navigateTo(context, const mining.MiningScreen()),
                           ),
                       ],

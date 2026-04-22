@@ -105,6 +105,6 @@ class Constants {
     'reagents': 'Реагенты',
     'energy': 'Энергия',
     'money': 'Деньги',
-    'alien_tech': 'Чужие технологии',
+    'alien_tech': 'Чертежи',
   };
 }

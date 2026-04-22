@@ -20,7 +20,7 @@ class BuildingCard extends StatelessWidget {
   bool get isBuilding => building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending;
 
   String? get statusText {
-    if (isPending) return 'Нажмите, чтобы забрать!';
+    if (isPending) return 'Нажмите чтобы открыть';
     if (isBuilding) {
       final remaining = (building.buildTime - building.buildProgress).toInt();
       return 'Строится... ${remaining}с';
