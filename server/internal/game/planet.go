@@ -1,7 +1,6 @@
 package game
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -48,7 +47,6 @@ type Planet struct {
 	Name             string
 	Level            int
 	Buildings        []BuildingEntry
-	buildingsMap     map[string]*BuildingEntry
 	ActiveConstruction int
 	Resources          PlanetResources
 	BuildSpeed         float64
@@ -72,7 +70,6 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Name:             name,
 		Level:            1,
 		Buildings:        make([]BuildingEntry, 0),
-		buildingsMap:     make(map[string]*BuildingEntry),
 		Resources: PlanetResources{
 			Food:      100,
 			Composite: 0,
@@ -111,37 +108,6 @@ func (p *Planet) FindBuildingIndex(bt string) int {
 		}
 	}
 	return -1
-}
-
-// syncBuildingsMap rebuilds the internal buildingsMap from the Buildings slice.
-func (p *Planet) syncBuildingsMap() {
-	p.buildingsMap = make(map[string]*BuildingEntry)
-	for i := range p.Buildings {
-		p.buildingsMap[p.Buildings[i].Type] = &p.Buildings[i]
-	}
-}
-
-// AddBuildingEntry adds a new building entry to the Buildings slice.
-func (p *Planet) AddBuildingEntry(bt string) {
-	p.Buildings = append(p.Buildings, BuildingEntry{
-		Type:          bt,
-		Level:         1,
-		BuildProgress: 0,
-		Pending:       false,
-	})
-	p.syncBuildingsMap()
-}
-
-// UpgradeBuildingEntry upgrades a building by type.
-func (p *Planet) UpgradeBuildingEntry(bt string) bool {
-	idx := p.FindBuildingIndex(bt)
-	if idx < 0 {
-		p.AddBuildingEntry(bt)
-		return true
-	}
-	p.Buildings[idx].Level++
-	p.syncBuildingsMap()
-	return true
 }
 
 // AddBuilding adds or upgrades a building on the planet.
@@ -193,7 +159,6 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
-	p.syncBuildingsMap()
 
 	// Track active construction
 	if !alreadyConstructing {
@@ -217,7 +182,6 @@ func (p *Planet) AddBuildingDirect(bt string, level int) {
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
-	p.syncBuildingsMap()
 }
 
 // GetBuildingLevel returns the level of a building.
@@ -238,25 +202,6 @@ func (p *Planet) GetMaxConcurrentBuildings() int {
 	return max
 }
 
-// StepBuilding advances construction progress for a building.
-func (p *Planet) StepBuilding(bt string) {
-	idx := p.FindBuildingIndex(bt)
-	if idx < 0 {
-		return
-	}
-	if p.Buildings[idx].BuildProgress > 0 {
-		p.Buildings[idx].BuildProgress -= p.BuildSpeed
-		if p.Buildings[idx].BuildProgress <= 0 {
-			p.Buildings[idx].BuildProgress = 0
-			p.ActiveConstruction--
-			if p.ActiveConstruction < 0 {
-				p.ActiveConstruction = 0
-			}
-			p.Buildings[idx].Pending = true
-		}
-	}
-}
-
 // ConfirmBuilding confirms a pending building construction, making it operational.
 func (p *Planet) ConfirmBuilding(bt string) error {
 	idx := p.FindBuildingIndex(bt)
@@ -269,15 +214,6 @@ func (p *Planet) ConfirmBuilding(bt string) error {
 	p.Buildings[idx].Pending = false
 	p.PopulateBuildingEntry(idx)
 	return nil
-}
-
-// IsBuildingPending returns true if a building is pending confirmation.
-func (p *Planet) IsBuildingPending(bt string) bool {
-	idx := p.FindBuildingIndex(bt)
-	if idx < 0 {
-		return false
-	}
-	return p.Buildings[idx].Pending
 }
 
 // GetPendingBuildings returns all pending building types.
@@ -417,7 +353,7 @@ func (p *Planet) getProduction(bt string, level int) ProductionResult {
 	if level <= 0 {
 		return ProductionResult{}
 	}
-	prod := ProductionResult{HasEnergy: true}
+	prod := ProductionResult{}
 	switch bt {
 	case "farm":
 		prod.Food = float64(level)
@@ -720,11 +656,6 @@ func (p *Planet) GetState() map[string]interface{} {
 	}
 }
 
-// GetResourcesJSON returns a JSON representation of resources.
-func (p *Planet) GetResourcesJSON() ([]byte, error) {
-	return json.Marshal(p.Resources)
-}
-
 // GetEnergyBalance returns the current energy balance.
 func (p *Planet) GetEnergyBalance() float64 {
 	production := p.calculateEnergyProduction()
@@ -837,25 +768,6 @@ func (p *Planet) BaseOperational() bool {
 	return p.Resources.Food > 0
 }
 
-// GetBuildingEntry returns a building entry by type, or an empty one if not found.
-func (p *Planet) GetBuildingEntry(bt string) BuildingEntry {
-	idx := p.FindBuildingIndex(bt)
-	if idx < 0 {
-		return BuildingEntry{Type: bt, Level: 0}
-	}
-	return p.Buildings[idx]
-}
-
-// LogPlanetState logs the current planet state for debugging.
-func (p *Planet) LogPlanetState() {
-	log.Printf("Planet %s (%s): Food=%.0f Energy=%.0f/%.0f Money=%.0f Buildings=%v",
-		p.Name, p.ID,
-		p.Resources.Food,
-		p.Resources.Energy, p.Resources.MaxEnergy,
-		p.Resources.Money,
-		p.Buildings)
-}
-
 // StartResearch begins researching a technology on this planet.
 func (p *Planet) StartResearch(techID string) error {
 	if !p.BaseOperational() {
@@ -871,16 +783,6 @@ func (p *Planet) StartResearch(techID string) error {
 // GetAvailableResearch returns technologies that can be researched on this planet.
 func (p *Planet) GetAvailableResearch() ([]byte, error) {
 	return p.Research.GetAvailableForAPI()
-}
-
-// GetResearchProgress returns the progress percentage (0-100) for a tech.
-func (p *Planet) GetResearchProgress(techID string) float64 {
-	return p.Research.GetResearchProgress(techID)
-}
-
-// GetResearchState returns the full research state for a tech.
-func (p *Planet) GetResearchState(techID string) *research.ResearchState {
-	return p.Research.GetResearchState(techID)
 }
 
 // GetResearchJSON returns all research state as JSON.
@@ -943,84 +845,9 @@ func (p *Planet) GetShipyard() *ship.Shipyard {
 	return p.Shipyard
 }
 
-// GetShipCount returns the number of ships of a given type.
-func (p *Planet) GetShipCount(typeID ship.TypeID) int {
-	return p.Fleet.GetShipCount(typeID)
-}
-
 // GetTotalShipCount returns the total number of ships in the fleet.
 func (p *Planet) GetTotalShipCount() int {
 	return p.Fleet.TotalShipCount()
-}
-
-// GetShipEnergyConsumption returns the energy consumed by the fleet.
-func (p *Planet) GetShipEnergyConsumption() float64 {
-	return p.Fleet.TotalEnergyConsumption()
-}
-
-// AutoBattle simulates an auto-battle against an NPC planet fleet.
-func (p *Planet) AutoBattle(npcFleet *ship.Fleet) *BattleRecord {
-	attackerSnapshot := battle.NewFleetSnapshot(p.Fleet)
-	defenderSnapshot := battle.NewFleetSnapshot(npcFleet)
-
-	result := battle.CalculateBattle(attackerSnapshot, defenderSnapshot)
-
-	battleRecord := BattleRecord{
-		Opponent:  "npc",
-		Result:    result.Winner,
-		Loot:      result.AttackerLoot,
-		LostShips: result.AttackerLost,
-		Refund:    result.AttackerRefund,
-		Rounds:    result.Rounds,
-		Timestamp: time.Now(),
-	}
-
-	if result.Winner == "attacker" {
-		// Apply loot to planet resources
-		p.Resources.Money += result.AttackerLoot["money"]
-		p.Resources.AlienTech += result.AttackerLoot["alien_tech"]
-		p.Resources.Food += result.AttackerLoot["food"]
-		p.Resources.Composite += result.AttackerLoot["composite"]
-		p.Resources.Mechanisms += result.AttackerLoot["mechanisms"]
-		p.Resources.Reagents += result.AttackerLoot["reagents"]
-
-		// Apply refund for lost ships
-		p.Resources.Money += result.AttackerRefund["money"]
-		p.Resources.Food += result.AttackerRefund["food"]
-		p.Resources.Composite += result.AttackerRefund["composite"]
-		p.Resources.Mechanisms += result.AttackerRefund["mechanisms"]
-		p.Resources.Reagents += result.AttackerRefund["reagents"]
-
-		// Remove destroyed ships from fleet
-		for typeID, count := range result.AttackerLost {
-			p.Fleet.RemoveShips(typeID, count)
-		}
-
-		log.Printf("Planet %s won battle in %d rounds, loot: %v", p.ID, result.Rounds, result.AttackerLoot)
-	} else if result.Winner == "defender" {
-		// Remove destroyed ships from fleet
-		for typeID, count := range result.AttackerLost {
-			p.Fleet.RemoveShips(typeID, count)
-		}
-
-		log.Printf("Planet %s lost battle in %d rounds", p.ID, result.Rounds)
-	} else {
-		// Draw - both sides lost ships
-		for typeID, count := range result.AttackerLost {
-			p.Fleet.RemoveShips(typeID, count)
-		}
-
-		log.Printf("Planet %s drew battle in %d rounds", p.ID, result.Rounds)
-	}
-
-	p.Battles = append(p.Battles, battleRecord)
-
-	// Keep only last 50 battles
-	if len(p.Battles) > 50 {
-		p.Battles = p.Battles[len(p.Battles)-50:]
-	}
-
-	return &battleRecord
 }
 
 // GetBattleHistory returns the planet's battle history.
@@ -1037,11 +864,6 @@ func (p *Planet) GetFleetSnapshot() *battle.FleetSnapshot {
 func (p *Planet) GetFleetStrength() float64 {
 	snapshot := p.GetFleetSnapshot()
 	return snapshot.TotalDPS() + snapshot.TotalHP()*0.1
-}
-
-// HasFleet returns true if the planet has any ships.
-func (p *Planet) HasFleet() bool {
-	return p.Fleet.TotalShipCount() > 0
 }
 
 // HasCombatFleet returns true if the planet has ships with weapons.

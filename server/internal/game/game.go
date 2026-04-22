@@ -133,7 +133,6 @@ func (g *Game) LoadPlanetsFromDB() error {
 							Pending:       bPending,
 						})
 					}
-					planet.syncBuildingsMap()
 				}
 			}
 		} else {
@@ -317,12 +316,4 @@ func (g *Planet) broadcastPlanetUpdate() {
 // RegisterBroadcastHandler sets the broadcast callback function.
 func (g *Game) RegisterBroadcastHandler(fn func(planetID, playerID string, state map[string]interface{})) {
 	g.broadcastFunc = fn
-}
-
-// broadcastFunc is the callback for broadcasting planet updates.
-var broadcastFunc func(planetID, playerID string, state map[string]interface{})
-
-// SetBroadcastFunc sets the global broadcast function.
-func SetBroadcastFunc(fn func(planetID, playerID string, state map[string]interface{})) {
-	broadcastFunc = fn
 }

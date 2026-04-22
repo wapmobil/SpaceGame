@@ -9,7 +9,6 @@ type ProductionResult struct {
 	Energy    float64
 	Money     float64
 	AlienTech float64
-	HasEnergy bool
 }
 
 // Add adds another ProductionResult to this one.
@@ -21,9 +20,6 @@ func (p *ProductionResult) Add(o ProductionResult) {
 	p.Energy += o.Energy
 	p.Money += o.Money
 	p.AlienTech += o.AlienTech
-	if o.HasEnergy {
-		p.HasEnergy = true
-	}
 }
 
 // IsZero returns true if all deltas are zero.

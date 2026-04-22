@@ -345,15 +345,10 @@ func TestProductionResult(t *testing.T) {
 		Energy:    15,
 		Money:     50,
 		AlienTech: 1,
-		HasEnergy: true,
 	}
 
 	if prod.Food != 10 || prod.Composite != 5 || prod.Mechanisms != 3 {
 		t.Error("ProductionResult fields not set correctly")
-	}
-
-	if !prod.HasEnergy {
-		t.Error("HasEnergy should be true")
 	}
 
 	if prod.IsZero() {
@@ -448,10 +443,9 @@ func TestBuildingProductionResult(t *testing.T) {
 	prod := building.ProductionResult{
 		Food:      10,
 		Composite: 5,
-		HasEnergy: true,
 	}
 
-	if prod.Food != 10 || !prod.HasEnergy {
+	if prod.Food != 10 {
 		t.Error("building.ProductionResult not set correctly")
 	}
 

@@ -1,8 +1,8 @@
 package game
 
-import (
-	"spacegame/internal/game/building"
-)
+import "spacegame/internal/game/building"
+
+
 
 // ProductionResult is an alias for building.ProductionResult for backwards compatibility.
 type ProductionResult = building.ProductionResult
@@ -92,42 +92,4 @@ func StorageResourceEmojis() map[StorageResourceType]string {
 
 
 
-// CalculateEnergyBalance computes the net energy for a planet given its buildings.
-func CalculateEnergyBalance(buildings map[building.BuildingType]*building.Building) (production float64, consumption float64) {
-	for _, b := range buildings {
-		con := b.Consumption()
-		if con < 0 {
-			production += float64(b.GetLevel()) * float64(-con)
-		} else if con > 0 {
-			consumption += float64(b.GetLevel()) * float64(con)
-		}
-	}
-	return production, consumption
-}
 
-// CalculateStorageCapacity returns the total storage capacity for a resource type.
-func CalculateStorageCapacity(buildings map[building.BuildingType]*building.Building, resource StorageResourceType) float64 {
-	base := 1000.0
-	for _, b := range buildings {
-		switch b.GetType() {
-		case building.TypeStorage:
-			base += float64(b.GetLevel()) * 1000
-		case building.TypeEnergyStorage:
-			if resource == StorageFood {
-				base += float64(b.GetLevel()) * 100
-			}
-		}
-	}
-	return base
-}
-
-// CalculateMaxEnergy returns the maximum energy capacity.
-func CalculateMaxEnergy(buildings map[building.BuildingType]*building.Building) float64 {
-	base := 100.0
-	for _, b := range buildings {
-		if b.GetType() == building.TypeEnergyStorage {
-			base += float64(b.GetLevel()) * 100
-		}
-	}
-	return base
-}
