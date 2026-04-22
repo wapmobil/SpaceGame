@@ -265,13 +265,12 @@ func handleGetPlanet(db *sql.DB) http.HandlerFunc {
 		}
 
 		resp := map[string]interface{}{
-			"id":           p.ID,
-			"player_id":    p.OwnerID,
-			"name":         p.Name,
-			"level":        p.Level,
-			"resources":    p.Resources,
-			"buildings":    p.Buildings,
-			"build_progress": p.BuildProgress,
+			"id":          p.ID,
+			"player_id":   p.OwnerID,
+			"name":        p.Name,
+			"level":       p.Level,
+			"resources":   p.Resources,
+			"buildings":   p.Buildings,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -321,31 +320,39 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
 		}
 
-		type buildingInfo struct {
-			Type          string  `json:"type"`
-			Level         int     `json:"level"`
-			BuildProgress float64 `json:"build_progress"`
-			TotalBuildTime float64 `json:"total_build_time"`
-			FoodCost      float64 `json:"food_cost"`
-			MoneyCost     float64 `json:"money_cost"`
-			Pending       bool    `json:"pending"`
+		for i := range p.Buildings {
+			p.PopulateBuildingEntry(i)
 		}
 
-		var buildings []buildingInfo
-		for bType, level := range p.Buildings {
-			progress := p.BuildProgress[bType]
-			totalTime := p.GetBuildTime(bType, level)
-			nextLevel := level + 1
-			cost := p.GetBuildingCost(bType, nextLevel)
-			buildings = append(buildings, buildingInfo{
-				Type:          bType,
-				Level:         level,
-				BuildProgress: progress,
-				TotalBuildTime: totalTime,
-				FoodCost:      cost.Food,
-				MoneyCost:     cost.Money,
-				Pending:       p.BuildPending[bType],
-			})
+		details := p.GetBuildDetails()
+
+		buildings := make([]BuildingDetail, len(details.Buildings))
+		for i, b := range details.Buildings {
+			buildings[i] = BuildingDetail{
+				Type:          b.Type,
+				Level:         b.Level,
+				BuildProgress: b.BuildProgress,
+				Pending:       b.Pending,
+				BuildTime:     b.BuildTime,
+				Cost: CostDetail{
+					Food:  b.Cost.Food,
+					Money: b.Cost.Money,
+				},
+				NextCost: CostDetail{
+					Food:  b.NextCost.Food,
+					Money: b.NextCost.Money,
+				},
+				Production: ProdDetail{
+					Food:       b.Production.Food,
+					Composite:  b.Production.Composite,
+					Mechanisms: b.Production.Mechanisms,
+					Reagents:   b.Production.Reagents,
+					Energy:     b.Production.Energy,
+					Money:      b.Production.Money,
+					AlienTech:  b.Production.AlienTech,
+				},
+				Consumption: b.Consumption,
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -429,7 +436,12 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		level := p.Buildings[req.Type]
+		idx := p.FindBuildingIndex(req.Type)
+		if idx >= 0 {
+			p.PopulateBuildingEntry(idx)
+		}
+
+		level := p.GetBuildingLevel(req.Type)
 		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, req.Type, level)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -437,7 +449,7 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":              "started",
 			"type":                req.Type,
-			"progress":            p.BuildProgress[req.Type],
+			"progress":            p.Buildings[idx].BuildProgress,
 			"food_cost":           foodCost,
 			"money_cost":          moneyCost,
 			"active_constructions": p.ActiveConstruction,
@@ -503,7 +515,12 @@ func handleConfirmBuilding(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		level := p.Buildings[buildingType]
+		idx := p.FindBuildingIndex(buildingType)
+		if idx >= 0 {
+			p.PopulateBuildingEntry(idx)
+		}
+
+		level := p.GetBuildingLevel(buildingType)
 		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, buildingType, level)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -511,6 +528,129 @@ func handleConfirmBuilding(db *sql.DB) http.HandlerFunc {
 			"status": "confirmed",
 			"type":   buildingType,
 		})
+	}
+}
+
+func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+
+		for i := range p.Buildings {
+			p.PopulateBuildingEntry(i)
+		}
+
+		details := p.GetBuildDetails()
+
+		buildings := make([]BuildingDetail, len(details.Buildings))
+		for i, b := range details.Buildings {
+			buildings[i] = BuildingDetail{
+				Type:          b.Type,
+				Level:         b.Level,
+				BuildProgress: b.BuildProgress,
+				Pending:       b.Pending,
+				BuildTime:     b.BuildTime,
+				Cost: CostDetail{
+					Food:  b.Cost.Food,
+					Money: b.Cost.Money,
+				},
+				NextCost: CostDetail{
+					Food:  b.NextCost.Food,
+					Money: b.NextCost.Money,
+				},
+				Production: ProdDetail{
+					Food:       b.Production.Food,
+					Composite:  b.Production.Composite,
+					Mechanisms: b.Production.Mechanisms,
+					Reagents:   b.Production.Reagents,
+					Energy:     b.Production.Energy,
+					Money:      b.Production.Money,
+					AlienTech:  b.Production.AlienTech,
+				},
+				Consumption: b.Consumption,
+			}
+		}
+
+		production := ProdDetail{
+			Food:       details.ResourceProduction.Food,
+			Composite:  details.ResourceProduction.Composite,
+			Mechanisms: details.ResourceProduction.Mechanisms,
+			Reagents:   details.ResourceProduction.Reagents,
+			Energy:     details.ResourceProduction.Energy,
+			Money:      details.ResourceProduction.Money,
+			AlienTech:  details.ResourceProduction.AlienTech,
+		}
+
+		resp := BuildDetailsResponse{
+			Resources: PlanetResources{
+				Food:       details.Resources.Food,
+				Composite:  details.Resources.Composite,
+				Mechanisms: details.Resources.Mechanisms,
+				Reagents:   details.Resources.Reagents,
+				Energy:     details.Resources.Energy,
+				MaxEnergy:  details.Resources.MaxEnergy,
+				Money:      details.Resources.Money,
+				AlienTech:  details.Resources.AlienTech,
+			},
+			EnergyBuffer: EnergyBufferDetail{
+				Value:   details.EnergyBuffer.Value,
+				Max:     details.EnergyBuffer.Max,
+				Deficit: details.EnergyBuffer.Deficit,
+			},
+			Buildings: buildings,
+			EnergyBalance: EnergyBalanceDetail{
+				Production:  details.Resources.Energy,
+				Consumption: 0,
+				Net:         details.EnergyBalance,
+			},
+			ResourceProduction: production,
+			ActiveConstruction: details.ActiveConstruction,
+			MaxConstruction:    details.MaxConstruction,
+			BaseOperational:    details.BaseOperational,
+			CanResearch:        details.CanResearch,
+			CanExpedition:      details.CanExpedition,
+			CanMining:          details.CanMining,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 
@@ -643,6 +783,8 @@ func handleStartResearch(db *sql.DB) http.HandlerFunc {
 		if err != nil {
 			errMsg := err.Error()
 			switch {
+			case strings.Contains(errMsg, "base_not_operational"):
+				http.Error(w, "Planet base requires food to operate", http.StatusBadRequest)
 			case strings.Contains(errMsg, "insufficient_resources"):
 				http.Error(w, "Insufficient resources", http.StatusConflict)
 			case strings.Contains(errMsg, "prerequisites_not_met"):
@@ -712,8 +854,8 @@ func handleGetFleet(db *sql.DB) http.HandlerFunc {
 
 		fleet := p.GetFleet()
 		shipyard := p.GetShipyard()
-		shipyardLevel := p.Buildings["shipyard"]
-		maxSlots := shipyard.MaxSlots(p.Buildings["base"])
+		shipyardLevel := p.GetBuildingLevel("shipyard")
+		maxSlots := shipyard.MaxSlots(p.GetBuildingLevel("base"))
 
 		resp := FleetResponse{
 			Ships:            fleet.GetShipState(),
@@ -858,8 +1000,8 @@ func handleGetAvailableShips(db *sql.DB) http.HandlerFunc {
 			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
 		}
 
-		shipyardLevel := p.Buildings["shipyard"]
-		maxSlots := p.Shipyard.MaxSlots(p.Buildings["base"])
+		shipyardLevel := p.GetBuildingLevel("shipyard")
+		maxSlots := p.Shipyard.MaxSlots(p.GetBuildingLevel("base"))
 
 		allTypes := ship.AllShipTypes()
 		available := make([]ShipTypeResponse, 0, len(allTypes))
@@ -938,6 +1080,7 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/market/orders")
 	rest = strings.TrimSuffix(rest, "/buildings")
 	rest = strings.TrimSuffix(rest, "/confirm")
+	rest = strings.TrimSuffix(rest, "/build-details")
 	return rest
 }
 
@@ -1113,6 +1256,8 @@ func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
 		if err != nil {
 			errMsg := err.Error()
 			switch {
+			case strings.Contains(errMsg, "base_not_operational"):
+				http.Error(w, "Planet base requires food to operate", http.StatusBadRequest)
 			case strings.Contains(errMsg, "expeditions_not_researched"):
 				http.Error(w, "Expeditions not researched yet", http.StatusConflict)
 			case strings.Contains(errMsg, "max_expeditions_reached"):
@@ -2034,6 +2179,21 @@ func handleStartMining(db *sql.DB) http.HandlerFunc {
 		if err == nil && time.Since(lastCompleted) < game.GetMiningCooldown() {
 			remaining := game.GetMiningCooldown() - time.Since(lastCompleted)
 			http.Error(w, fmt.Sprintf("Mining cooldown active. Try again in %v", remaining.Round(time.Second)), http.StatusConflict)
+			return
+		}
+
+		// Check if base is operational (has food)
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			p = game.NewPlanet(planetID, ownerID, "", game.Instance())
+		}
+		if !p.BaseOperational() {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{
+				"error":   "base_not_operational",
+				"message": "Planet base requires food to operate.",
+			})
 			return
 		}
 

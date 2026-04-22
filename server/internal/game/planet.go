@@ -47,14 +47,14 @@ type Planet struct {
 	OwnerID          string
 	Name             string
 	Level            int
-	Buildings        map[string]int
-	BuildProgress      map[string]float64
-	BuildPending      map[string]bool
+	Buildings        []BuildingEntry
+	buildingsMap     map[string]*BuildingEntry
 	ActiveConstruction int
 	Resources          PlanetResources
 	BuildSpeed         float64
 	LastTick         time.Time
 	EnergyBalance    float64
+	EnergyBuffer     EnergyBuffer
 	Research         *research.ResearchSystem
 	Fleet            *ship.Fleet
 	Shipyard         *ship.Shipyard
@@ -67,13 +67,12 @@ type Planet struct {
 // NewPlanet creates a new planet with default resources.
 func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 	p := &Planet{
-		ID:             id,
-		OwnerID:        ownerID,
-		Name:           name,
-		Level:          1,
-		Buildings:      make(map[string]int),
-		BuildProgress:  make(map[string]float64),
-		BuildPending:   make(map[string]bool),
+		ID:               id,
+		OwnerID:          ownerID,
+		Name:             name,
+		Level:            1,
+		Buildings:        make([]BuildingEntry, 0),
+		buildingsMap:     make(map[string]*BuildingEntry),
 		Resources: PlanetResources{
 			Food:      100,
 			Composite: 0,
@@ -86,6 +85,7 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		},
 		BuildSpeed:     1.0,
 		LastTick:       time.Now(),
+		EnergyBuffer:   NewEnergyBuffer(),
 		Fleet:          ship.NewFleet(),
 		Shipyard:       ship.NewShipyard(),
 		Expeditions:    make([]*expedition.Expedition, 0),
@@ -103,19 +103,67 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 	return p
 }
 
+// FindBuildingIndex returns the index of a building by type, or -1 if not found.
+func (p *Planet) FindBuildingIndex(bt string) int {
+	for i, b := range p.Buildings {
+		if b.Type == bt {
+			return i
+		}
+	}
+	return -1
+}
+
+// syncBuildingsMap rebuilds the internal buildingsMap from the Buildings slice.
+func (p *Planet) syncBuildingsMap() {
+	p.buildingsMap = make(map[string]*BuildingEntry)
+	for i := range p.Buildings {
+		p.buildingsMap[p.Buildings[i].Type] = &p.Buildings[i]
+	}
+}
+
+// AddBuildingEntry adds a new building entry to the Buildings slice.
+func (p *Planet) AddBuildingEntry(bt string) {
+	p.Buildings = append(p.Buildings, BuildingEntry{
+		Type:          bt,
+		Level:         1,
+		BuildProgress: 0,
+		Pending:       false,
+	})
+	p.syncBuildingsMap()
+}
+
+// UpgradeBuildingEntry upgrades a building by type.
+func (p *Planet) UpgradeBuildingEntry(bt string) bool {
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		p.AddBuildingEntry(bt)
+		return true
+	}
+	p.Buildings[idx].Level++
+	p.syncBuildingsMap()
+	return true
+}
+
 // AddBuilding adds or upgrades a building on the planet.
 func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
-	currentLevel := p.Buildings[bt]
+	idx := p.FindBuildingIndex(bt)
+	currentLevel := 0
+	if idx >= 0 {
+		currentLevel = p.Buildings[idx].Level
+	}
 
-	// Check if already under construction (don't count as active if already in BuildProgress)
-	_, alreadyConstructing := p.BuildProgress[bt]
+	// Check if already under construction
+	var alreadyConstructing bool
+	if idx >= 0 && p.Buildings[idx].BuildProgress > 0 {
+		alreadyConstructing = true
+	}
 
 	// Check max concurrent construction limit
 	if p.ActiveConstruction >= p.GetMaxConcurrentBuildings() {
 		return 0, 0, &PlanetError{planetID: p.ID, reason: "max_constructions_reached", extra: fmt.Sprintf("Max constructions reached (%d/%d). Research Parallel Construction to unlock more.", p.ActiveConstruction, p.GetMaxConcurrentBuildings())}
 	}
 
-	// Get cost for next level (currentLevel)
+	// Get cost for next level
 	cost := p.GetBuildingCost(bt, currentLevel)
 
 	// Check affordability
@@ -130,11 +178,24 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	p.Resources.Food -= cost.Food
 	p.Resources.Money -= cost.Money
 
-	// Start construction
-	p.Buildings[bt] = currentLevel + 1
-	p.BuildProgress[bt] = p.GetBuildTime(bt, currentLevel+1)
+	// Upgrade or add building
+	if idx >= 0 {
+		p.Buildings[idx].Level = currentLevel + 1
+		p.Buildings[idx].BuildProgress = p.GetBuildTime(bt, currentLevel+1)
+		p.Buildings[idx].Pending = false
+		p.PopulateBuildingEntry(idx)
+	} else {
+		p.Buildings = append(p.Buildings, BuildingEntry{
+			Type:          bt,
+			Level:         1,
+			BuildProgress: p.GetBuildTime(bt, 1),
+			Pending:       false,
+		})
+		p.PopulateBuildingEntry(len(p.Buildings) - 1)
+	}
+	p.syncBuildingsMap()
 
-	// Track active construction (only if not already counting)
+	// Track active construction
 	if !alreadyConstructing {
 		p.ActiveConstruction++
 	}
@@ -144,12 +205,28 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 
 // AddBuildingDirect sets a building level without any checks (for testing).
 func (p *Planet) AddBuildingDirect(bt string, level int) {
-	p.Buildings[bt] = level
+	idx := p.FindBuildingIndex(bt)
+	if idx >= 0 {
+		p.Buildings[idx].Level = level
+		p.PopulateBuildingEntry(idx)
+	} else {
+		p.Buildings = append(p.Buildings, BuildingEntry{
+			Type:    bt,
+			Level:   level,
+			Pending: false,
+		})
+		p.PopulateBuildingEntry(len(p.Buildings) - 1)
+	}
+	p.syncBuildingsMap()
 }
 
 // GetBuildingLevel returns the level of a building.
 func (p *Planet) GetBuildingLevel(bt string) int {
-	return p.Buildings[bt]
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		return 0
+	}
+	return p.Buildings[idx].Level
 }
 
 // GetMaxConcurrentBuildings returns the maximum number of simultaneous construction projects.
@@ -163,36 +240,55 @@ func (p *Planet) GetMaxConcurrentBuildings() int {
 
 // StepBuilding advances construction progress for a building.
 func (p *Planet) StepBuilding(bt string) {
-	if progress, ok := p.BuildProgress[bt]; ok && progress > 0 {
-		p.BuildProgress[bt] -= p.BuildSpeed
-		if p.BuildProgress[bt] <= 0 {
-			delete(p.BuildProgress, bt)
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		return
+	}
+	if p.Buildings[idx].BuildProgress > 0 {
+		p.Buildings[idx].BuildProgress -= p.BuildSpeed
+		if p.Buildings[idx].BuildProgress <= 0 {
+			p.Buildings[idx].BuildProgress = 0
 			p.ActiveConstruction--
 			if p.ActiveConstruction < 0 {
 				p.ActiveConstruction = 0
 			}
-			p.BuildPending[bt] = true
+			p.Buildings[idx].Pending = true
 		}
 	}
 }
 
 // ConfirmBuilding confirms a pending building construction, making it operational.
 func (p *Planet) ConfirmBuilding(bt string) error {
-	if !p.BuildPending[bt] {
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		return &PlanetError{planetID: p.ID, reason: "building_not_found"}
+	}
+	if !p.Buildings[idx].Pending {
 		return &PlanetError{planetID: p.ID, reason: "building_not_pending"}
 	}
-	delete(p.BuildPending, bt)
+	p.Buildings[idx].Pending = false
+	p.PopulateBuildingEntry(idx)
 	return nil
 }
 
 // IsBuildingPending returns true if a building is pending confirmation.
 func (p *Planet) IsBuildingPending(bt string) bool {
-	return p.BuildPending[bt]
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		return false
+	}
+	return p.Buildings[idx].Pending
 }
 
 // GetPendingBuildings returns all pending building types.
 func (p *Planet) GetPendingBuildings() map[string]bool {
-	return p.BuildPending
+	result := make(map[string]bool)
+	for _, b := range p.Buildings {
+		if b.Pending {
+			result[b.Type] = true
+		}
+	}
+	return result
 }
 
 // GetBuildTime returns the build time for a building at the given level.
@@ -207,7 +303,7 @@ func (p *Planet) GetBuildTime(bt string, level int) float64 {
 	case "base":
 		return math.Pow(2, float64(level+3)) + 100
 	case "factory":
-		return float64(level*2+1) * 100000
+		return float64(level*2+1) * 1500
 	case "energy_storage":
 		return float64(level*level) + 1000
 	case "shipyard":
@@ -350,10 +446,113 @@ func (p *Planet) getProduction(bt string, level int) ProductionResult {
 	return prod
 }
 
+// stepBuildingEntry steps a building by index.
+func (p *Planet) stepBuildingEntry(idx int) {
+	if idx < 0 || idx >= len(p.Buildings) {
+		return
+	}
+	b := &p.Buildings[idx]
+	if b.BuildProgress > 0 {
+		b.BuildProgress -= p.BuildSpeed
+		if b.BuildProgress <= 0 {
+			b.BuildProgress = 0
+			p.ActiveConstruction--
+			if p.ActiveConstruction < 0 {
+				p.ActiveConstruction = 0
+			}
+			b.Pending = true
+		}
+	}
+}
+
+// getEnergyProduction returns the energy production of a solar building at the given level.
+func (p *Planet) getEnergyProduction(bt string, level int) float64 {
+	if level <= 0 {
+		return 0
+	}
+	switch bt {
+	case "solar":
+		return float64(level) * 15
+	default:
+		return 0
+	}
+}
+
+// calculateEnergyProduction returns total energy production from solar panels.
+func (p *Planet) calculateEnergyProduction() float64 {
+	var total float64
+	for _, b := range p.Buildings {
+		if b.Type == "solar" {
+			total += p.getEnergyProduction(b.Type, b.Level)
+		}
+	}
+	return total
+}
+
+// calculateEnergyConsumption returns total energy consumption from non-solar buildings and fleet.
+func (p *Planet) calculateEnergyConsumption() float64 {
+	var total float64
+	for _, b := range p.Buildings {
+		if b.Type != "solar" {
+			total += p.getEnergyConsumption(b.Type, b.Level)
+		}
+	}
+	total += p.Fleet.TotalEnergyConsumption()
+	return total
+}
+
+// calculateResourceProduction returns per-tick resource production from all operational buildings.
+func (p *Planet) calculateResourceProduction() ProdInfo {
+	var prod ProdInfo
+	for _, b := range p.Buildings {
+		if b.Pending {
+			continue
+		}
+		bp := p.getProduction(b.Type, b.Level)
+		prod.Food += bp.Food
+		prod.Composite += bp.Composite
+		prod.Mechanisms += bp.Mechanisms
+		prod.Reagents += bp.Reagents
+		prod.Energy += bp.Energy
+		prod.Money += bp.Money
+		prod.AlienTech += bp.AlienTech
+	}
+	return prod
+}
+
+// PopulateBuildingEntry populates all computed fields for a building entry.
+func (p *Planet) PopulateBuildingEntry(idx int) {
+	if idx < 0 || idx >= len(p.Buildings) {
+		return
+	}
+	b := &p.Buildings[idx]
+	level := b.Level
+
+	b.BuildTime = p.GetBuildTime(b.Type, level)
+	cost := p.GetBuildingCost(b.Type, level-1)
+	b.Cost = CostInfo{Food: cost.Food, Money: cost.Money}
+	nextCost := p.GetBuildingCost(b.Type, level)
+	b.NextCost = CostInfo{Food: nextCost.Food, Money: nextCost.Money}
+
+	prod := p.getProduction(b.Type, level)
+	b.Production.Food = prod.Food
+	b.Production.Composite = prod.Composite
+	b.Production.Mechanisms = prod.Mechanisms
+	b.Production.Reagents = prod.Reagents
+	b.Production.Energy = prod.Energy
+	b.Production.Money = prod.Money
+	b.Production.AlienTech = prod.AlienTech
+
+	b.Consumption = p.getEnergyConsumption(b.Type, level)
+	if b.Consumption < 0 {
+		b.Consumption = -b.Consumption
+	}
+}
+
 // calculateEnergyBalance computes total energy production and consumption.
 func (p *Planet) calculateEnergyBalance() (production float64, consumption float64) {
-	for bt, level := range p.Buildings {
-		con := p.getEnergyConsumption(bt, level)
+	for _, b := range p.Buildings {
+		con := p.getEnergyConsumption(b.Type, b.Level)
 		if con < 0 {
 			production += float64(-con)
 		} else if con > 0 {
@@ -366,9 +565,9 @@ func (p *Planet) calculateEnergyBalance() (production float64, consumption float
 // calculateMaxEnergy returns the maximum energy capacity.
 func (p *Planet) calculateMaxEnergy() float64 {
 	base := 100.0
-	for bt, level := range p.Buildings {
-		if bt == "energy_storage" {
-			base += float64(level) * 100
+	for _, b := range p.Buildings {
+		if b.Type == "energy_storage" {
+			base += float64(b.Level) * 100
 		}
 	}
 	return base
@@ -377,8 +576,8 @@ func (p *Planet) calculateMaxEnergy() float64 {
 // calculateStorageCapacity returns the total storage capacity.
 func (p *Planet) calculateStorageCapacity() float64 {
 	base := 1000.0
-	if level, ok := p.Buildings["storage"]; ok {
-		base += float64(level) * 1000
+	if idx := p.FindBuildingIndex("storage"); idx >= 0 {
+		base += float64(p.Buildings[idx].Level) * 1000
 	}
 	return base
 }
@@ -386,81 +585,76 @@ func (p *Planet) calculateStorageCapacity() float64 {
 // Tick processes one game tick (1 second).
 func (p *Planet) Tick() {
 	now := time.Now()
-	_ = now.Sub(p.LastTick).Seconds()
 	p.LastTick = now
 
-	// Update building construction progress
-	for bt := range p.Buildings {
-		p.StepBuilding(bt)
+	// 1. Step building construction progress
+	for i := range p.Buildings {
+		p.stepBuildingEntry(i)
 	}
 
-	// Advance research progress
-	p.Research.Tick()
-
-	// Advance ship construction
-	if completed := p.Shipyard.Tick(); completed != nil {
-		st := ship.GetShipType(*completed)
-		if st != nil {
-			p.Fleet.AddShip(st, 1)
+	// 2. Update energy buffer max capacity based on energy_storage level
+	energyStorageLevel := 0
+	for _, b := range p.Buildings {
+		if b.Type == "energy_storage" {
+			energyStorageLevel += b.Level
 		}
 	}
+	p.EnergyBuffer.UpdateMax(energyStorageLevel)
 
-	// Advance expeditions
-	p.TickExpeditions()
+	// 3. Calculate energy production (solar panels only)
+	energyProduction := p.calculateEnergyProduction()
 
-	// Calculate ship energy consumption
-	shipEnergy := p.Fleet.TotalEnergyConsumption()
+	// 4. Apply energy production to buffer
+	p.EnergyBuffer.Value += energyProduction
 
-	// Calculate energy balance
-	production, consumption := p.calculateEnergyBalance()
-	consumption += shipEnergy
-	hasEnergy := production >= consumption
+	// 5. Calculate energy consumption (all non-solar buildings + fleet)
+	energyConsumption := p.calculateEnergyConsumption()
 
-	// Update max energy capacity
-	maxEnergy := p.calculateMaxEnergy()
-	if maxEnergy > p.Resources.MaxEnergy {
-		p.Resources.MaxEnergy = maxEnergy
+	// 6. If buffer > 0, apply consumption
+	if p.EnergyBuffer.Value > 0 {
+		p.EnergyBuffer.Value -= energyConsumption
 	}
 
-	// Calculate production
-	var totalProduction ProductionResult
-	for bt, level := range p.Buildings {
-		if p.BuildPending[bt] {
-			continue
-		}
-		if !hasEnergy {
-			continue
-		}
-		prod := p.getProduction(bt, level)
-		if prod.HasEnergy {
-			totalProduction.Add(prod)
-		}
-		_ = bt // suppress unused warning
+	// 7. Clamp buffer to max
+	if p.EnergyBuffer.Value > p.EnergyBuffer.Max {
+		p.EnergyBuffer.Value = p.EnergyBuffer.Max
 	}
 
-	// Apply production to resources
-	if hasEnergy {
-		p.Resources.Energy += totalProduction.Energy
-		if p.Resources.Energy > p.Resources.MaxEnergy {
-			p.Resources.Energy = p.Resources.MaxEnergy
-		}
-		p.Resources.Food += totalProduction.Food
-		p.Resources.Composite += totalProduction.Composite
-		p.Resources.Mechanisms += totalProduction.Mechanisms
-		p.Resources.Reagents += totalProduction.Reagents
-		p.Resources.Money += totalProduction.Money
-		p.Resources.AlienTech += totalProduction.AlienTech
+	// 8. Update deficit flag
+	p.EnergyBuffer.Deficit = p.EnergyBuffer.Value <= 0
 
-		// Clamp resources to storage capacity
-		storageCapacity := p.calculateStorageCapacity()
-		p.Resources.Food = math.Min(p.Resources.Food, storageCapacity)
-		p.Resources.Composite = math.Min(p.Resources.Composite, storageCapacity)
-		p.Resources.Mechanisms = math.Min(p.Resources.Mechanisms, storageCapacity)
-		p.Resources.Reagents = math.Min(p.Resources.Reagents, storageCapacity)
-		p.Resources.Energy = math.Min(p.Resources.Energy, p.Resources.MaxEnergy)
+	// 9. Update max energy for display
+	if p.EnergyBuffer.Max > p.Resources.MaxEnergy {
+		p.Resources.MaxEnergy = p.EnergyBuffer.Max
 	}
 
-	// Clamp resources to non-negative
+	// 10. Calculate resource production (only if not in deficit)
+	var totalProduction ProdInfo
+	if !p.EnergyBuffer.Deficit {
+		totalProduction = p.calculateResourceProduction()
+	}
+
+	// 11. Apply resource production to resources
+	p.Resources.Energy += totalProduction.Energy
+	if p.Resources.Energy > p.Resources.MaxEnergy {
+		p.Resources.Energy = p.Resources.MaxEnergy
+	}
+	p.Resources.Food += totalProduction.Food
+	p.Resources.Composite += totalProduction.Composite
+	p.Resources.Mechanisms += totalProduction.Mechanisms
+	p.Resources.Reagents += totalProduction.Reagents
+	p.Resources.Money += totalProduction.Money
+	p.Resources.AlienTech += totalProduction.AlienTech
+
+	// 12. Clamp resources to storage capacity
+	storageCapacity := p.calculateStorageCapacity()
+	p.Resources.Food = math.Min(p.Resources.Food, storageCapacity)
+	p.Resources.Composite = math.Min(p.Resources.Composite, storageCapacity)
+	p.Resources.Mechanisms = math.Min(p.Resources.Mechanisms, storageCapacity)
+	p.Resources.Reagents = math.Min(p.Resources.Reagents, storageCapacity)
+	p.Resources.Energy = math.Min(p.Resources.Energy, p.Resources.MaxEnergy)
+
+	// 13. Clamp resources to non-negative (except energy buffer handles this)
 	p.Resources.Food = math.Max(0, p.Resources.Food)
 	p.Resources.Composite = math.Max(0, p.Resources.Composite)
 	p.Resources.Mechanisms = math.Max(0, p.Resources.Mechanisms)
@@ -469,21 +663,36 @@ func (p *Planet) Tick() {
 	p.Resources.Money = math.Max(0, p.Resources.Money)
 	p.Resources.AlienTech = math.Max(0, p.Resources.AlienTech)
 
-	p.EnergyBalance = production - consumption
+	// 14. Update energy balance for display
+	p.EnergyBalance = energyProduction - energyConsumption
 
-	// Save to DB (throttled)
+	// 15. Advance research progress
+	p.Research.Tick()
+
+	// 16. Advance ship construction
+	if completed := p.Shipyard.Tick(); completed != nil {
+		st := ship.GetShipType(*completed)
+		if st != nil {
+			p.Fleet.AddShip(st, 1)
+		}
+	}
+
+	// 17. Advance expeditions
+	p.TickExpeditions()
+
+	// 18. Save to DB (throttled)
 	if p.game.shouldSave(p.ID) {
 		p.game.savePlanet(p)
 	}
 
-	// Broadcast state update
+	// 19. Broadcast state update
 	p.broadcastPlanetUpdate()
 }
 
 // GetState returns the planet's state as a JSON-serializable map.
 func (p *Planet) GetState() map[string]interface{} {
-	shipyardLevel := p.Buildings["shipyard"]
-	maxSlots := p.Shipyard.MaxSlots(p.Buildings["base"])
+	shipyardLevel := p.GetBuildingLevel("shipyard")
+	baseLevel := p.GetBuildingLevel("base")
 
 	return map[string]interface{}{
 		"id":               p.ID,
@@ -492,22 +701,22 @@ func (p *Planet) GetState() map[string]interface{} {
 		"level":            p.Level,
 		"resources":        p.Resources,
 		"buildings":        p.Buildings,
-		"build_progress":   p.BuildProgress,
 		"build_speed":      p.BuildSpeed,
 		"energy_balance":   p.EnergyBalance,
+		"energy_buffer":    p.EnergyBuffer,
 		"last_tick":        p.LastTick.Format(time.RFC3339),
 		"fleet":            p.Fleet.GetShipState(),
 		"shipyard_level":   shipyardLevel,
 		"shipyard_queue":   p.Shipyard.Queue,
 		"shipyard_slots":   p.Fleet.TotalSlots(),
-		"shipyard_max":     maxSlots,
+		"shipyard_max":     p.Shipyard.MaxSlots(baseLevel),
 		"shipyard_progress": p.Shipyard.GetQueueProgress(),
 		"expeditions":       p.GetExpeditionState(),
 		"active_expeditions":   p.GetActiveExpeditionsCount(),
 		"max_expeditions":      p.GetMaxExpeditions(),
 		"active_constructions": p.ActiveConstruction,
 		"max_constructions":    p.GetMaxConcurrentBuildings(),
-		"pending_buildings":    p.BuildPending,
+		"pending_buildings":    p.GetPendingBuildings(),
 	}
 }
 
@@ -518,36 +727,123 @@ func (p *Planet) GetResourcesJSON() ([]byte, error) {
 
 // GetEnergyBalance returns the current energy balance.
 func (p *Planet) GetEnergyBalance() float64 {
-	production, consumption := p.calculateEnergyBalance()
+	production := p.calculateEnergyProduction()
+	consumption := p.calculateEnergyConsumption()
 	return production - consumption
 }
 
 // GetProductionResult returns the production result for this tick.
 func (p *Planet) GetProductionResult() ProductionResult {
-	production, consumption := p.calculateEnergyBalance()
-	hasEnergy := production >= consumption
+	production := p.calculateEnergyProduction()
+	consumption := p.calculateEnergyConsumption()
+	p.EnergyBuffer.Deficit = production < consumption
 
 	var totalProduction ProductionResult
-	for bt, level := range p.Buildings {
-		if !hasEnergy {
+	if p.EnergyBuffer.Deficit {
+		return totalProduction
+	}
+	for _, b := range p.Buildings {
+		if b.Pending {
 			continue
 		}
-		prod := p.getProduction(bt, level)
-		if prod.HasEnergy {
-			totalProduction.Add(prod)
-		}
-		_ = bt
+		prod := p.getProduction(b.Type, b.Level)
+		totalProduction.Add(prod)
+		_ = b.Type
 	}
 	return totalProduction
+}
+
+// GetResourceProduction returns the per-tick resource production as ProdInfo.
+func (p *Planet) GetResourceProduction() ProdInfo {
+	var prod ProdInfo
+	if p.EnergyBuffer.Deficit {
+		return prod
+	}
+	for _, b := range p.Buildings {
+		if b.Pending {
+			continue
+		}
+		bp := p.getProduction(b.Type, b.Level)
+		prod.Food += bp.Food
+		prod.Composite += bp.Composite
+		prod.Mechanisms += bp.Mechanisms
+		prod.Reagents += bp.Reagents
+		prod.Energy += bp.Energy
+		prod.Money += bp.Money
+		prod.AlienTech += bp.AlienTech
+	}
+	return prod
+}
+
+// BuildDetails contains the data needed for the build-details API response.
+type BuildDetails struct {
+	Resources          PlanetResources
+	EnergyBuffer       EnergyBuffer
+	Buildings          []BuildingEntry
+	EnergyBalance      float64
+	ResourceProduction ProdInfo
+	ActiveConstruction int
+	MaxConstruction    int
+	BaseOperational    bool
+	CanResearch        bool
+	CanExpedition      bool
+	CanMining          bool
+}
+
+// GetBuildDetails returns a BuildDetails struct for the frontend.
+func (p *Planet) GetBuildDetails() BuildDetails {
+	energyProduction := p.calculateEnergyProduction()
+	energyConsumption := p.calculateEnergyConsumption()
+
+	var resourceProduction ProdInfo
+	if !p.EnergyBuffer.Deficit {
+		resourceProduction = p.calculateResourceProduction()
+	}
+
+	baseOperational := p.Resources.Food > 0
+	expeditionsUnlocked := false
+	if p.Research != nil {
+		if _, ok := p.Research.GetCompleted()["expeditions"]; ok {
+			expeditionsUnlocked = true
+		}
+	}
+
+	return BuildDetails{
+		Resources:          p.Resources,
+		EnergyBuffer:       p.EnergyBuffer,
+		Buildings:          p.Buildings,
+		EnergyBalance:      energyProduction - energyConsumption,
+		ResourceProduction: resourceProduction,
+		ActiveConstruction: p.ActiveConstruction,
+		MaxConstruction:    p.GetMaxConcurrentBuildings(),
+		BaseOperational:    baseOperational,
+		CanResearch:        baseOperational,
+		CanExpedition:      baseOperational && expeditionsUnlocked,
+		CanMining:          baseOperational,
+	}
 }
 
 // GetTotalBuildingLevels returns the sum of all building levels.
 func (p *Planet) GetTotalBuildingLevels() int {
 	total := 0
-	for _, level := range p.Buildings {
-		total += level
+	for _, b := range p.Buildings {
+		total += b.Level
 	}
 	return total
+}
+
+// BaseOperational returns true if the planet has food available.
+func (p *Planet) BaseOperational() bool {
+	return p.Resources.Food > 0
+}
+
+// GetBuildingEntry returns a building entry by type, or an empty one if not found.
+func (p *Planet) GetBuildingEntry(bt string) BuildingEntry {
+	idx := p.FindBuildingIndex(bt)
+	if idx < 0 {
+		return BuildingEntry{Type: bt, Level: 0}
+	}
+	return p.Buildings[idx]
 }
 
 // LogPlanetState logs the current planet state for debugging.
@@ -562,6 +858,9 @@ func (p *Planet) LogPlanetState() {
 
 // StartResearch begins researching a technology on this planet.
 func (p *Planet) StartResearch(techID string) error {
+	if !p.BaseOperational() {
+		return &PlanetError{planetID: p.ID, reason: "base_not_operational", extra: "Planet base requires food to operate. Produce food to unlock research."}
+	}
 	tech := research.GetTechByID(techID)
 	if tech == nil {
 		return &PlanetError{planetID: p.ID, reason: "tech_not_found"}
@@ -601,7 +900,7 @@ func (p *Planet) CanBuildShip(typeID ship.TypeID) bool {
 		return false
 	}
 
-	shipyardLevel := p.Buildings["shipyard"]
+	shipyardLevel := p.GetBuildingLevel("shipyard")
 	if st.MinShipyard > shipyardLevel {
 		return false
 	}
@@ -610,7 +909,7 @@ func (p *Planet) CanBuildShip(typeID ship.TypeID) bool {
 		return false
 	}
 
-	maxSlots := p.Shipyard.MaxSlots(p.Buildings["base"])
+	maxSlots := p.Shipyard.MaxSlots(p.GetBuildingLevel("base"))
 	return p.Fleet.CanAddShip(st, 1, maxSlots)
 }
 
@@ -753,6 +1052,10 @@ func (p *Planet) HasCombatFleet() bool {
 
 // CanStartExpedition checks if the planet can start a new expedition.
 func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) error {
+	if !p.BaseOperational() {
+		return &PlanetError{planetID: p.ID, reason: "base_not_operational", extra: "Planet base requires food to operate. Produce food to start expeditions."}
+	}
+
 	// Check if expeditions research is completed
 	if _, ok := p.Research.GetCompleted()["expeditions"]; !ok {
 		return &PlanetError{planetID: p.ID, reason: "expeditions_not_researched"}

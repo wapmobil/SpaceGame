@@ -79,8 +79,7 @@ func (g *Game) LoadPlanetsFromDB() error {
 	}
 
 	rows, err := g.db.Query(`
-		SELECT id, player_id, name, level, resources, 
-		       (SELECT COUNT(*) FROM buildings WHERE planet_id = p.id) as building_count
+		SELECT id, player_id, name, level, resources, energy_buffer
 		FROM planets p
 		ORDER BY updated_at DESC
 	`)
@@ -93,14 +92,15 @@ func (g *Game) LoadPlanetsFromDB() error {
 		var id, ownerID, name string
 		var level int
 		var resourcesJSON []byte
-		var buildingCount int
-		if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &buildingCount); err != nil {
+		var energyBufferValue float64
+		if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue); err != nil {
 			log.Printf("Error scanning planet row: %v", err)
 			continue
 		}
 
 		planet := NewPlanet(id, ownerID, name, g)
 		planet.Level = level
+		planet.EnergyBuffer.Value = energyBufferValue
 
 		// Parse resources from JSON
 		var resources PlanetResources
@@ -120,17 +120,29 @@ func (g *Game) LoadPlanetsFromDB() error {
 				var bProgress float32
 				var bPending bool
 				if err := buildingRows.Scan(&bType, &bLevel, &bProgress, &bPending); err == nil {
-					planet.Buildings[bType] = bLevel
-					if bProgress > 0 {
-						planet.BuildProgress[bType] = float64(bProgress)
+					idx := planet.FindBuildingIndex(bType)
+					if idx >= 0 {
+						planet.Buildings[idx].Level = bLevel
+						planet.Buildings[idx].BuildProgress = float64(bProgress)
+						planet.Buildings[idx].Pending = bPending
+					} else {
+						planet.Buildings = append(planet.Buildings, BuildingEntry{
+							Type:          bType,
+							Level:         bLevel,
+							BuildProgress: float64(bProgress),
+							Pending:       bPending,
+						})
 					}
-					if bPending {
-						planet.BuildPending[bType] = true
-					}
+					planet.syncBuildingsMap()
 				}
 			}
 		} else {
 			log.Printf("Error loading buildings for planet %s: %v", id, err)
+		}
+
+		// Populate computed fields for each building
+		for i := range planet.Buildings {
+			planet.PopulateBuildingEntry(i)
 		}
 
 		g.AddPlanet(planet)
@@ -223,16 +235,17 @@ func (g *Game) savePlanet(p *Planet) {
 	}
 
 	// Save building state
-	for bType, level := range p.Buildings {
-		progress := p.BuildProgress[bType]
+	for _, b := range p.Buildings {
+		progress := b.BuildProgress
+		pending := b.Pending
 		_, err = g.db.Exec(`
 			INSERT INTO buildings (planet_id, type, level, build_progress, pending)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (planet_id, type) DO UPDATE
 			SET level = $3, build_progress = $4, pending = $5, updated_at = NOW()
-		`, p.ID, bType, level, float32(progress), p.BuildPending[bType])
+		`, p.ID, b.Type, b.Level, float32(progress), pending)
 		if err != nil {
-			log.Printf("Error saving building %s for planet %s: %v", bType, p.ID, err)
+			log.Printf("Error saving building %s for planet %s: %v", b.Type, p.ID, err)
 		}
 	}
 
@@ -269,6 +282,16 @@ func (g *Game) savePlanet(p *Planet) {
 		if err != nil {
 			log.Printf("Error saving shipyard for planet %s: %v", p.ID, err)
 		}
+	}
+
+	// Save energy buffer
+	_, err = g.db.Exec(`
+		UPDATE planets 
+		SET energy_buffer = $1, updated_at = NOW()
+		WHERE id = $2
+	`, p.EnergyBuffer.Value, p.ID)
+	if err != nil {
+		log.Printf("Error saving energy buffer for planet %s: %v", p.ID, err)
 	}
 
 	g.saveCount[p.ID] = 0

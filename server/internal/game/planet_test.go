@@ -3,6 +3,8 @@ package game
 import (
 	"math"
 	"testing"
+
+	"spacegame/internal/game/research"
 )
 
 func TestFarmProducesFood(t *testing.T) {
@@ -66,33 +68,6 @@ func TestNoProductionWithoutEnergy(t *testing.T) {
 	prod := planet.GetProductionResult()
 	if prod.Food != 0 {
 		t.Errorf("expected no food production without energy, got %f", prod.Food)
-	}
-}
-
-func TestTickProducesResources(t *testing.T) {
-	planet := NewPlanet("test-7", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1) // produces 15 energy
-	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy, produces 1 food
-
-	// Simulate tick manually
-	production, consumption := planet.calculateEnergyBalance()
-	hasEnergy := production >= consumption
-
-	var totalProduction ProductionResult
-	for bt, level := range planet.Buildings {
-		if !hasEnergy {
-			continue
-		}
-		prod := planet.getProduction(bt, level)
-		if prod.HasEnergy {
-			totalProduction.Add(prod)
-		}
-		_ = bt
-	}
-
-	expectedFood := planet.Resources.Food + totalProduction.Food
-	if expectedFood < 1 {
-		t.Errorf("expected food to increase by at least 1, got %f", expectedFood)
 	}
 }
 
@@ -198,5 +173,163 @@ func TestBaseConsumesFood(t *testing.T) {
 	// Base consumes food (negative production)
 	if prod.Food != -1 {
 		t.Logf("base food production: %f", prod.Food)
+	}
+}
+
+func TestBaseOperationalWithFood(t *testing.T) {
+	planet := NewPlanet("test-base-1", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 10
+	if !planet.BaseOperational() {
+		t.Error("expected base to be operational with food > 0")
+	}
+}
+
+func TestBaseNotOperationalWithoutFood(t *testing.T) {
+	planet := NewPlanet("test-base-2", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 0
+	if planet.BaseOperational() {
+		t.Error("expected base to NOT be operational with food == 0")
+	}
+}
+
+func TestBaseNotOperationalWithNegativeFood(t *testing.T) {
+	planet := NewPlanet("test-base-3", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = -5
+	if planet.BaseOperational() {
+		t.Error("expected base to NOT be operational with food < 0")
+	}
+}
+
+func TestStartResearchBlockedWithoutFood(t *testing.T) {
+	planet := NewPlanet("test-research-1", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 0
+
+	tech := research.GetTechByID("planet_exploration")
+	if tech == nil {
+		t.Fatal("expected planet_exploration tech to exist")
+	}
+
+	err := planet.StartResearch(tech.ID)
+	if err == nil {
+		t.Fatal("expected error when starting research without food")
+	}
+}
+
+func TestStartResearchAllowedWithFood(t *testing.T) {
+	planet := NewPlanet("test-research-2", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 1000
+	planet.Resources.Money = 1000
+
+	tech := research.GetTechByID("planet_exploration")
+	if tech == nil {
+		t.Fatal("expected planet_exploration tech to exist")
+	}
+
+	err := planet.StartResearch(tech.ID)
+	if err != nil {
+		t.Fatalf("unexpected error starting research with food: %v", err)
+	}
+}
+
+func TestEnergyBufferMaxUpdates(t *testing.T) {
+	planet := NewPlanet("test-energy-2", "owner-1", "Test Planet", nil)
+
+	initialMax := planet.EnergyBuffer.Max
+	if initialMax != 100 {
+		t.Errorf("expected initial max energy of 100, got %f", initialMax)
+	}
+
+	planet.AddBuildingDirect("energy_storage", 3)
+	planet.EnergyBuffer.UpdateMax(3)
+
+	newMax := planet.EnergyBuffer.Max
+	expectedMax := 100.0 + 3.0*100.0
+	if newMax != expectedMax {
+		t.Errorf("expected max energy of %f with 3 energy_storage, got %f", expectedMax, newMax)
+	}
+}
+
+func TestBuildingSliceOrder(t *testing.T) {
+	planet := NewPlanet("test-order-1", "owner-1", "Test Planet", nil)
+
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 2)
+	planet.AddBuildingDirect("base", 1)
+
+	if len(planet.Buildings) != 3 {
+		t.Errorf("expected 3 buildings, got %d", len(planet.Buildings))
+	}
+
+	if idx := planet.FindBuildingIndex("farm"); idx < 0 {
+		t.Error("expected to find farm building")
+	}
+	if idx := planet.FindBuildingIndex("shipyard"); idx >= 0 {
+		t.Error("expected NOT to find shipyard building")
+	}
+}
+
+func TestAddBuildingPopulatesEntry(t *testing.T) {
+	planet := NewPlanet("test-populate-1", "owner-1", "Test Planet", nil)
+
+	planet.AddBuildingDirect("farm", 1)
+
+	if len(planet.Buildings) != 1 {
+		t.Fatalf("expected 1 building, got %d", len(planet.Buildings))
+	}
+
+	b := planet.Buildings[0]
+	if b.Type != "farm" {
+		t.Errorf("expected type 'farm', got '%s'", b.Type)
+	}
+	if b.Level != 1 {
+		t.Errorf("expected level 1, got %d", b.Level)
+	}
+	if b.BuildTime <= 0 {
+		t.Errorf("expected positive build time, got %f", b.BuildTime)
+	}
+	if b.Production.Food <= 0 {
+		t.Errorf("expected positive food production, got %f", b.Production.Food)
+	}
+	if b.Consumption <= 0 {
+		t.Errorf("expected positive energy consumption, got %f", b.Consumption)
+	}
+}
+
+func TestConfirmBuildingPopulatesEntry(t *testing.T) {
+	planet := NewPlanet("test-confirm-1", "owner-1", "Test Planet", nil)
+
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].Pending = true
+
+	err := planet.ConfirmBuilding("farm")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if planet.Buildings[0].Pending {
+		t.Error("expected building to not be pending after confirmation")
+	}
+}
+
+func TestTickProducesResources(t *testing.T) {
+	planet := NewPlanet("test-7", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1) // produces 15 energy
+	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy, produces 1 food
+
+	// Verify energy buffer has capacity
+	if planet.EnergyBuffer.Max != 100 {
+		t.Errorf("expected initial energy buffer max of 100, got %f", planet.EnergyBuffer.Max)
+	}
+
+	// Verify energy production exceeds consumption (solar 15 > farm 10)
+	balance := planet.GetEnergyBalance()
+	if balance != 5 {
+		t.Errorf("expected energy balance of 5 (15 solar - 10 farm), got %f", balance)
+	}
+
+	// Verify food production when energy is available
+	prod := planet.GetProductionResult()
+	if prod.Food != 1 {
+		t.Errorf("expected farm to produce 1 food with energy available, got %f", prod.Food)
 	}
 }

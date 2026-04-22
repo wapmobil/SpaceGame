@@ -51,7 +51,7 @@ func TestComputePlanetBuildings(t *testing.T) {
 	p := &Planet{
 		ID:        "test-planet",
 		Name:      "Test Planet",
-		Buildings: map[string]int{"farm": 3, "solar": 2, "base": 1},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 3}, {Type: "solar", Level: 2}, {Type: "base", Level: 1}},
 	}
 
 	actual := ComputePlanetBuildings(p)

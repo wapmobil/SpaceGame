@@ -1,5 +1,7 @@
 package api
 
+import "spacegame/internal/game"
+
 // PlayerRequest is the request body for player registration.
 type PlayerRequest struct {
 	Name string `json:"name"`
@@ -339,3 +341,65 @@ type ResolveEventResponse struct {
 	Success bool   `json:"success"`
 	Message string `json:"message"`
 }
+
+// BuildingDetail represents a building with all computed data for the frontend.
+type BuildingDetail struct {
+	Type          string      `json:"type"`
+	Level         int         `json:"level"`
+	BuildProgress float64     `json:"build_progress"`
+	Pending       bool        `json:"pending"`
+	BuildTime     float64     `json:"build_time"`
+	Cost          CostDetail  `json:"cost"`
+	NextCost      CostDetail  `json:"next_cost"`
+	Production    ProdDetail  `json:"production"`
+	Consumption   float64     `json:"consumption"`
+}
+
+// CostDetail represents build costs for the API.
+type CostDetail struct {
+	Food  float64 `json:"food"`
+	Money float64 `json:"money"`
+}
+
+// ProdDetail represents per-tick resource production for the API.
+type ProdDetail struct {
+	Food       float64 `json:"food"`
+	Composite  float64 `json:"composite"`
+	Mechanisms float64 `json:"mechanisms"`
+	Reagents   float64 `json:"reagents"`
+	Energy     float64 `json:"energy"`
+	Money      float64 `json:"money"`
+	AlienTech  float64 `json:"alien_tech"`
+}
+
+// EnergyBufferDetail represents the energy buffer state.
+type EnergyBufferDetail struct {
+	Value   float64 `json:"value"`
+	Max     float64 `json:"max"`
+	Deficit bool    `json:"deficit"`
+}
+
+// BuildDetailsResponse is the response for GET /api/planets/{id}/build-details.
+type BuildDetailsResponse struct {
+	Resources          PlanetResources    `json:"resources"`
+	EnergyBuffer       EnergyBufferDetail `json:"energy_buffer"`
+	Buildings          []BuildingDetail   `json:"buildings"`
+	EnergyBalance      EnergyBalanceDetail `json:"energy_balance"`
+	ResourceProduction ProdDetail          `json:"production"`
+	ActiveConstruction int                `json:"active_constructions"`
+	MaxConstruction    int                `json:"max_constructions"`
+	BaseOperational    bool               `json:"base_operational"`
+	CanResearch        bool               `json:"can_research"`
+	CanExpedition      bool               `json:"can_expedition"`
+	CanMining          bool               `json:"can_mining"`
+}
+
+// EnergyBalanceDetail represents energy production and consumption.
+type EnergyBalanceDetail struct {
+	Production  float64 `json:"production"`
+	Consumption float64 `json:"consumption"`
+	Net         float64 `json:"net"`
+}
+
+// PlanetResources is an alias for the game package's PlanetResources.
+type PlanetResources = game.PlanetResources
