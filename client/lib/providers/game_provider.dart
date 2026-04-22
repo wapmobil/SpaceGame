@@ -58,6 +58,9 @@ class GameProvider extends ChangeNotifier {
   double _productionMoney = 0;
   double _productionAlienTech = 0;
 
+  // Storage
+  double _storageCapacity = 0;
+
   // Base operational flags
   bool _baseOperational = true;
   bool _canResearch = true;
@@ -118,6 +121,9 @@ class GameProvider extends ChangeNotifier {
   double get productionEnergy => _productionEnergy;
   double get productionMoney => _productionMoney;
   double get productionAlienTech => _productionAlienTech;
+
+  // Storage getter
+  double get storageCapacity => _storageCapacity;
 
   // Base operational getters
   bool get baseOperational => _baseOperational;
@@ -254,6 +260,18 @@ class GameProvider extends ChangeNotifier {
         _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
         _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
         _energyBufferDeficit = energyBuffer['deficit'] as bool? ?? false;
+      }
+
+      // Update energy net from energy_balance
+      final energyBalance = stateData['energy_balance'];
+      if (energyBalance != null) {
+        _productionEnergy = (energyBalance as num?)?.toDouble() ?? 0;
+      }
+
+      // Update storage capacity
+      final storageCap = stateData['storage_capacity'];
+      if (storageCap != null) {
+        _storageCapacity = storageCap is double ? storageCap : (storageCap as num).toDouble();
       }
 
       // Update buildings from slice
@@ -439,6 +457,12 @@ class GameProvider extends ChangeNotifier {
       _energyBalanceNet = (energyBalance['net'] as num?)?.toDouble() ?? 0;
     }
 
+    // Update storage capacity
+    final resources = data['resources'] as Map<String, dynamic>?;
+    if (resources != null) {
+      _storageCapacity = (resources['storage_capacity'] as num?)?.toDouble() ?? 0;
+    }
+
     // Update buildings
     final buildingsJson = data['buildings'] as List<dynamic>?;
     if (buildingsJson != null) {
@@ -452,7 +476,7 @@ class GameProvider extends ChangeNotifier {
       _productionComposite = (production['composite'] as num?)?.toDouble() ?? 0;
       _productionMechanisms = (production['mechanisms'] as num?)?.toDouble() ?? 0;
       _productionReagents = (production['reagents'] as num?)?.toDouble() ?? 0;
-      _productionEnergy = (production['energy'] as num?)?.toDouble() ?? 0;
+      _productionEnergy = (production['energy_net'] as num?)?.toDouble() ?? 0;
       _productionMoney = (production['money'] as num?)?.toDouble() ?? 0;
       _productionAlienTech = (production['alien_tech'] as num?)?.toDouble() ?? 0;
     }
@@ -865,6 +889,25 @@ class GameProvider extends ChangeNotifier {
       }
     } catch (e) {
       _setError('Delete order error: $e');
+    }
+  }
+
+  Future<void> sellFood(String planetId, double amount) async {
+    if (_player == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/$planetId/sell-food'),
+        headers: {'X-Auth-Token': _player!.authToken},
+        body: jsonEncode({'amount': amount}),
+      );
+
+      if (response.statusCode == 200) {
+        await loadPlanetDetail(planetId);
+      } else {
+        _setError('Failed to sell food: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Sell food error: $e');
     }
   }
 

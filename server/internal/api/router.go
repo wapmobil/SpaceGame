@@ -95,6 +95,7 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/api/planets/{id}/market/orders", handleGetMyOrders(db))
 	r.Get("/api/market", handleGetGlobalMarket(db))
 	r.Delete("/api/market/orders/{id}", handleDeleteMarketOrder(db))
+	r.Post("/api/planets/{id}/sell-food", handleSellFood(db))
 
 	// Mining mini-game
 	r.Post("/api/planets/{id}/mining/start", handleStartMining(db))

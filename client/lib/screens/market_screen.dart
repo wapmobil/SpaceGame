@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../core/app_theme.dart';
 import '../utils/constants.dart';
+import '../models/planet.dart';
 
 class MarketScreen extends StatelessWidget {
   const MarketScreen({super.key});
@@ -28,6 +29,8 @@ class MarketScreen extends StatelessWidget {
                 children: [
                   _buildMarketOverview(context, gameProvider),
                   const SizedBox(height: 16),
+                  _buildQuickSell(context, gameProvider),
+                  const SizedBox(height: 16),
                   _buildCreateOrder(context, gameProvider),
                   const SizedBox(height: 16),
                   _buildBuyOrders(context, gameProvider),
@@ -40,6 +43,27 @@ class MarketScreen extends StatelessWidget {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildQuickSell(BuildContext context, GameProvider gameProvider) {
+    final planet = gameProvider.selectedPlanet;
+    if (planet == null) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Quick Sell Food', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const SizedBox(height: 4),
+            Text('Rate: 10 food = 1 money', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            const SizedBox(height: 12),
+            _QuickSellForm(planet: planet, gameProvider: gameProvider),
+          ],
+        ),
       ),
     );
   }
@@ -175,6 +199,71 @@ class MarketScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _QuickSellForm extends StatefulWidget {
+  final Planet planet;
+  final GameProvider gameProvider;
+
+  const _QuickSellForm({required this.planet, required this.gameProvider});
+
+  @override
+  State<_QuickSellForm> createState() => _QuickSellFormState();
+}
+
+class _QuickSellFormState extends State<_QuickSellForm> {
+  final _amountController = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foodAvailable = (widget.planet.resources['food'] as num?)?.toDouble() ?? 0.0;
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _amountController,
+                decoration: InputDecoration(
+                  labelText: 'Amount (multiple of 10)',
+                  hintText: 'Max: ${(foodAvailable ~/ 10) * 10}',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'You will receive: ${(_amountController.text.isNotEmpty ? (double.tryParse(_amountController.text) ?? 0) / 10 : 0).toStringAsFixed(0)} money',
+                style: const TextStyle(fontSize: 12, color: Colors.green),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(_amountController.text);
+              if (amount != null && amount > 0 && amount <= foodAvailable && amount % 10 == 0) {
+                widget.gameProvider.sellFood(widget.planet.id, amount);
+                _amountController.clear();
+              }
+            },
+            child: const Text('Sell Food'),
+          ),
+        ),
+      ],
     );
   }
 }

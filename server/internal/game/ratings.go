@@ -290,7 +290,7 @@ func (g *Game) TriggerRandomEvents() {
 
 func applyShortCircuit(p *Planet) (string, error) {
 	// Reset energy production for 1 tick by temporarily setting energy to 0
-	p.Resources.Energy = 0
+	p.EnergyBuffer.Value = 0
 	p.Resources.MaxEnergy = 0
 	return fmt.Sprintf("Short circuit: Energy production reset. Pay 100 money to restore production."), nil
 }
@@ -451,7 +451,7 @@ func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 		p.Resources.MaxEnergy = p.calculateMaxEnergy()
 		production, consumption := p.calculateEnergyBalance()
 		if production >= consumption {
-			p.Resources.Energy = p.Resources.MaxEnergy
+			p.EnergyBuffer.Value = p.Resources.MaxEnergy
 		}
 	case RandomEventTheft:
 		// No recovery needed - money is lost

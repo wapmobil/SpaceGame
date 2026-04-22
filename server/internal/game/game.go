@@ -94,13 +94,12 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 	var id, ownerID, name string
 	var level int
 	var resourcesJSON []byte
-	var energyBufferValue float64
+	var energyBufferValue *float64
 
 	if hasEnergyBuffer {
 		err = g.db.QueryRow(query, planetID).Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue)
 	} else {
 		err = g.db.QueryRow(query, planetID).Scan(&id, &ownerID, &name, &level, &resourcesJSON)
-		energyBufferValue = 100
 	}
 
 	if err == sql.ErrNoRows {
@@ -112,12 +111,15 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 
 	planet := NewPlanet(id, ownerID, name, g)
 	planet.Level = level
-	planet.EnergyBuffer.Value = energyBufferValue
+	if energyBufferValue != nil {
+		planet.EnergyBuffer.Value = *energyBufferValue
+	}
 
 	var resources PlanetResources
 	if err := json.Unmarshal(resourcesJSON, &resources); err == nil {
 		planet.Resources = resources
 	}
+	
 
 	buildingRows, err := g.db.Query(`
 		SELECT type, level, build_progress, pending FROM buildings WHERE planet_id = $1
@@ -183,7 +185,7 @@ func (g *Game) LoadPlanetsFromDB() error {
 		var id, ownerID, name string
 		var level int
 		var resourcesJSON []byte
-		var energyBufferValue float64
+		var energyBufferValue *float64
 
 		if hasEnergyBuffer {
 			if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue); err != nil {
@@ -195,18 +197,20 @@ func (g *Game) LoadPlanetsFromDB() error {
 				log.Printf("Error scanning planet row: %v", err)
 				continue
 			}
-			energyBufferValue = 100
 		}
 
 		planet := NewPlanet(id, ownerID, name, g)
 		planet.Level = level
-		planet.EnergyBuffer.Value = energyBufferValue
+		if energyBufferValue != nil {
+			planet.EnergyBuffer.Value = *energyBufferValue
+		}
 
 		// Parse resources from JSON
 		var resources PlanetResources
 		if err := json.Unmarshal(resourcesJSON, &resources); err == nil {
 			planet.Resources = resources
 		}
+		
 
 		// Load buildings from DB
 		buildingRows, err := g.db.Query(`

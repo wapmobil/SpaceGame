@@ -73,14 +73,14 @@ func TestNoProductionWithoutEnergy(t *testing.T) {
 
 func TestStorageIncreasesCapacity(t *testing.T) {
 	planet := NewPlanet("test-8", "owner-1", "Test Planet", nil)
-	capacity1 := planet.calculateStorageCapacity()
+	capacity1 := planet.CalculateStorageCapacity()
 	if capacity1 != 1000 {
 		t.Errorf("expected base capacity of 1000, got %f", capacity1)
 	}
 
 	planet.AddBuildingDirect("storage", 2)
 
-	capacity2 := planet.calculateStorageCapacity()
+	capacity2 := planet.CalculateStorageCapacity()
 	if capacity2 != 3000 {
 		t.Errorf("expected capacity of 3000 with 2 storage buildings, got %f", capacity2)
 	}

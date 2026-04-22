@@ -641,6 +641,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			Energy:     details.ResourceProduction.Energy,
 			Money:      details.ResourceProduction.Money,
 			AlienTech:  details.ResourceProduction.AlienTech,
+			EnergyNet:  details.EnergyBalance,
 		}
 
 		// Calculate costs for buildings not yet built
@@ -661,14 +662,15 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 
 		resp := BuildDetailsResponse{
 			Resources: PlanetResources{
-				Food:       details.Resources.Food,
-				Composite:  details.Resources.Composite,
-				Mechanisms: details.Resources.Mechanisms,
-				Reagents:   details.Resources.Reagents,
-				Energy:     details.Resources.Energy,
-				MaxEnergy:  details.Resources.MaxEnergy,
-				Money:      details.Resources.Money,
-				AlienTech:  details.Resources.AlienTech,
+				Food:            details.Resources.Food,
+				Composite:       details.Resources.Composite,
+				Mechanisms:      details.Resources.Mechanisms,
+				Reagents:        details.Resources.Reagents,
+				Energy:          details.EnergyBuffer.Value,
+				MaxEnergy:       details.Resources.MaxEnergy,
+				Money:           details.Resources.Money,
+				AlienTech:       details.Resources.AlienTech,
+				StorageCapacity: p.CalculateStorageCapacity(),
 			},
 			EnergyBuffer: EnergyBufferDetail{
 				Value:   details.EnergyBuffer.Value,
@@ -677,7 +679,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			},
 			Buildings: buildings,
 			EnergyBalance: EnergyBalanceDetail{
-				Production:  details.Resources.Energy,
+				Production:  details.ResourceProduction.Energy,
 				Consumption: 0,
 				Net:         details.EnergyBalance,
 			},
@@ -1658,8 +1660,8 @@ func handleCreateMarketOrder(db *sql.DB) http.HandlerFunc {
 			p = game.Instance().GetPlanet(planetID)
 		}
 
-		if p.Resources.Energy < game.OrderCreationCost {
-			http.Error(w, fmt.Sprintf("Insufficient energy. Need %.0f energy, have %.0f", game.OrderCreationCost, p.Resources.Energy), http.StatusConflict)
+		if p.EnergyBuffer.Value < game.OrderCreationCost {
+			http.Error(w, fmt.Sprintf("Insufficient energy. Need %.0f energy, have %.0f", game.OrderCreationCost, p.EnergyBuffer.Value), http.StatusConflict)
 			return
 		}
 
@@ -1716,9 +1718,9 @@ func handleCreateMarketOrder(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Deduct order creation cost
-		p.Resources.Energy -= game.OrderCreationCost
-		if p.Resources.Energy < 0 {
-			p.Resources.Energy = 0
+		p.EnergyBuffer.Value -= game.OrderCreationCost
+		if p.EnergyBuffer.Value < 0 {
+			p.EnergyBuffer.Value = 0
 		}
 
 		// Deduct resources for sell orders (reserved)
@@ -2020,7 +2022,7 @@ func handleDeleteMarketOrder(db *sql.DB) http.HandlerFunc {
 			}
 
 			// Refund energy cost
-			p.Resources.Energy += game.OrderCreationCost
+			p.EnergyBuffer.Value += game.OrderCreationCost
 		}
 
 		// Delete the order
@@ -2069,8 +2071,8 @@ func runeMazeToStringMaze(maze [][]rune) [][]string {
 		result[i] = make([]string, len(row))
 		for j, cell := range row {
 			result[i][j] = string(cell)
-		}
-	}
+}
+}
 	return result
 }
 
@@ -2772,6 +2774,94 @@ func handleResolveEvent(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"message": message,
+		})
+	}
+}
+
+func handleSellFood(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req struct {
+			Amount float64 `json:"amount"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		if req.Amount <= 0 {
+			http.Error(w, "Amount must be positive", http.StatusBadRequest)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
+		}
+		if p == nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+
+		if p.Resources.Food < req.Amount {
+			http.Error(w, fmt.Sprintf("Insufficient food. Need %.0f, have %.0f", req.Amount, p.Resources.Food), http.StatusConflict)
+			return
+		}
+
+		// Rate: 10 food = 1 money
+		if req.Amount < 10 {
+			http.Error(w, "Minimum sell amount is 10 food", http.StatusBadRequest)
+			return
+		}
+		if int(req.Amount)%10 != 0 {
+			http.Error(w, "Amount must be a multiple of 10", http.StatusBadRequest)
+			return
+		}
+		moneyEarned := req.Amount / 10.0
+		p.Resources.Food -= req.Amount
+		p.Resources.Money += moneyEarned
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":      true,
+			"food_sold":    req.Amount,
+			"money_earned": moneyEarned,
 		})
 	}
 }

@@ -291,6 +291,7 @@ type ProdDetail struct {
 	Energy     float64 `json:"energy"`
 	Money      float64 `json:"money"`
 	AlienTech  float64 `json:"alien_tech"`
+	EnergyNet  float64 `json:"energy_net"`
 }
 
 // EnergyBufferDetail represents the energy buffer state.

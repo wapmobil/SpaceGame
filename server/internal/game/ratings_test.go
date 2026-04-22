@@ -124,8 +124,8 @@ func TestApplyShortCircuit(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if p.Resources.Energy != 0 {
-		t.Errorf("Expected energy to be reset to 0, got %f", p.Resources.Energy)
+	if p.EnergyBuffer.Value != 0 {
+		t.Errorf("Expected energy to be reset to 0, got %f", p.EnergyBuffer.Value)
 	}
 
 	if p.Resources.MaxEnergy != 0 {

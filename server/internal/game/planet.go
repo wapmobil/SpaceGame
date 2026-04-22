@@ -18,14 +18,15 @@ import (
 
 // PlanetResources holds the current resource amounts.
 type PlanetResources struct {
-	Food      float64 `json:"food"`
-	Composite float64 `json:"composite"`
-	Mechanisms float64 `json:"mechanisms"`
-	Reagents  float64 `json:"reagents"`
-	Energy    float64 `json:"energy"`
-	MaxEnergy float64 `json:"max_energy"`
-	Money     float64 `json:"money"`
-	AlienTech float64 `json:"alien_tech"`
+	Food           float64 `json:"food"`
+	Composite      float64 `json:"composite"`
+	Mechanisms     float64 `json:"mechanisms"`
+	Reagents       float64 `json:"reagents"`
+	Energy         float64 `json:"energy"`
+	MaxEnergy      float64 `json:"max_energy"`
+	Money          float64 `json:"money"`
+	AlienTech      float64 `json:"alien_tech"`
+	StorageCapacity float64 `json:"storage_capacity"`
 }
 
 // BattleRecord stores the result of a completed battle.
@@ -82,13 +83,13 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		},
 		BuildSpeed:     1.0,
 		LastTick:       time.Now(),
-		EnergyBuffer:   NewEnergyBuffer(),
 		Fleet:          ship.NewFleet(),
 		Shipyard:       ship.NewShipyard(),
 		Expeditions:    make([]*expedition.Expedition, 0),
 		ExplorationMgr: expedition.NewExplorationManager(),
 		game:           g,
 	}
+	p.EnergyBuffer = NewEnergyBuffer()
 	if g != nil {
 		p.Research = research.NewResearchSystem(id, g.db)
 		if err := p.Research.LoadFromDB(); err != nil {
@@ -296,13 +297,13 @@ func (p *Planet) GetBuildingCost(bt string, level int) building.CostMulti {
 	switch bt {
 	case "farm":
 		return building.CostMulti{
-			Food:  float64(level*level*level*20 + 100),
-			Money: float64(level*level*level*10 + 50),
+			Food:  float64(level*level*level*20 + 30),
+			Money: float64(level*level*level*10 + 15),
 		}
 	case "solar":
 		return building.CostMulti{
-			Food:  float64(level*level*120 + 48),
-			Money: float64(level*level*80 + 32),
+			Food:  float64(level*level*50 + 15),
+			Money: float64(level*level*30 + 10),
 		}
 	case "storage":
 		return building.CostMulti{
@@ -449,7 +450,7 @@ func (p *Planet) getEnergyProduction(bt string, level int) float64 {
 func (p *Planet) calculateEnergyProduction() float64 {
 	var total float64
 	for _, b := range p.Buildings {
-		if b.Type == "solar" {
+		if b.Type == "solar" && b.BuildProgress <= 0 && !b.Pending {
 			total += p.getEnergyProduction(b.Type, b.Level)
 		}
 	}
@@ -460,7 +461,7 @@ func (p *Planet) calculateEnergyProduction() float64 {
 func (p *Planet) calculateEnergyConsumption() float64 {
 	var total float64
 	for _, b := range p.Buildings {
-		if b.Type != "solar" {
+		if b.Type != "solar" && b.BuildProgress <= 0 && !b.Pending {
 			total += p.getEnergyConsumption(b.Type, b.Level)
 		}
 	}
@@ -472,7 +473,7 @@ func (p *Planet) calculateEnergyConsumption() float64 {
 func (p *Planet) calculateResourceProduction() ProdInfo {
 	var prod ProdInfo
 	for _, b := range p.Buildings {
-		if b.Pending {
+		if b.BuildProgress > 0 || b.Pending {
 			continue
 		}
 		bp := p.getProduction(b.Type, b.Level)
@@ -519,6 +520,9 @@ func (p *Planet) PopulateBuildingEntry(idx int) {
 // calculateEnergyBalance computes total energy production and consumption.
 func (p *Planet) calculateEnergyBalance() (production float64, consumption float64) {
 	for _, b := range p.Buildings {
+		if b.BuildProgress > 0 || b.Pending {
+			continue
+		}
 		con := p.getEnergyConsumption(b.Type, b.Level)
 		if con < 0 {
 			production += float64(-con)
@@ -540,8 +544,8 @@ func (p *Planet) calculateMaxEnergy() float64 {
 	return base
 }
 
-// calculateStorageCapacity returns the total storage capacity.
-func (p *Planet) calculateStorageCapacity() float64 {
+// CalculateStorageCapacity returns the total storage capacity.
+func (p *Planet) CalculateStorageCapacity() float64 {
 	base := 1000.0
 	if idx := p.FindBuildingIndex("storage"); idx >= 0 {
 		base += float64(p.Buildings[idx].Level) * 1000
@@ -600,19 +604,22 @@ func (p *Planet) Tick() {
 	if !p.EnergyBuffer.Deficit {
 		totalProduction = p.calculateResourceProduction()
 	} else {
-		// In deficit, only farm works at 10%
+		// In deficit, only operational farm works at 10%
 		totalProduction = ProdInfo{}
 		for i := range p.Buildings {
-			if p.Buildings[i].Type == "farm" && !p.Buildings[i].Pending {
+			if p.Buildings[i].Type == "farm" && p.Buildings[i].BuildProgress <= 0 && !p.Buildings[i].Pending {
 				totalProduction.Food = float64(p.Buildings[i].Level) * 0.1
 			}
 		}
 	}
 
-	// 11. Apply resource production to resources
-	p.Resources.Energy += totalProduction.Energy
-	if p.Resources.Energy > p.Resources.MaxEnergy {
-		p.Resources.Energy = p.Resources.MaxEnergy
+	// 11. Apply resource production to energy buffer
+	p.EnergyBuffer.Value += totalProduction.Energy
+	if p.EnergyBuffer.Value > p.Resources.MaxEnergy {
+		p.EnergyBuffer.Value = p.Resources.MaxEnergy
+	}
+	if p.EnergyBuffer.Value < 0 {
+		p.EnergyBuffer.Value = 0
 	}
 	p.Resources.Food += totalProduction.Food
 	p.Resources.Composite += totalProduction.Composite
@@ -622,19 +629,17 @@ func (p *Planet) Tick() {
 	p.Resources.AlienTech += totalProduction.AlienTech
 
 	// 12. Clamp resources to storage capacity
-	storageCapacity := p.calculateStorageCapacity()
+	storageCapacity := p.CalculateStorageCapacity()
 	p.Resources.Food = math.Min(p.Resources.Food, storageCapacity)
 	p.Resources.Composite = math.Min(p.Resources.Composite, storageCapacity)
 	p.Resources.Mechanisms = math.Min(p.Resources.Mechanisms, storageCapacity)
 	p.Resources.Reagents = math.Min(p.Resources.Reagents, storageCapacity)
-	p.Resources.Energy = math.Min(p.Resources.Energy, p.Resources.MaxEnergy)
 
 	// 13. Clamp resources to non-negative (except energy buffer handles this)
 	p.Resources.Food = math.Max(0, p.Resources.Food)
 	p.Resources.Composite = math.Max(0, p.Resources.Composite)
 	p.Resources.Mechanisms = math.Max(0, p.Resources.Mechanisms)
 	p.Resources.Reagents = math.Max(0, p.Resources.Reagents)
-	p.Resources.Energy = math.Max(0, p.Resources.Energy)
 	p.Resources.Money = math.Max(0, p.Resources.Money)
 	p.Resources.AlienTech = math.Max(0, p.Resources.AlienTech)
 
@@ -692,6 +697,7 @@ func (p *Planet) GetState() map[string]interface{} {
 		"active_constructions": p.ActiveConstruction,
 		"max_constructions":    p.GetMaxConcurrentBuildings(),
 		"pending_buildings":    p.GetPendingBuildings(),
+		"storage_capacity":   p.CalculateStorageCapacity(),
 	}
 }
 
@@ -713,7 +719,7 @@ func (p *Planet) GetProductionResult() ProductionResult {
 		return totalProduction
 	}
 	for _, b := range p.Buildings {
-		if b.Pending {
+		if b.BuildProgress > 0 || b.Pending {
 			continue
 		}
 		prod := p.getProduction(b.Type, b.Level)
@@ -730,7 +736,7 @@ func (p *Planet) GetResourceProduction() ProdInfo {
 		return prod
 	}
 	for _, b := range p.Buildings {
-		if b.Pending {
+		if b.BuildProgress > 0 || b.Pending {
 			continue
 		}
 		bp := p.getProduction(b.Type, b.Level)
@@ -945,9 +951,9 @@ func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) 
 
 	// Check energy
 	energyCost := fleet.TotalEnergyConsumption()
-	if p.Resources.Energy < energyCost {
-		return &PlanetError{PlanetID: p.ID, Reason: "insufficient_energy"}
-	}
+if p.EnergyBuffer.Value < energyCost {
+			return &PlanetError{PlanetID: p.ID, Reason: "insufficient_energy"}
+		}
 
 	return nil
 }
@@ -975,10 +981,10 @@ func (p *Planet) StartExpedition(expType expedition.Type, fleet *ship.Fleet, tar
 
 	// Deduct energy for expedition
 	expFleetEnergy := battle.NewFleetSnapshot(expFleet).TotalDPS() * 0.5
-	p.Resources.Energy -= expFleetEnergy
-	if p.Resources.Energy < 0 {
-		p.Resources.Energy = 0
-	}
+p.EnergyBuffer.Value -= expFleetEnergy
+		if p.EnergyBuffer.Value < 0 {
+			p.EnergyBuffer.Value = 0
+		}
 
 	// Create expedition
 	id := p.ID + "_exp_" + time.Now().Format("20060102150405")

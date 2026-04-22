@@ -40,6 +40,9 @@ class Planet {
   final int? activeConstructions;
   final int? maxConstructions;
 
+  // Storage
+  final double? storageCapacity;
+
   Planet({
     required this.id,
     required this.playerId,
@@ -67,6 +70,7 @@ class Planet {
     this.energyBalanceNet,
     this.activeConstructions,
     this.maxConstructions,
+    this.storageCapacity,
   }) : resources = {...defaultResources, ...?resources};
 
   static const Map<String, dynamic> defaultResources = {
@@ -114,6 +118,7 @@ class Planet {
       energyBalanceNet: (json['energy_balance_net'] as num?)?.toDouble(),
       activeConstructions: json['active_constructions'] as int?,
       maxConstructions: json['max_constructions'] as int?,
+      storageCapacity: (json['storage_capacity'] as num?)?.toDouble(),
     );
   }
 
@@ -153,6 +158,7 @@ class Planet {
     bool? canMining,
     int? activeConstructions,
     int? maxConstructions,
+    double? storageCapacity,
   }) {
     return Planet(
       id: id ?? this.id,
@@ -181,6 +187,7 @@ class Planet {
       energyBalanceNet: energyBalanceNet ?? this.energyBalanceNet,
       activeConstructions: activeConstructions ?? this.activeConstructions,
       maxConstructions: maxConstructions ?? this.maxConstructions,
+      storageCapacity: storageCapacity ?? this.storageCapacity,
     );
   }
 }

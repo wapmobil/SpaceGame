@@ -9,6 +9,29 @@ class ResourcesSection extends StatelessWidget {
 
   const ResourcesSection({super.key, required this.planet, required this.gameProvider});
 
+  String _formatEnergyProd(double val) {
+    if (val > 0) return '(+${val.toStringAsFixed(1)}/s)';
+    if (val < 0) return '(${val.toStringAsFixed(1)}/s)';
+    return '';
+  }
+
+  String _getProduction(String key) {
+    switch (key) {
+      case 'food':
+        return gameProvider.productionFood.toStringAsFixed(1);
+      case 'composite':
+        return gameProvider.productionComposite.toStringAsFixed(1);
+      case 'mechanisms':
+        return gameProvider.productionMechanisms.toStringAsFixed(1);
+      case 'reagents':
+        return gameProvider.productionReagents.toStringAsFixed(1);
+      case 'money':
+        return gameProvider.productionMoney.toStringAsFixed(1);
+      default:
+        return '0';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final resources = planet.resources;
@@ -26,14 +49,27 @@ class ResourcesSection extends StatelessWidget {
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: Constants.resourceNames.keys.map((key) {
+              children: Constants.resourceNames.keys.where((key) => key != 'energy').map((key) {
                 final value = resources[key] ?? 0;
                 final colorVal = Constants.resourceColors[key] ?? Colors.white.value;
                 final icon = Constants.resourceIcons[key] ?? '❓';
+                final production = _getProduction(key);
+                final prodNum = double.tryParse(production) ?? 0;
+                String rateText = '';
+                if (prodNum > 0) {
+                  rateText = ' (+$production/s)';
+                } else if (prodNum < 0) {
+                  rateText = ' ($production/s)';
+                }
+                final cap = gameProvider.storageCapacity;
+                String capStr = '';
+                if (key != 'energy' && cap > 0) {
+                  capStr = ' / ${cap.toStringAsFixed(0)}';
+                }
                 return Chip(
                   avatar: Text(icon, style: const TextStyle(fontSize: 16)),
                   label: Text(
-                    '${Constants.resourceNames[key]}: ${value.toStringAsFixed(0)}',
+                    '${Constants.resourceNames[key]}: ${value.toStringAsFixed(0)}$capStr$rateText',
                     style: const TextStyle(fontSize: 12),
                   ),
                   backgroundColor: Color(colorVal).withValues(alpha: 0.2),
@@ -56,6 +92,11 @@ class ResourcesSection extends StatelessWidget {
                           fontSize: 10,
                           color: gameProvider.energyBufferDeficit ? Colors.red : Colors.white,
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${_formatEnergyProd(gameProvider.productionEnergy)}',
+                        style: const TextStyle(fontSize: 10, color: Colors.white70),
                       ),
                       if (gameProvider.energyBufferDeficit) ...[
                         const SizedBox(width: 4),
