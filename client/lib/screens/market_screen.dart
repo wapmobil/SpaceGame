@@ -11,11 +11,11 @@ class MarketScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Marketplace')),
+      appBar: AppBar(title: const Text('Рынок')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null)     return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -57,9 +57,9 @@ class MarketScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Quick Sell Food', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 4),
-            Text('Rate: 10 food = 1 money', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            Text('Курс: 10 еды = 1 деньги', style: const TextStyle(fontSize: 12, color: Colors.white54)),
             const SizedBox(height: 12),
             _QuickSellForm(planet: planet, gameProvider: gameProvider),
           ],
@@ -78,14 +78,14 @@ class MarketScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Market Overview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Обзор рынка', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _InfoTile('Buy Orders', market.buyOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
-                _InfoTile('Sell Orders', market.sellOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
-                _InfoTile('NPC Traders', market.npcTraderCount.toString()),
+                _InfoTile('Покупки', market.buyOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
+                _InfoTile('Продажи', market.sellOrders.values.fold(0, (sum, list) => sum + list.length).toString()),
+                _InfoTile('NPC торговцы', market.npcTraderCount.toString()),
               ],
             ),
           ],
@@ -101,7 +101,7 @@ class MarketScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Create Order', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Создать ордер', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             _OrderForm(gameProvider: gameProvider),
           ],
@@ -114,14 +114,14 @@ class MarketScreen extends StatelessWidget {
     final market = gameProvider.marketData;
     if (market == null) return const SizedBox.shrink();
 
-    return _buildOrderList(context, market.buyOrders, 'Buy Orders', AppTheme.accentColor);
+    return _buildOrderList(context, market.buyOrders, 'Покупки', AppTheme.accentColor);
   }
 
   Widget _buildSellOrders(BuildContext context, GameProvider gameProvider) {
     final market = gameProvider.marketData;
     if (market == null) return const SizedBox.shrink();
 
-    return _buildOrderList(context, market.sellOrders, 'Sell Orders', AppTheme.successColor);
+    return _buildOrderList(context, market.sellOrders, 'Продажи', AppTheme.successColor);
   }
 
   Widget _buildOrderList(BuildContext context, Map<String, List> orders, String title, Color color) {
@@ -150,7 +150,7 @@ class MarketScreen extends StatelessWidget {
                       style: const TextStyle(fontSize: 12),
                     ),
                     subtitle: Text(
-                      'Total: ${(order.amount * order.price).toStringAsFixed(0)}',
+                      'Итого: ${(order.amount * order.price).toStringAsFixed(0)}',
                       style: const TextStyle(fontSize: 10, color: Colors.white54),
                     ),
                   ),
@@ -171,7 +171,7 @@ class MarketScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('My Orders', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Мои ордера', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             ...orders.map((order) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
@@ -181,10 +181,10 @@ class MarketScreen extends StatelessWidget {
                       backgroundColor: order.isBuy
                           ? AppTheme.accentColor.withOpacity(0.2)
                           : AppTheme.successColor.withOpacity(0.2),
-                      child: Text(order.isBuy ? 'B' : 'S'),
+                      child: Text(order.isBuy ? 'П' : 'П'),
                     ),
                     title: Text(
-                      '${order.isBuy ? "Buy" : "Sell"} ${Constants.resourceNames[order.resource] ?? order.resource} ${order.amount.toStringAsFixed(0)} @ ${order.price.toStringAsFixed(0)}',
+                      '${order.isBuy ? "Купить" : "Продать"} ${Constants.resourceNames[order.resource] ?? order.resource} ${order.amount.toStringAsFixed(0)} @ ${order.price.toStringAsFixed(0)}',
                       style: const TextStyle(fontSize: 12),
                     ),
                     subtitle: Text(order.status, style: TextStyle(fontSize: 10, color: order.isActive ? AppTheme.successColor : Colors.white54)),
@@ -234,8 +234,8 @@ class _QuickSellFormState extends State<_QuickSellForm> {
               child: TextField(
                 controller: _amountController,
                 decoration: InputDecoration(
-                  labelText: 'Amount (multiple of 10)',
-                  hintText: 'Max: ${(foodAvailable ~/ 10) * 10}',
+                  labelText: 'Количество (кратно 10)',
+                  hintText: 'Макс: ${(foodAvailable ~/ 10) * 10}',
                 ),
                 keyboardType: TextInputType.number,
               ),
@@ -243,7 +243,7 @@ class _QuickSellFormState extends State<_QuickSellForm> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'You will receive: ${(_amountController.text.isNotEmpty ? (double.tryParse(_amountController.text) ?? 0) / 10 : 0).toStringAsFixed(0)} money',
+                'Вы получите: ${(_amountController.text.isNotEmpty ? (double.tryParse(_amountController.text) ?? 0) / 10 : 0).toStringAsFixed(0)} денег',
                 style: const TextStyle(fontSize: 12, color: Colors.green),
               ),
             ),
@@ -260,7 +260,7 @@ class _QuickSellFormState extends State<_QuickSellForm> {
                 _amountController.clear();
               }
             },
-            child: const Text('Sell Food'),
+            child: const Text('Продать еду'),
           ),
         ),
       ],
@@ -299,7 +299,7 @@ class _OrderFormState extends State<_OrderForm> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 value: _resource,
-                decoration: const InputDecoration(labelText: 'Resource'),
+                decoration: const InputDecoration(labelText: 'Ресурс'),
                 items: Constants.resourceNames.keys
                     .where((k) => k != 'energy' && k != 'money' && k != 'alien_tech')
                     .map((k) => DropdownMenuItem(value: k, child: Text(Constants.resourceNames[k]!)))
@@ -311,10 +311,10 @@ class _OrderFormState extends State<_OrderForm> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 value: _orderType,
-                decoration: const InputDecoration(labelText: 'Type'),
+                decoration: const InputDecoration(labelText: 'Тип'),
                 items: const [
-                  DropdownMenuItem(value: 'buy', child: Text('Buy')),
-                  DropdownMenuItem(value: 'sell', child: Text('Sell')),
+                  DropdownMenuItem(value: 'buy', child: Text('Купить')),
+                  DropdownMenuItem(value: 'sell', child: Text('Продать')),
                 ],
                 onChanged: (v) => setState(() => _orderType = v!),
               ),
@@ -327,7 +327,7 @@ class _OrderFormState extends State<_OrderForm> {
             Expanded(
               child: TextField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: 'Amount'),
+                decoration: const InputDecoration(labelText: 'Количество'),
                 keyboardType: TextInputType.number,
               ),
             ),
@@ -335,7 +335,7 @@ class _OrderFormState extends State<_OrderForm> {
             Expanded(
               child: TextField(
                 controller: _priceController,
-                decoration: const InputDecoration(labelText: 'Price'),
+                decoration: const InputDecoration(labelText: 'Цена'),
                 keyboardType: TextInputType.number,
               ),
             ),
@@ -357,7 +357,7 @@ class _OrderFormState extends State<_OrderForm> {
                 );
               }
             },
-            child: Text('Create ${_orderType.toUpperCase()} Order'),
+            child: Text('Создать ордер ${_orderType.toUpperCase()}'),
           ),
         ),
       ],

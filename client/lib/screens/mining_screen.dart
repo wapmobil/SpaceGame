@@ -9,11 +9,11 @@ class MiningScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mining Dungeon')),
+      appBar: AppBar(title: const Text('Шахта')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null)   return const Center(child: Text('Планета не выбрана'));
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -44,11 +44,11 @@ class MiningScreen extends StatelessWidget {
             children: [
               Icon(Icons.forest_rounded, size: 48, color: Colors.white24),
               const SizedBox(height: 16),
-              const Text('No active mining session', style: TextStyle(color: Colors.white54)),
+              const Text('Нет активной сессии добычи', style: TextStyle(color: Colors.white54)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => gameProvider.startMining(),
-                child: const Text('Start Mining'),
+                child: const Text('Начать добычу'),
               ),
             ],
           ),
@@ -68,8 +68,8 @@ class MiningScreen extends StatelessWidget {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Mining Session', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+          children: [
+            const Text('Сессия добычи', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
@@ -77,7 +77,7 @@ class MiningScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    mining.gameEnded ? (mining.endReason == 'completed' ? 'Complete' : 'Dead') : 'Active',
+                    mining.gameEnded ? (mining.endReason == 'completed' ? 'Готово' : 'Погиб') : 'Активно',
                     style: TextStyle(
                       fontSize: 11,
                       color: statusColor,
@@ -116,7 +116,7 @@ class MiningScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Dungeon Map', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Карта шахты', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             GridView.builder(
               shrinkWrap: true,
@@ -187,14 +187,14 @@ class MiningScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Controls', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Управление', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             Center(
               child: Column(
                 children: [
                   _DpadButton(
                     icon: Icons.arrow_upward,
-                    label: 'Up',
+                    label: 'Вверх',
                     onPressed: () => gameProvider.miningMove('up'),
                   ),
                   const SizedBox(height: 4),
@@ -203,13 +203,13 @@ class MiningScreen extends StatelessWidget {
                     children: [
                       _DpadButton(
                         icon: Icons.arrow_back,
-                        label: 'Left',
+                        label: 'Влево',
                         onPressed: () => gameProvider.miningMove('left'),
                       ),
                       const SizedBox(width: 8),
                       _DpadButton(
                         icon: Icons.arrow_forward,
-                        label: 'Right',
+                        label: 'Вправо',
                         onPressed: () => gameProvider.miningMove('right'),
                       ),
                     ],
@@ -217,7 +217,7 @@ class MiningScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   _DpadButton(
                     icon: Icons.arrow_downward,
-                    label: 'Down',
+                    label: 'Вниз',
                     onPressed: () => gameProvider.miningMove('down'),
                   ),
                 ],
@@ -229,7 +229,7 @@ class MiningScreen extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: () => gameProvider.miningMove('up', slide: true),
-                  child: const Text('Slide (hold)'),
+                  child: const Text('Скольжение (удерживать)'),
                 ),
               ),
             ],

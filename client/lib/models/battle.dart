@@ -27,7 +27,7 @@ class BattleEntry {
     return BattleEntry(
       id: json['id'] as String,
       planetId: json['planet_id'] as String,
-      opponent: json['opponent'] as String? ?? 'Unknown',
+      opponent: json['opponent'] as String? ?? 'Неизвестный',
       status: json['status'] as String? ?? 'pending',
       playerDamage: (json['player_damage'] as num?)?.toDouble() ?? 0,
       opponentDamage: (json['opponent_damage'] as num?)?.toDouble() ?? 0,

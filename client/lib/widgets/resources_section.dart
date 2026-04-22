@@ -42,7 +42,7 @@ class ResourcesSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Resources',
+              'Ресурсы',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
             ),
             const SizedBox(height: 12),
@@ -83,8 +83,8 @@ class ResourcesSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    children: [
-                      const Text('⚡ Energy:', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                  children: [
+                    const Text('⚡ Энергия:', style: TextStyle(fontSize: 10, color: Colors.white70)),
                       const SizedBox(width: 4),
                       Text(
                         '${((resources['energy'] ?? 0).toInt())}/${(resources['max_energy'] ?? 0).toInt()}',

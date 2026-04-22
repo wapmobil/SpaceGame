@@ -9,7 +9,7 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Настройки')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           return SingleChildScrollView(
@@ -85,7 +85,7 @@ class SettingsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Connection', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Соединение', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -99,7 +99,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  ws.isConnected ? 'Connected' : 'Disconnected',
+                  ws.isConnected ? 'Подключено' : 'Отключено',
                   style: TextStyle(
                     color: ws.isConnected ? AppTheme.successColor : AppTheme.dangerColor,
                     fontWeight: FontWeight.w500,
@@ -125,10 +125,10 @@ class SettingsScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Leaderboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('Таблица лидеров', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 TextButton(
                   onPressed: () => gameProvider.loadRatings(),
-                  child: const Text('Refresh'),
+                  child: const Text('Обновить'),
                 ),
               ],
             ),
@@ -137,7 +137,7 @@ class SettingsScreen extends StatelessWidget {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text('No ratings available', style: TextStyle(color: Colors.white38)),
+                  child: Text('Нет данных', style: TextStyle(color: Colors.white38)),
                 ),
               )
             else
@@ -184,11 +184,11 @@ class SettingsScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Statistics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('Статистика', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (gameProvider.selectedPlanet != null)
                   TextButton(
                     onPressed: () => gameProvider.loadStats(gameProvider.selectedPlanet!.id),
-                    child: const Text('Refresh'),
+                    child: const Text('Обновить'),
                   ),
               ],
             ),
@@ -197,7 +197,7 @@ class SettingsScreen extends StatelessWidget {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text('No stats available', style: TextStyle(color: Colors.white38)),
+                  child: Text('Нет данных', style: TextStyle(color: Colors.white38)),
                 ),
               )
             else ...[
@@ -241,11 +241,11 @@ class SettingsScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Events', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('События', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (gameProvider.selectedPlanet != null)
                   TextButton(
                     onPressed: () => gameProvider.loadEvents(gameProvider.selectedPlanet!.id),
-                    child: const Text('Refresh'),
+                    child: const Text('Обновить'),
                   ),
               ],
             ),
@@ -254,7 +254,7 @@ class SettingsScreen extends StatelessWidget {
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  child: Text('No events', style: TextStyle(color: Colors.white38)),
+                  child: Text('Нет событий', style: TextStyle(color: Colors.white38)),
                 ),
               )
             else
@@ -265,7 +265,7 @@ class SettingsScreen extends StatelessWidget {
                     dense: true,
                     leading: const Icon(Icons.event_note, size: 16, color: AppTheme.warningColor),
                     title: Text(
-                      event['description'] as String? ?? 'Unknown event',
+                      event['description'] as String? ?? 'Неизвестное событие',
                       style: const TextStyle(fontSize: 12, color: Colors.white),
                     ),
                     subtitle: Text(
@@ -274,7 +274,7 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     trailing: OutlinedButton(
                       onPressed: () => gameProvider.resolveEvent(event['type'] as String? ?? ''),
-                      child: const Text('Resolve', style: TextStyle(fontSize: 10)),
+                      child: const Text('Решить', style: TextStyle(fontSize: 10)),
                     ),
                   ),
                 );
@@ -293,11 +293,11 @@ class SettingsScreen extends StatelessWidget {
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Logout'),
-              content: const Text('Are you sure you want to logout?'),
+              title: const Text('Выход'),
+              content: const Text('Вы уверены, что хотите выйти?'),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-                ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Logout')),
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+                ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Выйти')),
               ],
             ),
           );
@@ -309,7 +309,7 @@ class SettingsScreen extends StatelessWidget {
           }
         },
         icon: const Icon(Icons.logout),
-        label: const Text('Logout'),
+        label: const Text('Выйти'),
         style: OutlinedButton.styleFrom(foregroundColor: AppTheme.dangerColor),
       ),
     );

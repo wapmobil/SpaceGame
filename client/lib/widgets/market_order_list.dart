@@ -78,7 +78,7 @@ class _OrderRow extends StatelessWidget {
             ),
           ),
           Text(
-            'Total: ${(order.amount * order.price).toStringAsFixed(0)}',
+            'Итого: ${(order.amount * order.price).toStringAsFixed(0)}',
             style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accentColor),
           ),
         ],
@@ -99,12 +99,12 @@ class Constants {
   };
 
   static const resourceNames = {
-    'food': 'Food',
-    'composite': 'Composite',
-    'mechanisms': 'Mechanisms',
-    'reagents': 'Reagents',
-    'energy': 'Energy',
-    'money': 'Money',
-    'alien_tech': 'Alien Tech',
+    'food': 'Еда',
+    'composite': 'Композит',
+    'mechanisms': 'Механизмы',
+    'reagents': 'Реагенты',
+    'energy': 'Энергия',
+    'money': 'Деньги',
+    'alien_tech': 'Чужие технологии',
   };
 }

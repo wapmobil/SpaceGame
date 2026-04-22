@@ -20,14 +20,14 @@ class BuildingCard extends StatelessWidget {
   bool get isBuilding => building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending;
 
   String? get statusText {
-    if (isPending) return 'Tap to claim!';
+    if (isPending) return 'Нажмите, чтобы забрать!';
     if (isBuilding) {
       final remaining = (building.buildTime - building.buildProgress).toInt();
-      return 'Building... ${remaining}s';
+      return 'Строится... ${remaining}с';
     }
-    if (!building.enabled) return 'Disabled';
-    if (building.level == 0) return 'Not built';
-    return 'Operational';
+    if (!building.enabled) return 'Отключено';
+    if (building.level == 0) return 'Не построено';
+    return 'Работает';
   }
 
   Color? get statusColor {
@@ -96,7 +96,7 @@ class BuildingCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
-        'Upgrade → ${building.level + 1}\n🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
+        'Улучшить → ${building.level + 1}\n🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
         style: const TextStyle(fontSize: 9, color: Colors.white),
         textAlign: TextAlign.center,
       ),
@@ -106,7 +106,7 @@ class BuildingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final info = Constants.buildingTypes[building.type] ??
-        {'name': building.type, 'icon': '🏗️', 'description': 'Unknown'};
+        {'name': building.type, 'icon': '🏗️', 'description': 'Неизвестно'};
     final name = info['name'] ?? building.type;
     final icon = info['icon'] ?? '🏗️';
     final upgradeBtn = _buildUpgradeButton();

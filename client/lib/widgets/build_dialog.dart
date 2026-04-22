@@ -28,18 +28,18 @@ class BuildDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Build Structure',
+                'Построить сооружение',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 4),
               Text(
-                'Construction: ${gameProvider.activeConstructions}/${gameProvider.maxConstructions}',
+                'Строительство: ${gameProvider.activeConstructions}/${gameProvider.maxConstructions}',
                 style: TextStyle(fontSize: 12, color: Colors.white54),
               ),
               if (gameProvider.activeConstructions >= gameProvider.maxConstructions) ...[
                 const SizedBox(height: 4),
                 Text(
-                  'Research Parallel Construction to unlock more.',
+                  'Исследуйте "Параллельное строительство", чтобы открыть больше.',
                   style: TextStyle(fontSize: 10, color: Colors.orange),
                 ),
               ],
@@ -97,11 +97,11 @@ class BuildDialog extends StatelessWidget {
       title: Text(info['name'] as String, style: const TextStyle(color: Colors.white)),
       subtitle: Text(
         isBuilding
-            ? 'Building... Lv.$currentLevel'
+            ? 'Строится... Ур.$currentLevel'
             : isPending
-                ? 'Pending confirmation - tap the building card to claim'
+                ? 'Ожидает подтверждения - нажмите на здание, чтобы забрать'
                 : existing.isNotEmpty
-                    ? 'Lv.$currentLevel → ${currentLevel + 1} | 🍖$nextCostFood 💰$nextCostMoney'
+                    ? 'Ур.$currentLevel → ${currentLevel + 1} | 🍖$nextCostFood 💰$nextCostMoney'
                     : '${info['description'] as String} | 🍖$nextCostFood 💰$nextCostMoney',
       ),
       enabled: !isBuilding && !isPending && canAfford && gameProvider.activeConstructions < gameProvider.maxConstructions,

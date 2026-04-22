@@ -152,10 +152,10 @@ class GameProvider extends ChangeNotifier {
         notifyListeners();
         connectWebSocket();
       } else {
-        _setError('Failed to login: ${response.statusCode}');
+        _setError('Не удалось войти: ${response.statusCode}');
       }
     } catch (e) {
-      _setError('Login error: $e');
+      _setError('Ошибка входа: $e');
     }
   }
 
@@ -342,7 +342,7 @@ class GameProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      _setError('Failed to load planets: $e');
+       _setError('Не удалось загрузить планеты: $e');
     }
   }
 
@@ -361,10 +361,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 201) {
         await loadPlanets();
       } else {
-        _setError('Failed to create planet: ${response.statusCode}');
+        _setError('Не удалось создать планету: ${response.statusCode}');
       }
     } catch (e) {
-      _setError('Create planet error: $e');
+      _setError('Ошибка создания планеты: $e');
     }
   }
 
@@ -502,35 +502,35 @@ class GameProvider extends ChangeNotifier {
         await loadBuildDetails(_selectedPlanet!.id);
       } else if (response.statusCode == 400) {
         final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-        _errorMessage = errorData['error'] as String? ?? 'Build failed';
+        _errorMessage = errorData['error'] as String? ?? 'Не удалось построить';
         final errorMsg = _errorMessage ?? '';
         if (errorMsg.contains('max_constructions')) {
-          _errorMessage = 'Max constructions reached. Research Parallel Construction to unlock more.';
+          _errorMessage = 'Достигнут лимит строительства. Исследуйте "Параллельное строительство", чтобы открыть больше.';
         } else if (errorMsg.contains('prerequisite_missing')) {
-          _errorMessage = errorData['extra'] as String? ?? 'Prerequisites not met.';
+          _errorMessage = errorData['extra'] as String? ?? 'Не выполнены требования.';
         }
       } else {
-        _errorMessage = 'Build failed with status ${response.statusCode}';
+        _errorMessage = 'Не удалось построить, статус ${response.statusCode}';
       }
     } catch (e) {
-      _errorMessage = 'Network error: $e';
+      _errorMessage = 'Ошибка сети: $e';
     }
 
     notifyListeners();
   }
 
   BuildingUpgradeInfo getBuildingUpgradeInfo(Building building) {
-    if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'No planet selected');
+    if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
 
     final isPending = building.pending && building.buildProgress <= 0;
-    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Tap to claim first');
+    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите, чтобы забрать');
 
     final isBuilding = building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime;
-    if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Already under construction');
+    if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
 
     final nextCostFood = building.nextCostFood;
     final nextCostMoney = building.nextCostMoney;
-    if (nextCostFood <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Max level');
+    if (nextCostFood <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
 
     final currentFood = (_selectedPlanet!.resources['food'] ?? 0) as num;
     final currentMoney = (_selectedPlanet!.resources['money'] ?? 0) as num;
@@ -538,12 +538,12 @@ class GameProvider extends ChangeNotifier {
     final canAffordMoney = currentMoney.toDouble() >= nextCostMoney;
     if (!canAffordFood || !canAffordMoney) {
       final missing = <String>[];
-      if (!canAffordFood) missing.add('food');
-      if (!canAffordMoney) missing.add('money');
-      return BuildingUpgradeInfo(canUpgrade: false, reason: 'Not enough ${missing.join(" and ")}');
+      if (!canAffordFood) missing.add('еда');
+      if (!canAffordMoney) missing.add('деньги');
+      return BuildingUpgradeInfo(canUpgrade: false, reason: 'Не хватает ${missing.join(" и ")}');
     }
 
-    if (activeConstructions >= maxConstructions) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Max constructions reached');
+    if (activeConstructions >= maxConstructions) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Достигнут лимит строительства');
 
     return BuildingUpgradeInfo(canUpgrade: true, reason: null);
   }
@@ -681,10 +681,10 @@ class GameProvider extends ChangeNotifier {
         await loadShips(_selectedPlanet!.id);
         await loadAvailableShipTypes(_selectedPlanet!.id);
       } else {
-        _setError('Failed to build ship: ${response.body}');
+        _setError('Не удалось построить корабль: ${response.body}');
       }
     } catch (e) {
-      _setError('Build ship error: $e');
+      _setError('Ошибка постройки корабля: $e');
     }
   }
 
@@ -721,10 +721,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 201) {
         await loadResearch(_selectedPlanet!.id);
       } else {
-        _setError('Failed to start research: ${response.body}');
+        _setError('Не удалось начать исследование: ${response.body}');
       }
     } catch (e) {
-      _setError('Research error: $e');
+      _setError('Ошибка исследования: $e');
     }
   }
 
@@ -796,10 +796,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 201) {
         await loadExpeditions(_selectedPlanet!.id);
       } else {
-        _setError('Failed to start expedition: ${response.body}');
+        _setError('Не удалось начать экспедицию: ${response.body}');
       }
     } catch (e) {
-      _setError('Expedition error: $e');
+      _setError('Ошибка экспедиции: $e');
     }
   }
 
@@ -818,10 +818,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         await loadExpeditions(_selectedPlanet?.id ?? '');
       } else {
-        _setError('Expedition action failed: ${response.body}');
-      }
+         _setError('Не удалось выполнить действие экспедиции: ${response.body}');
+       }
     } catch (e) {
-      _setError('Expedition action error: $e');
+      _setError('Ошибка действия экспедиции: $e');
     }
   }
 
@@ -889,10 +889,10 @@ class GameProvider extends ChangeNotifier {
         await loadMarketData(_selectedPlanet!.id);
         await loadMyOrders(_selectedPlanet!.id);
       } else {
-        _setError('Failed to create order: ${response.body}');
+        _setError('Не удалось создать ордер: ${response.body}');
       }
     } catch (e) {
-      _setError('Create order error: $e');
+      _setError('Ошибка создания ордера: $e');
     }
   }
 
@@ -908,10 +908,10 @@ class GameProvider extends ChangeNotifier {
         await loadMarketData(_selectedPlanet?.id ?? '');
         await loadMyOrders(_selectedPlanet?.id ?? '');
       } else {
-        _setError('Failed to delete order: ${response.body}');
+        _setError('Не удалось удалить ордер: ${response.body}');
       }
     } catch (e) {
-      _setError('Delete order error: $e');
+      _setError('Ошибка удаления ордера: $e');
     }
   }
 
@@ -927,10 +927,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         await loadPlanetDetail(planetId);
       } else {
-        _setError('Failed to sell food: ${response.body}');
+        _setError('Не удалось продать еду: ${response.body}');
       }
     } catch (e) {
-      _setError('Sell food error: $e');
+      _setError('Ошибка продажи еды: $e');
     }
   }
 
@@ -968,10 +968,10 @@ class GameProvider extends ChangeNotifier {
             jsonDecode(response.body) as Map<String, dynamic>);
         notifyListeners();
       } else {
-        _setError('Failed to start mining: ${response.body}');
-      }
+         _setError('Не удалось начать добычу: ${response.body}');
+       }
     } catch (e) {
-      _setError('Mining error: $e');
+      _setError('Ошибка добычи: $e');
     }
   }
 
@@ -991,11 +991,11 @@ class GameProvider extends ChangeNotifier {
         _miningState = MiningState.fromJson(
             jsonDecode(response.body) as Map<String, dynamic>);
         notifyListeners();
-      } else {
-        _setError('Mining move failed: ${response.body}');
-      }
+     } else {
+         _setError('Не удалось выполнить ход в шахте: ${response.body}');
+       }
     } catch (e) {
-      _setError('Mining move error: $e');
+      _setError('Ошибка хода в шахте: $e');
     }
   }
 
@@ -1069,10 +1069,10 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         await loadEvents(_selectedPlanet!.id);
       } else {
-        _setError('Failed to resolve event: ${response.body}');
+        _setError('Не удалось решить событие: ${response.body}');
       }
     } catch (e) {
-      _setError('Resolve event error: $e');
+      _setError('Ошибка решения события: $e');
     }
   }
 

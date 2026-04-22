@@ -9,11 +9,11 @@ class ResearchScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Research')),
+      appBar: AppBar(title: const Text('Исследования')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null)    return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async => gameProvider.loadResearch(planet.id),
@@ -44,7 +44,7 @@ class ResearchScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Research Tree', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Древо исследований', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             _buildResearchTree(context, state.research, state.available, gameProvider),
           ],
@@ -102,14 +102,14 @@ class ResearchScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('All Technologies', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Все технологии', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 8),
             ...Constants.techList.map((tech) {
               final techMap = Map<String, dynamic>.from(tech);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  '• ${techMap['name']} ${techMap['depends_on'].isNotEmpty ? '(requires: ${(techMap['depends_on'] as List).join(", ")})' : ''}',
+                  '• ${techMap['name']} ${techMap['depends_on'].isNotEmpty ? '(требуется: ${(techMap['depends_on'] as List).join(", ")})' : ''}',
                   style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
               );
@@ -188,7 +188,7 @@ class _TechNode extends StatelessWidget {
             ],
             if (dependsOn.isNotEmpty)
               Text(
-                'Requires: ${dependsOn.join(", ")}',
+                'Требуется: ${dependsOn.join(", ")}',
                 style: const TextStyle(fontSize: 10, color: Colors.white38),
               ),
           ],
@@ -200,7 +200,7 @@ class _TechNode extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   backgroundColor: AppTheme.accentColor,
                 ),
-                child: const Text('Research', style: TextStyle(fontSize: 11)),
+                child: const Text('Исследовать', style: TextStyle(fontSize: 11)),
               )
             : null,
       ),
@@ -210,18 +210,18 @@ class _TechNode extends StatelessWidget {
 
 class Constants {
   static const techList = [
-    {'id': 'planet_exploration', 'name': 'Planet Exploration', 'description': 'Unlocks Factory building', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
-    {'id': 'energy_storage', 'name': 'Energy Storage', 'description': 'Unlocks Energy Storage building', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'energy_saving', 'name': 'Energy Saving', 'description': '-10% energy consumption per level', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
-    {'id': 'trade', 'name': 'Trade', 'description': 'Unlocks Marketplace', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'ships', 'name': 'Ships', 'description': 'Unlocks Shipyard', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'upgraded_energy_storage', 'name': 'Upgraded Energy Storage', 'description': '+20% energy capacity per level', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
-    {'id': 'fast_construction', 'name': 'Fast Construction', 'description': 'Building speed bonus per level', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'compact_storage', 'name': 'Compact Storage', 'description': '2x storage capacity per level', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'expeditions', 'name': 'Expeditions', 'description': 'Unlocks expedition system', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
-    {'id': 'command_center', 'name': 'Command Center', 'description': 'Unlocks alien technology tree', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
-    {'id': 'alien_technologies', 'name': 'Alien Technologies', 'description': 'Unlocks alien technology tree', 'cost_alien_tech': 10, 'build_time': 300, 'max_level': 1, 'depends_on': ['command_center']},
-    {'id': 'additional_expedition', 'name': 'Additional Expedition', 'description': '+1 concurrent expedition', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
-    {'id': 'super_energy_storage', 'name': 'Super Energy Storage', 'description': '+20% energy capacity per level', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
+    {'id': 'planet_exploration', 'name': 'Исследование планет', 'description': 'Открывает здание Фабрики', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
+    {'id': 'energy_storage', 'name': 'Накопитель энергии', 'description': 'Открывает здание Накопителя энергии', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'energy_saving', 'name': 'Энергосбережение', 'description': '-10% расхода энергии за уровень', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
+    {'id': 'trade', 'name': 'Торговля', 'description': 'Открывает Рынок', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'ships', 'name': 'Корабли', 'description': 'Открывает Верфь', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'upgraded_energy_storage', 'name': 'Улучшенный накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
+    {'id': 'fast_construction', 'name': 'Быстрое строительство', 'description': 'Бонус скорости строительства за уровень', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
+    {'id': 'compact_storage', 'name': 'Компактное хранилище', 'description': '2x вместимость хранилища за уровень', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
+    {'id': 'expeditions', 'name': 'Экспедиции', 'description': 'Открывает систему экспедиций', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
+    {'id': 'command_center', 'name': 'Командный центр', 'description': 'Открывает древо чужих технологий', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
+    {'id': 'alien_technologies', 'name': 'Чужие технологии', 'description': 'Открывает древо чужих технологий', 'cost_alien_tech': 10, 'build_time': 300, 'max_level': 1, 'depends_on': ['command_center']},
+    {'id': 'additional_expedition', 'name': 'Дополнительная экспедиция', 'description': '+1 одновременная экспедиция', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
+    {'id': 'super_energy_storage', 'name': 'Супер накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
   ];
 }

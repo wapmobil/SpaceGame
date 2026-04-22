@@ -15,7 +15,7 @@ class QuickStatsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Quick Stats',
+              'Быстрая статистика',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
             ),
             const SizedBox(height: 12),
@@ -23,10 +23,10 @@ class QuickStatsSection extends StatelessWidget {
               spacing: 16,
               runSpacing: 8,
               children: [
-                _StatItem('Level', gameProvider.selectedPlanet?.level.toString() ?? '1'),
-                _StatItem('Ships', gameProvider.ships.length.toString()),
-                _StatItem('Research', gameProvider.researchState?.research.length.toString() ?? '0'),
-                _StatItem('Expeditions', gameProvider.expeditions?.activeCount.toString() ?? '0'),
+                _StatItem('Уровень', gameProvider.selectedPlanet?.level.toString() ?? '1'),
+                _StatItem('Корабли', gameProvider.ships.length.toString()),
+                _StatItem('Исследования', gameProvider.researchState?.research.length.toString() ?? '0'),
+                _StatItem('Экспедиции', gameProvider.expeditions?.activeCount.toString() ?? '0'),
               ],
             ),
           ],

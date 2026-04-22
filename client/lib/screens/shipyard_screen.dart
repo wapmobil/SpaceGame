@@ -11,11 +11,11 @@ class ShipyardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Shipyard')),
+      appBar: AppBar(title: const Text('Верфь')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -51,19 +51,19 @@ class ShipyardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Shipyard Status', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Статус верфи', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _InfoTile('Level', info.shipyardLevel.toString()),
-                _InfoTile('Slots', '${info.totalSlots}/${info.maxSlots}'),
-                _InfoTile('Queue', '${info.shipyardQueueLen}'),
+                _InfoTile('Уровень', info.shipyardLevel.toString()),
+                _InfoTile('Слоты', '${info.totalSlots}/${info.maxSlots}'),
+                _InfoTile('Очередь', '${info.shipyardQueueLen}'),
               ],
             ),
             if (info.shipyardQueueLen > 0) ...[
               const SizedBox(height: 12),
-              const Text('Build Progress', style: TextStyle(fontSize: 12, color: Colors.white54)),
+              const Text('Прогресс постройки', style: TextStyle(fontSize: 12, color: Colors.white54)),
               const SizedBox(height: 4),
               LinearProgressIndicator(
                 value: info.shipyardProgress,
@@ -89,14 +89,14 @@ class ShipyardScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Fleet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-                Text('${ships.length} ships', style: const TextStyle(color: Colors.white54)),
+                const Text('Флот', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                Text('${ships.length} кораблей', style: const TextStyle(color: Colors.white54)),
               ],
             ),
             if (ships.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('No ships in fleet', style: TextStyle(color: Colors.white38))),
+                child: Center(child: Text('Во флоте нет кораблей', style: TextStyle(color: Colors.white38))),
               )
             else
               ...ships.map((ship) => ShipCard(ship: ship)).toList(),
@@ -114,10 +114,10 @@ class ShipyardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Build Ships', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Построить корабли', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             if (shipTypes.isEmpty)
-              const Center(child: Text('Loading...', style: TextStyle(color: Colors.white38)))
+              const Center(child: Text('Загрузка...', style: TextStyle(color: Colors.white38)))
             else
               ...shipTypes.map((shipType) => _ShipBuildTile(
                     shipType: shipType,
@@ -174,8 +174,8 @@ class _ShipBuildTile extends StatelessWidget {
                 runSpacing: 2,
                 children: [
                   _CostChip('HP', '${shipType.hp.toInt()}'),
-                  _CostChip('Armor', '${shipType.armor.toInt()}'),
-                  _CostChip('DMG', '${shipType.weaponMinDmg.toInt()}-${shipType.weaponMaxDmg.toInt()}'),
+                  _CostChip('Броня', '${shipType.armor.toInt()}'),
+                  _CostChip('Урон', '${shipType.weaponMinDmg.toInt()}-${shipType.weaponMaxDmg.toInt()}'),
                   _CostChip('⚡', '${shipType.energy.toInt()}'),
                 ],
               ),

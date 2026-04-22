@@ -57,10 +57,10 @@ class PlanetCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Level ${planet.level}',
-                      style: const TextStyle(fontSize: 12, color: Colors.white54),
-                    ),
+                  Text(
+                       'Уровень ${planet.level}',
+                       style: const TextStyle(fontSize: 12, color: Colors.white54),
+                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [

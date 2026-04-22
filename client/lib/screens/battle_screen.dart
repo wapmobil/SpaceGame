@@ -9,11 +9,11 @@ class BattleScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Battles')),
+      appBar: AppBar(title: const Text('Сражения')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async => gameProvider.loadBattles(planet.id),
@@ -41,16 +41,16 @@ class BattleScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Battle Grid', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Поле боя', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
             _build7x7Grid(context),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _LegendItem('🧑‍🚀 Player', AppTheme.accentColor),
-                _LegendItem('👾 Enemy', AppTheme.dangerColor),
-                _LegendItem('🧱 Wall', Colors.grey),
+                _LegendItem('🧑‍🚀 Игрок', AppTheme.accentColor),
+                _LegendItem('👾 Враг', AppTheme.dangerColor),
+                _LegendItem('🧱 Стена', Colors.grey),
               ],
             ),
           ],
@@ -130,11 +130,11 @@ class BattleScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Battle History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('История сражений', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             if (battles.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('No battles yet', style: TextStyle(color: Colors.white38))),
+                child: Center(child: Text('Сражений пока нет', style: TextStyle(color: Colors.white38))),
               )
             else
               ...battles.map((battle) => Padding(
@@ -149,11 +149,11 @@ class BattleScreen extends StatelessWidget {
                       ),
                       title: Text('vs ${battle.opponent}'),
                       subtitle: Text(
-                        '${battle.status} | P: ${battle.playerDamage.toInt()} / E: ${battle.opponentDamage.toInt()}',
+                        battle.status == 'completed' ? 'Завершено' : 'В ожидании',
                         style: const TextStyle(fontSize: 12, color: Colors.white54),
                       ),
                       trailing: Text(
-                        battle.status,
+                        battle.status == 'completed' ? 'Завершено' : 'В ожидании',
                         style: TextStyle(
                           fontSize: 11,
                           color: battle.status == 'completed' ? AppTheme.successColor : AppTheme.warningColor,

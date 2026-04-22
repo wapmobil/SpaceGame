@@ -23,7 +23,7 @@ class PlanetScreen extends StatelessWidget {
       builder: (context, gameProvider, _) {
         final planet = gameProvider.selectedPlanet;
         if (planet == null) {
-          return const Center(child: Text('Select a planet'));
+          return const Center(child: Text('Выберите планету'));
         }
 
         return NestedScrollView(
@@ -48,18 +48,18 @@ class PlanetScreen extends StatelessWidget {
                         ),
                         PlanetActionChip(
                           icon: Icons.rocket_launch,
-                          label: 'Shipyard',
+                          label: 'Верфь',
                           onTap: () => _navigateTo(context, const ship.ShipyardScreen()),
                         ),
                         if (gameProvider.canResearch)
                           PlanetActionChip(
                             icon: Icons.science,
-                            label: 'Research',
+                            label: 'Исследования',
                             onTap: () => _navigateTo(context, const research.ResearchScreen()),
                           ),
                         PlanetActionChip(
                           icon: Icons.local_fire_department,
-                          label: 'Battle',
+                          label: 'Битва',
                           onTap: () => _navigateTo(context, const battle.BattleScreen()),
                         ),
                       ],
@@ -72,18 +72,18 @@ class PlanetScreen extends StatelessWidget {
                         if (gameProvider.canExpedition)
                           PlanetActionChip(
                             icon: Icons.explore,
-                            label: 'Expedition',
+                            label: 'Экспедиция',
                             onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
                           ),
                         PlanetActionChip(
                           icon: Icons.store,
-                          label: 'Market',
+                          label: 'Рынок',
                           onTap: () => _navigateTo(context, const market.MarketScreen()),
                         ),
                         if (gameProvider.canMining)
                           PlanetActionChip(
                             icon: Icons.diamond_outlined,
-                            label: 'Mining',
+                            label: 'Горное дело',
                             onTap: () => _navigateTo(context, const mining.MiningScreen()),
                           ),
                       ],
@@ -131,7 +131,7 @@ class PlanetScreen extends StatelessWidget {
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Base not operational! Produce food to unlock research, expeditions, and mining.',
+                        'База не работает! Производите еду, чтобы открыть исследования, экспедиции и горное дело.',
                         style: TextStyle(fontSize: 10, color: Colors.red),
                       ),
                     ),
@@ -161,12 +161,12 @@ class PlanetScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Buildings',
+                  'Здания',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
                 ),
                 TextButton(
                   onPressed: () => _showBuildDialog(context, gameProvider),
-                  child: const Text('Build +'),
+                  child: const Text('Построить +'),
                 ),
               ],
             ),
@@ -174,7 +174,7 @@ class PlanetScreen extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(
-                  child: Text('No buildings yet. Build your first structure!', style: TextStyle(color: Colors.white38)),
+                  child: Text('Зданий пока нет. Постройте первое сооружение!', style: TextStyle(color: Colors.white38)),
                 ),
               ),
             ListView.builder(

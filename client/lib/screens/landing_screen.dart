@@ -114,28 +114,28 @@ class _LandingScreenState extends State<LandingScreen>
                       Icon(Icons.space_dashboard, size: isSmall ? 80 : 100, color: AppTheme.accentColor),
                       const SizedBox(height: 16),
                       Text(
-                        'SpaceGame',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Command your fleet across the galaxy',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.white70,
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
+                         'SpaceGame',
+                         style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                               color: Colors.white,
+                               fontWeight: FontWeight.bold,
+                               letterSpacing: 2,
+                             ),
+                         textAlign: TextAlign.center,
+                       ),
+                       const SizedBox(height: 8),
+                       Text(
+                         'Управляй флотом по всей галактике',
+                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                               color: Colors.white70,
+                             ),
+                         textAlign: TextAlign.center,
+                       ),
                       const SizedBox(height: 40),
                       TextField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Player Name',
-                          hintText: 'Enter your name',
+                          labelText: 'Имя игрока',
+                          hintText: 'Введите ваше имя',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
                         onSubmitted: (_) => _handleLogin(),
@@ -146,7 +146,7 @@ class _LandingScreenState extends State<LandingScreen>
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: _handleLogin,
-                          child: const Text('Play'),
+                          child: const Text('Играть'),
                         ),
                       ),
                       const SizedBox(height: 24),

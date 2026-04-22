@@ -10,11 +10,11 @@ class ExpeditionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Expeditions')),
+      appBar: AppBar(title: const Text('Экспедиции')),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null) return const Center(child: Text('No planet selected'));
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async => gameProvider.loadExpeditions(planet.id),
@@ -49,7 +49,7 @@ class ExpeditionScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Start Expedition', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('Начать экспедицию', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 Text(
                   '${expeditions?.activeCount ?? 0}/${expeditions?.maxExpeditions ?? 1}',
                   style: const TextStyle(color: Colors.white54),
@@ -59,7 +59,7 @@ class ExpeditionScreen extends StatelessWidget {
             if (!unlocked)
               const Padding(
                 padding: EdgeInsets.only(top: 8, bottom: 4),
-                child: Text('Research "Expeditions" first', style: TextStyle(fontSize: 12, color: Colors.white38)),
+                child: Text('Сначала исследуйте "Экспедиции"', style: TextStyle(fontSize: 12, color: Colors.white38)),
               ),
             const SizedBox(height: 12),
             ...Constants.expeditionTypes.entries.map((entry) {
@@ -97,11 +97,11 @@ class ExpeditionScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Current Expeditions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const Text('Текущие экспедиции', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             if (expeditions.expeditions.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('No active expeditions', style: TextStyle(color: Colors.white38))),
+                child: Center(child: Text('Нет активных экспедиций', style: TextStyle(color: Colors.white38))),
               )
             else
               ...expeditions.expeditions.map((exp) => Padding(
@@ -171,8 +171,8 @@ class _ExpeditionCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Progress: ${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 11, color: Colors.white54)),
-                Text('Time: ${Constants.formatTime(remaining)}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                Text('Прогресс: ${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+                Text('Время: ${Constants.formatTime(remaining)}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
               ],
             ),
             const SizedBox(height: 4),
@@ -200,11 +200,11 @@ class _ExpeditionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Discovered: ${npc.name} (${npc.type})', style: const TextStyle(fontSize: 12, color: AppTheme.accentColor)),
+          Text('Обнаружено: ${npc.name} (${npc.type})', style: const TextStyle(fontSize: 12, color: AppTheme.accentColor)),
           if (npc.hasCombat)
-            Text('Combat fleet strength: ${npc.fleetStrength.toInt()}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+            Text('Сила боевого флота: ${npc.fleetStrength.toInt()}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
           if (npc.resources.isNotEmpty)
-            Text('Resources: ${npc.resources.keys.join(", ")}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
+            Text('Ресурсы: ${npc.resources.keys.join(", ")}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
         ],
       ),
     );

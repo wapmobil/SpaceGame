@@ -35,7 +35,7 @@ class ShipCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('HP', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                            const Text('ЗП', style: TextStyle(fontSize: 10, color: Colors.white54)),
                             Text('${ship.hp}/${ship.maxHp}', style: const TextStyle(fontSize: 10, color: Colors.white70)),
                           ],
                         ),

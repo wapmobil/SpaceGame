@@ -10,13 +10,13 @@ class Constants {
   static const String wsUrl = 'ws://localhost:8080/ws';
 
   static const resourceNames = {
-    'food': 'Food',
-    'composite': 'Composite',
-    'mechanisms': 'Mechanisms',
-    'reagents': 'Reagents',
-    'energy': 'Energy',
-    'money': 'Money',
-    'alien_tech': 'Alien Tech',
+    'food': 'Еда',
+    'composite': 'Композит',
+    'mechanisms': 'Механизмы',
+    'reagents': 'Реагенты',
+    'energy': 'Энергия',
+    'money': 'Деньги',
+    'alien_tech': 'Чужие технологии',
   };
 
   static const resourceIcons = {
@@ -40,17 +40,17 @@ class Constants {
   };
 
   static const buildingTypes = {
-    'base': {'name': 'Base', 'icon': '🏠', 'description': 'Headquarters'},
-    'farm': {'name': 'Farm', 'icon': '🌾', 'description': 'Produces food'},
-    'composite_drone': {'name': 'Composite Drone', 'icon': '🤖', 'description': 'Produces composite'},
-    'mechanism_factory': {'name': 'Mechanism Factory', 'icon': '🏭', 'description': 'Produces mechanisms'},
-    'reagent_lab': {'name': 'Reagent Lab', 'icon': '🔬', 'description': 'Produces reagents'},
-    'solar': {'name': 'Solar Panel', 'icon': '☀️', 'description': 'Produces energy'},
-    'energy_storage': {'name': 'Energy Storage', 'icon': '🔋', 'description': 'Stores energy'},
-    'storage': {'name': 'Storage', 'icon': '📦', 'description': 'Increases storage capacity'},
-    'factory': {'name': 'Factory', 'icon': '🏗️', 'description': 'Advanced production'},
-    'shipyard': {'name': 'Shipyard', 'icon': '🚀', 'description': 'Builds ships'},
-    'comcenter': {'name': 'Comm Center', 'icon': '📡', 'description': 'Communication'},
+    'base': {'name': 'База', 'icon': '🏠', 'description': 'Штаб-квартира'},
+    'farm': {'name': 'Ферма', 'icon': '🌾', 'description': 'Производит еду'},
+    'composite_drone': {'name': 'Дрон-композит', 'icon': '🤖', 'description': 'Производит композит'},
+    'mechanism_factory': {'name': 'Механическая фабрика', 'icon': '🏭', 'description': 'Производит механизмы'},
+    'reagent_lab': {'name': 'Лаборатория реагентов', 'icon': '🔬', 'description': 'Производит реагенты'},
+    'solar': {'name': 'Солнечная панель', 'icon': '☀️', 'description': 'Производит энергию'},
+    'energy_storage': {'name': 'Накопитель энергии', 'icon': '🔋', 'description': 'Накапливает энергию'},
+    'storage': {'name': 'Склад', 'icon': '📦', 'description': 'Увеличивает вместимость хранилища'},
+    'factory': {'name': 'Фабрика', 'icon': '🏗️', 'description': 'Расширенное производство'},
+    'shipyard': {'name': 'Верфь', 'icon': '🚀', 'description': 'Строит корабли'},
+    'comcenter': {'name': 'Центр связи', 'icon': '📡', 'description': 'Связь'},
   };
 
   static const shipIcons = {
@@ -63,9 +63,9 @@ class Constants {
   };
 
   static const expeditionTypes = {
-    'exploration': {'name': 'Exploration', 'icon': '🗺️', 'description': 'Discover new systems'},
-    'trade': {'name': 'Trade', 'icon': '💰', 'description': 'Generate revenue'},
-    'support': {'name': 'Support', 'icon': '🏥', 'description': 'Assist allied forces'},
+    'exploration': {'name': 'Разведка', 'icon': '🗺️', 'description': 'Открывает новые системы'},
+    'trade': {'name': 'Торговля', 'icon': '💰', 'description': 'Генерирует доход'},
+    'support': {'name': 'Поддержка', 'icon': '🏥', 'description': 'Помогает союзным силам'},
   };
 
   static const miningIcons = {
@@ -78,21 +78,21 @@ class Constants {
     'bomb': '💣',
   };
 
-  static const techList = [
-    {'id': 'planet_exploration', 'name': 'Planet Exploration', 'description': 'Unlocks Factory building', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
-    {'id': 'energy_storage', 'name': 'Energy Storage', 'description': 'Unlocks Energy Storage building', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'energy_saving', 'name': 'Energy Saving', 'description': '-10% energy consumption per level', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
-    {'id': 'trade', 'name': 'Trade', 'description': 'Unlocks Marketplace', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'ships', 'name': 'Ships', 'description': 'Unlocks Shipyard', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'upgraded_energy_storage', 'name': 'Upgraded Energy Storage', 'description': '+20% energy capacity per level', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
-    {'id': 'fast_construction', 'name': 'Fast Construction', 'description': 'Building speed bonus per level', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'parallel_construction', 'name': 'Parallel Construction', 'description': '+1 simultaneous construction per level (up to 3 levels)', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 300, 'max_level': 3, 'depends_on': ['fast_construction']},
-    {'id': 'compact_storage', 'name': 'Compact Storage', 'description': '2x storage capacity per level', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'expeditions', 'name': 'Expeditions', 'description': 'Unlocks expedition system', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
-    {'id': 'command_center', 'name': 'Command Center', 'description': 'Unlocks alien technology tree', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
-    {'id': 'alien_technologies', 'name': 'Alien Technologies', 'description': 'Unlocks alien technology tree', 'cost_alien_tech': 10, 'build_time': 300, 'max_level': 1, 'depends_on': ['command_center']},
-    {'id': 'additional_expedition', 'name': 'Additional Expedition', 'description': '+1 concurrent expedition', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
-    {'id': 'super_energy_storage', 'name': 'Super Energy Storage', 'description': '+20% energy capacity per level', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
+ static const techList = [
+    {'id': 'planet_exploration', 'name': 'Исследование планет', 'description': 'Открывает здание Фабрики', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
+    {'id': 'energy_storage', 'name': 'Накопитель энергии', 'description': 'Открывает здание Накопителя энергии', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'energy_saving', 'name': 'Энергосбережение', 'description': '-10% расхода энергии за уровень', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
+    {'id': 'trade', 'name': 'Торговля', 'description': 'Открывает Рынок', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'ships', 'name': 'Корабли', 'description': 'Открывает Верфь', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
+    {'id': 'upgraded_energy_storage', 'name': 'Улучшенный накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
+    {'id': 'fast_construction', 'name': 'Быстрое строительство', 'description': 'Бонус скорости строительства за уровень', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
+    {'id': 'parallel_construction', 'name': 'Параллельное строительство', 'description': '+1 одновременное строительство за уровень (до 3 уровней)', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 300, 'max_level': 3, 'depends_on': ['fast_construction']},
+    {'id': 'compact_storage', 'name': 'Компактное хранилище', 'description': '2x вместимость хранилища за уровень', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
+    {'id': 'expeditions', 'name': 'Экспедиции', 'description': 'Открывает систему экспедиций', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
+    {'id': 'command_center', 'name': 'Командный центр', 'description': 'Открывает древо чужих технологий', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
+    {'id': 'alien_technologies', 'name': 'Чужие технологии', 'description': 'Открывает древо чужих технологий', 'cost_alien_tech': 10, 'build_time': 300, 'max_level': 1, 'depends_on': ['command_center']},
+    {'id': 'additional_expedition', 'name': 'Дополнительная экспедиция', 'description': '+1 одновременная экспедиция', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
+    {'id': 'super_energy_storage', 'name': 'Супер накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
   ];
 
   static String formatResources(double amount) {
@@ -111,11 +111,11 @@ class Constants {
     if (mins > 0) {
       return '$mins:${secs.toString().padLeft(2, '0')}';
     }
-    return '$secs s';
+    return '$secs с';
   }
 
   static String formatDateTime(DateTime? dt) {
-    if (dt == null) return 'N/A';
+    if (dt == null) return 'Н/Д';
     return '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
   }
 }

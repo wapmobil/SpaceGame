@@ -39,10 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.public), label: 'Planets'),
-          NavigationDestination(icon: Icon(Icons.language), label: 'Planet'),
-          NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+         destinations: const [
+          NavigationDestination(icon: Icon(Icons.public), label: 'Планеты'),
+          NavigationDestination(icon: Icon(Icons.language), label: 'Планета'),
+          NavigationDestination(icon: Icon(Icons.settings), label: 'Настройки'),
         ],
       ),
     );
@@ -52,7 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Consumer<GameProvider>(
       builder: (context, gameProvider, _) {
         if (!gameProvider.isLoggedIn) {
-          return const Center(child: Text('Not logged in'));
+          return const Center(child: Text('Не авторизован'));
         }
 
         return Column(
@@ -78,18 +78,18 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.public, size: 80, color: Colors.white24),
           const SizedBox(height: 16),
           const Text(
-            'No planets yet',
+            'Планет пока нет',
             style: TextStyle(fontSize: 20, color: Colors.white54),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Create your first planet to begin',
+            'Создайте свою первую планету для начала',
             style: TextStyle(color: Colors.white38),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: () => _showCreatePlanetDialog(),
-            child: const Text('Create Planet'),
+            child: const Text('Создать планету'),
           ),
         ],
       ),
@@ -124,11 +124,11 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Create Planet'),
+        title: const Text('Создать планету'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
-            hintText: 'Planet name',
+            hintText: 'Название планеты',
             prefixIcon: Icon(Icons.public),
           ),
           autofocus: true,
@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Отмена'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -146,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Create'),
+            child: const Text('Создать'),
           ),
         ],
       ),
