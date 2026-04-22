@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -78,11 +79,18 @@ func (g *Game) LoadPlanetsFromDB() error {
 		return nil
 	}
 
-	rows, err := g.db.Query(`
-		SELECT id, player_id, name, level, resources, energy_buffer
-		FROM planets p
-		ORDER BY updated_at DESC
-	`)
+	hasEnergyBuffer, err := g.db.ColumnExists(context.Background(), "planets", "energy_buffer")
+	if err != nil {
+		hasEnergyBuffer = false
+	}
+	var query string
+	if hasEnergyBuffer {
+		query = `SELECT id, player_id, name, level, resources, energy_buffer FROM planets p ORDER BY updated_at DESC`
+	} else {
+		query = `SELECT id, player_id, name, level, resources FROM planets p ORDER BY updated_at DESC`
+	}
+
+	rows, err := g.db.Query(query)
 	if err != nil {
 		return err
 	}
@@ -93,9 +101,18 @@ func (g *Game) LoadPlanetsFromDB() error {
 		var level int
 		var resourcesJSON []byte
 		var energyBufferValue float64
-		if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue); err != nil {
-			log.Printf("Error scanning planet row: %v", err)
-			continue
+
+		if hasEnergyBuffer {
+			if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON, &energyBufferValue); err != nil {
+				log.Printf("Error scanning planet row: %v", err)
+				continue
+			}
+		} else {
+			if err := rows.Scan(&id, &ownerID, &name, &level, &resourcesJSON); err != nil {
+				log.Printf("Error scanning planet row: %v", err)
+				continue
+			}
+			energyBufferValue = 100
 		}
 
 		planet := NewPlanet(id, ownerID, name, g)
@@ -254,43 +271,49 @@ func (g *Game) savePlanet(p *Planet) {
 	}
 
 	// Save fleet state
-	fleetData, err := json.Marshal(p.Fleet.GetShipState())
-	if err != nil {
-		log.Printf("Error marshaling fleet for planet %s: %v", p.ID, err)
-	} else {
-		_, err = g.db.Exec(`
-			UPDATE planets 
-			SET fleet_state = $1::jsonb, updated_at = NOW()
-			WHERE id = $2
-		`, string(fleetData), p.ID)
+	if fleetState, _ := g.db.ColumnExists(context.Background(), "planets", "fleet_state"); fleetState {
+		fleetData, err := json.Marshal(p.Fleet.GetShipState())
 		if err != nil {
-			log.Printf("Error saving fleet for planet %s: %v", p.ID, err)
+			log.Printf("Error marshaling fleet for planet %s: %v", p.ID, err)
+		} else {
+			_, err = g.db.Exec(`
+				UPDATE planets 
+				SET fleet_state = $1::jsonb, updated_at = NOW()
+				WHERE id = $2
+			`, string(fleetData), p.ID)
+			if err != nil {
+				log.Printf("Error saving fleet for planet %s: %v", p.ID, err)
+			}
 		}
 	}
 
 	// Save shipyard state
-	shipyardData, err := json.Marshal(p.Shipyard)
-	if err != nil {
-		log.Printf("Error marshaling shipyard for planet %s: %v", p.ID, err)
-	} else {
-		_, err = g.db.Exec(`
-			UPDATE planets 
-			SET shipyard_state = $1::jsonb, updated_at = NOW()
-			WHERE id = $2
-		`, string(shipyardData), p.ID)
+	if shipyardState, _ := g.db.ColumnExists(context.Background(), "planets", "shipyard_state"); shipyardState {
+		shipyardData, err := json.Marshal(p.Shipyard)
 		if err != nil {
-			log.Printf("Error saving shipyard for planet %s: %v", p.ID, err)
+			log.Printf("Error marshaling shipyard for planet %s: %v", p.ID, err)
+		} else {
+			_, err = g.db.Exec(`
+				UPDATE planets 
+				SET shipyard_state = $1::jsonb, updated_at = NOW()
+				WHERE id = $2
+			`, string(shipyardData), p.ID)
+			if err != nil {
+				log.Printf("Error saving shipyard for planet %s: %v", p.ID, err)
+			}
 		}
 	}
 
 	// Save energy buffer
-	_, err = g.db.Exec(`
-		UPDATE planets 
-		SET energy_buffer = $1, updated_at = NOW()
-		WHERE id = $2
-	`, p.EnergyBuffer.Value, p.ID)
-	if err != nil {
-		log.Printf("Error saving energy buffer for planet %s: %v", p.ID, err)
+	if energyBuf, _ := g.db.ColumnExists(context.Background(), "planets", "energy_buffer"); energyBuf {
+		_, err = g.db.Exec(`
+			UPDATE planets 
+			SET energy_buffer = $1, updated_at = NOW()
+			WHERE id = $2
+		`, p.EnergyBuffer.Value, p.ID)
+		if err != nil {
+			log.Printf("Error saving energy buffer for planet %s: %v", p.ID, err)
+		}
 	}
 
 	g.saveCount[p.ID] = 0

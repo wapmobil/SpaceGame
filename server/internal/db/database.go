@@ -12,7 +12,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-//go:embed migrations/*.sql
+//go:embed migrations/*.up.sql
 var migrationFS embed.FS
 
 // Config holds database connection parameters.
@@ -105,6 +105,10 @@ func (d *Database) loadMigrations() ([]migration, error) {
 		}
 
 		name := entry.Name()
+		if !strings.HasSuffix(name, ".up.sql") {
+			continue
+		}
+
 		content, err := migrationFS.ReadFile("migrations/" + name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read migration %s: %w", name, err)
@@ -179,6 +183,16 @@ func (d *Database) applyMigration(ctx context.Context, m migration) error {
 // Close closes the database connection.
 func (d *Database) Close() error {
 	return d.DB.Close()
+}
+
+// ColumnExists checks whether a column exists in a table.
+func (d *Database) ColumnExists(ctx context.Context, tableName, columnName string) (bool, error) {
+	var count int
+	err := d.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM information_schema.columns
+		WHERE table_name = $1 AND column_name = $2
+	`, tableName, columnName).Scan(&count)
+	return count > 0, err
 }
 
 // ReadMigrationFiles returns all migration file names and content for testing.

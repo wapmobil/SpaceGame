@@ -1,6 +1,7 @@
 package research
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
@@ -31,11 +32,21 @@ func (rs *ResearchSystem) LoadFromDB() error {
 		return nil
 	}
 
-	rows, err := rs.db.Query(
-		`SELECT tech_id, completed, in_progress, progress, total_time, start_time, level
-		 FROM research WHERE planet_id = $1`,
-		rs.PlanetID,
-	)
+	hasTotalTime, _ := rs.db.ColumnExists(context.Background(), "research", "total_time")
+	hasStartTime, _ := rs.db.ColumnExists(context.Background(), "research", "start_time")
+	hasLevel, _ := rs.db.ColumnExists(context.Background(), "research", "level")
+
+	var query string
+	var scanArgs []interface{}
+	if hasTotalTime && hasStartTime && hasLevel {
+		query = `SELECT tech_id, completed, in_progress, progress, total_time, start_time, level FROM research WHERE planet_id = $1`
+		scanArgs = []interface{}{rs.PlanetID}
+	} else {
+		query = `SELECT tech_id, completed, in_progress, progress FROM research WHERE planet_id = $1`
+		scanArgs = []interface{}{rs.PlanetID}
+	}
+
+	rows, err := rs.db.Query(query, scanArgs...)
 	if err != nil {
 		return err
 	}
@@ -45,20 +56,26 @@ func (rs *ResearchSystem) LoadFromDB() error {
 		var state ResearchState
 		var completed bool
 		var inProgress bool
-		var level int
 
-		if err := rows.Scan(&state.TechID, &completed, &inProgress, &state.Progress, &state.TotalTime, &state.StartTime, &level); err != nil {
-			log.Printf("Error scanning research row: %v", err)
-			continue
+		if hasTotalTime && hasStartTime && hasLevel {
+			var level int
+			if err := rows.Scan(&state.TechID, &completed, &inProgress, &state.Progress, &state.TotalTime, &state.StartTime, &level); err != nil {
+				log.Printf("Error scanning research row: %v", err)
+				continue
+			}
+			if completed && level > 0 {
+				rs.Completed[state.TechID] = level
+			}
+		} else {
+			if err := rows.Scan(&state.TechID, &completed, &inProgress, &state.Progress); err != nil {
+				log.Printf("Error scanning research row: %v", err)
+				continue
+			}
 		}
 
 		state.Completed = completed
 		state.InProgress = inProgress
 		rs.States[state.TechID] = &state
-
-		if completed && level > 0 {
-			rs.Completed[state.TechID] = level
-		}
 	}
 
 	return nil
@@ -70,20 +87,38 @@ func (rs *ResearchSystem) SaveToDB() error {
 		return nil
 	}
 
+	hasTotalTime, _ := rs.db.ColumnExists(context.Background(), "research", "total_time")
+	hasStartTime, _ := rs.db.ColumnExists(context.Background(), "research", "start_time")
+	hasLevel, _ := rs.db.ColumnExists(context.Background(), "research", "level")
+
 	for techID, state := range rs.States {
-		_, err := rs.db.Exec(`
-			INSERT INTO research (planet_id, tech_id, completed, in_progress, progress, total_time, start_time, level)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (planet_id, tech_id)
-			DO UPDATE SET
-				completed = EXCLUDED.completed,
-				in_progress = EXCLUDED.in_progress,
-				progress = EXCLUDED.progress,
-				total_time = EXCLUDED.total_time,
-				start_time = EXCLUDED.start_time,
-				level = EXCLUDED.level,
-				updated_at = NOW()
-		`, rs.PlanetID, techID, state.Completed, state.InProgress, state.Progress, state.TotalTime, state.StartTime, rs.Completed[techID])
+		var err error
+		if hasTotalTime && hasStartTime && hasLevel {
+			_, err = rs.db.Exec(`
+				INSERT INTO research (planet_id, tech_id, completed, in_progress, progress, total_time, start_time, level)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				ON CONFLICT (planet_id, tech_id)
+				DO UPDATE SET
+					completed = EXCLUDED.completed,
+					in_progress = EXCLUDED.in_progress,
+					progress = EXCLUDED.progress,
+					total_time = EXCLUDED.total_time,
+					start_time = EXCLUDED.start_time,
+					level = EXCLUDED.level,
+					updated_at = NOW()
+			`, rs.PlanetID, techID, state.Completed, state.InProgress, state.Progress, state.TotalTime, state.StartTime, rs.Completed[techID])
+		} else {
+			_, err = rs.db.Exec(`
+				INSERT INTO research (planet_id, tech_id, completed, in_progress, progress)
+				VALUES ($1, $2, $3, $4, $5)
+				ON CONFLICT (planet_id, tech_id)
+				DO UPDATE SET
+					completed = EXCLUDED.completed,
+					in_progress = EXCLUDED.in_progress,
+					progress = EXCLUDED.progress,
+					updated_at = NOW()
+			`, rs.PlanetID, techID, state.Completed, state.InProgress, state.Progress)
+		}
 
 		if err != nil {
 			log.Printf("Error saving research %s: %v", techID, err)
