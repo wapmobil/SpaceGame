@@ -95,8 +95,6 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/api/planets/{id}/market/orders", handleGetMyOrders(db))
 	r.Get("/api/market", handleGetGlobalMarket(db))
 	r.Delete("/api/market/orders/{id}", handleDeleteMarketOrder(db))
-	r.Get("/api/market/traders", handleGetNPCTraders(db))
-	r.Post("/api/market/match", handleMatchOrders(db))
 
 	// Mining mini-game
 	r.Post("/api/planets/{id}/mining/start", handleStartMining(db))
@@ -107,11 +105,9 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/api/ratings", handleGetRatings(db))
 
 	// Statistics
-	r.Get("/api/stats", handleGetStats(db))
 	r.Get("/api/planets/{id}/stats", handleGetStats(db))
 
 	// Events
-	r.Get("/api/events", handleGetEventHistory(db))
 	r.Post("/api/planets/{id}/events/resolve", handleResolveEvent(db))
 
 	return r

@@ -175,22 +175,6 @@ type MarketOrderResponse struct {
 	ReservedResources map[string]float64    `json:"reserved_resources,omitempty"`
 }
 
-// NPCTraderResponse represents an NPC trader in API responses.
-type NPCTraderResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	PlanetID  string `json:"planet_id"`
-	OrderID   string `json:"order_id"`
-	CreatedAt string `json:"created_at"`
-}
-
-// MarketMatchingResponse represents the result of order matching.
-type MarketMatchingResponse struct {
-	MatchedOrders  []string `json:"matched_orders"`
-	ExecutedTrades int      `json:"executed_trades"`
-	TotalVolume    float64  `json:"total_volume"`
-}
-
 // MiningMoveRequest is the request body for moving in a mining session.
 type MiningMoveRequest struct {
 	Direction string `json:"direction"` // "up", "down", "left", "right"
