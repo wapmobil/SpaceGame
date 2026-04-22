@@ -595,9 +595,7 @@ func (p *Planet) Tick() {
 	p.EnergyBuffer.Deficit = p.EnergyBuffer.Value <= 0
 
 	// 9. Update max energy for display
-	if p.EnergyBuffer.Max > p.Resources.MaxEnergy {
-		p.Resources.MaxEnergy = p.EnergyBuffer.Max
-	}
+	p.Resources.MaxEnergy = p.EnergyBuffer.Max
 
 	// 10. Calculate resource production (only if not in deficit)
 	var totalProduction ProdInfo
@@ -613,14 +611,8 @@ func (p *Planet) Tick() {
 		}
 	}
 
-	// 11. Apply resource production to energy buffer
-	p.EnergyBuffer.Value += totalProduction.Energy
-	if p.EnergyBuffer.Value > p.Resources.MaxEnergy {
-		p.EnergyBuffer.Value = p.Resources.MaxEnergy
-	}
-	if p.EnergyBuffer.Value < 0 {
-		p.EnergyBuffer.Value = 0
-	}
+	// 11. Apply resource production to resources (energy is handled in steps 3-6)
+	p.Resources.Energy = p.EnergyBuffer.Value
 	p.Resources.Food += totalProduction.Food
 	p.Resources.Composite += totalProduction.Composite
 	p.Resources.Mechanisms += totalProduction.Mechanisms

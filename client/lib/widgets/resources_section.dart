@@ -77,7 +77,7 @@ class ResourcesSection extends StatelessWidget {
                 );
               }).toList(),
             ),
-            if (gameProvider.energyBufferMax > 0) ...[
+            if ((resources['max_energy'] ?? 0) > 0) ...[
               const SizedBox(height: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,10 +87,10 @@ class ResourcesSection extends StatelessWidget {
                       const Text('⚡ Energy:', style: TextStyle(fontSize: 10, color: Colors.white70)),
                       const SizedBox(width: 4),
                       Text(
-                        '${gameProvider.energyBufferValue.toInt()}/${gameProvider.energyBufferMax.toInt()}',
+                        '${((resources['energy'] ?? 0).toInt())}/${(resources['max_energy'] ?? 0).toInt()}',
                         style: TextStyle(
                           fontSize: 10,
-                          color: gameProvider.energyBufferDeficit ? Colors.red : Colors.white,
+                          color: (resources['energy'] ?? 0) <= 0 ? Colors.red : Colors.white,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -98,7 +98,7 @@ class ResourcesSection extends StatelessWidget {
                         '${_formatEnergyProd(gameProvider.productionEnergy)}',
                         style: const TextStyle(fontSize: 10, color: Colors.white70),
                       ),
-                      if (gameProvider.energyBufferDeficit) ...[
+                      if ((resources['energy'] ?? 0) <= 0) ...[
                         const SizedBox(width: 4),
                         const Text('(DEFICIT)', style: TextStyle(fontSize: 8, color: Colors.red)),
                       ],
@@ -106,13 +106,13 @@ class ResourcesSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   LinearProgressIndicator(
-                    value: gameProvider.energyBufferMax > 0 
-                        ? gameProvider.energyBufferValue / gameProvider.energyBufferMax 
+                    value: (resources['max_energy'] ?? 0) > 0 
+                        ? (resources['energy'] ?? 0) / (resources['max_energy'] ?? 1)
                         : 0,
                     minHeight: 6,
                     borderRadius: BorderRadius.circular(3),
                     valueColor: AlwaysStoppedAnimation(
-                      gameProvider.energyBufferDeficit ? Colors.red : Colors.yellow,
+                      (resources['energy'] ?? 0) <= 0 ? Colors.red : Colors.yellow,
                     ),
                   ),
                 ],

@@ -18,7 +18,7 @@ class BuildingCard extends StatelessWidget {
 
   bool get isPending => building.pending == true && building.buildProgress <= 0;
   bool get isBuilding => building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending;
-  bool get energyDeficit => gameProvider.energyBufferDeficit;
+  bool get energyDeficit => gameProvider.energyDeficit;
 
   String? get statusText {
     if (isPending) return 'Tap to claim!';

@@ -39,11 +39,6 @@ class GameProvider extends ChangeNotifier {
   int _maxConstructions = 1;
   Map<String, Map<String, double>> _buildingCosts = {};
 
-  // Energy buffer
-  double _energyBufferValue = 100;
-  double _energyBufferMax = 100;
-  bool _energyBufferDeficit = false;
-
   // Energy balance
   double _energyBalanceProduction = 0;
   double _energyBalanceConsumption = 0;
@@ -103,10 +98,10 @@ class GameProvider extends ChangeNotifier {
   Map<String, Map<String, double>> get buildingCosts => _buildingCosts;
   bool get isLoggedIn => _player != null;
 
-  // Energy buffer getters
-  double get energyBufferValue => _energyBufferValue;
-  double get energyBufferMax => _energyBufferMax;
-  bool get energyBufferDeficit => _energyBufferDeficit;
+  // Energy getters (from planet resources)
+  double get energyValue => _selectedPlanet?.resources['energy'] as double? ?? 0;
+  double get energyMax => _selectedPlanet?.resources['max_energy'] as double? ?? 100;
+  bool get energyDeficit => (_selectedPlanet?.resources['energy'] as double? ?? 0) <= 0;
 
   // Energy balance getters
   double get energyBalanceProduction => _energyBalanceProduction;
@@ -252,14 +247,6 @@ class GameProvider extends ChangeNotifier {
       final resources = stateData['resources'] as Map<String, dynamic>?;
       if (resources != null) {
         _selectedPlanet = _selectedPlanet!.copyWith(resources: resources);
-      }
-
-      // Update energy buffer
-      final energyBuffer = stateData['energy_buffer'] as Map<String, dynamic>?;
-      if (energyBuffer != null) {
-        _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
-        _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
-        _energyBufferDeficit = energyBuffer['deficit'] as bool? ?? false;
       }
 
       // Update energy net from energy_balance
@@ -440,14 +427,6 @@ class GameProvider extends ChangeNotifier {
 
   void _updateFromBuildDetails(Map<String, dynamic> data) {
     if (_selectedPlanet == null) return;
-
-    // Update energy buffer
-    final energyBuffer = data['energy_buffer'] as Map<String, dynamic>?;
-    if (energyBuffer != null) {
-      _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
-      _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
-      _energyBufferDeficit = energyBuffer['deficit'] as bool? ?? false;
-    }
 
     // Update energy balance
     final energyBalance = data['energy_balance'] as Map<String, dynamic>?;
