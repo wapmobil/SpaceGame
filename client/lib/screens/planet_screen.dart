@@ -4,7 +4,6 @@ import '../providers/game_provider.dart';
 import '../core/app_theme.dart';
 import '../utils/constants.dart';
 import '../widgets/resource_bar.dart' as resource_bar;
-import '../widgets/building_card.dart';
 import 'shipyard_screen.dart' as ship;
 import 'research_screen.dart' as research;
 import 'battle_screen.dart' as battle;
@@ -248,22 +247,192 @@ class PlanetScreen extends StatelessWidget {
                   child: Text('No buildings yet. Build your first structure!', style: TextStyle(color: Colors.white38)),
                 ),
               ),
-            GridView.builder(
+            ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.3,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
               itemCount: buildings.length,
               itemBuilder: (context, index) {
                 final building = buildings[index];
+                final info = Constants.buildingTypes[building.type] ??
+                    {'name': building.type, 'icon': '🏗️', 'description': 'Unknown'};
+                final name = info['name'] ?? building.type;
+                final icon = info['icon'] ?? '🏗️';
                 final isPending = building.pending == true && building.buildProgress <= 0;
-                return BuildingCard(
-                  building: building,
-                  onTap: isPending ? () => gameProvider.confirmBuilding(building.type) : null,
+                final isBuilding = building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending;
+                final upgradeInfo = gameProvider.getBuildingUpgradeInfo(building);
+                final canUpgrade = upgradeInfo.canUpgrade;
+                final energyDeficit = gameProvider.energyBufferDeficit;
+
+                // Status text
+                String? statusText;
+                Color? statusColor;
+                if (isPending) {
+                  statusText = 'Tap to claim!';
+                  statusColor = AppTheme.accentColor;
+                } else if (isBuilding) {
+                  final remaining = (building.buildTime - building.buildProgress).toInt();
+                  statusText = 'Building... ${remaining}s';
+                  statusColor = Colors.orange;
+                } else if (energyDeficit) {
+                  statusText = '⚠ Energy deficit';
+                  statusColor = Colors.red;
+                } else if (building.level == 0) {
+                  statusText = 'Not built';
+                  statusColor = Colors.white54;
+                } else {
+                  statusText = 'Operational';
+                  statusColor = Colors.green;
+                }
+
+                // Production/consumption display
+                final prodLines = <Widget>[];
+                if (building.productionFood.abs() > 0.01) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('🍖', style: TextStyle(fontSize: 11)),
+                    Text('${building.productionFood >= 0 ? "+" : ""}${building.productionFood.toInt()}',
+                        style: TextStyle(fontSize: 10, color: building.productionFood >= 0 ? Colors.green : Colors.red)),
+                  ]));
+                }
+                if (building.productionEnergy.abs() > 0.01) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('⚡', style: TextStyle(fontSize: 11)),
+                    Text('${building.productionEnergy >= 0 ? "+" : ""}${building.productionEnergy.toInt()}',
+                        style: TextStyle(fontSize: 10, color: building.productionEnergy >= 0 ? Colors.green : Colors.red)),
+                  ]));
+                }
+                if (building.productionComposite.abs() > 0.01) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('🧬', style: TextStyle(fontSize: 11)),
+                    Text('${building.productionComposite >= 0 ? "+" : ""}${building.productionComposite.toInt()}',
+                        style: TextStyle(fontSize: 10, color: Colors.green)),
+                  ]));
+                }
+                if (building.productionMechanisms.abs() > 0.01) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('⚙️', style: TextStyle(fontSize: 11)),
+                    Text('${building.productionMechanisms >= 0 ? "+" : ""}${building.productionMechanisms.toInt()}',
+                        style: TextStyle(fontSize: 10, color: Colors.green)),
+                  ]));
+                }
+                if (building.productionReagents.abs() > 0.01) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('🧪', style: TextStyle(fontSize: 11)),
+                    Text('${building.productionReagents >= 0 ? "+" : ""}${building.productionReagents.toInt()}',
+                        style: TextStyle(fontSize: 10, color: Colors.green)),
+                  ]));
+                }
+                if (building.consumption > 0 && !energyDeficit) {
+                  prodLines.add(Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('⚡', style: TextStyle(fontSize: 11)),
+                    Text('-${building.consumption.toInt()}', style: const TextStyle(fontSize: 10, color: Colors.orange)),
+                  ]));
+                }
+
+                // Upgrade button
+                Widget? upgradeButton;
+                final nextCostFood = building.nextCostFood;
+                final nextCostMoney = building.nextCostMoney;
+                if (building.level > 0 || (nextCostFood > 0 || nextCostMoney > 0)) {
+                  final hasResources = nextCostFood <= 0 || nextCostMoney <= 0 ||
+                      (gameProvider.selectedPlanet != null &&
+                          ((gameProvider.selectedPlanet!.resources['food'] ?? 0) as num).toDouble() >= nextCostFood &&
+                          ((gameProvider.selectedPlanet!.resources['money'] ?? 0) as num).toDouble() >= nextCostMoney);
+                  final maxLevel = nextCostFood <= 0 && nextCostMoney <= 0;
+                  if (!maxLevel) {
+                    upgradeButton = ElevatedButton(
+                      onPressed: (canUpgrade && hasResources)
+                          ? () {
+                              gameProvider.buildStructure(building.type);
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: canUpgrade && hasResources ? AppTheme.accentColor : Colors.grey[700],
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        minimumSize: const Size(0, 28),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      child: Text(
+                        'Upgrade → ${building.level + 1}\n🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
+                        style: const TextStyle(fontSize: 9, color: Colors.white),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }
+                }
+
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: InkWell(
+                    onTap: isPending ? () => gameProvider.confirmBuilding(building.type) : null,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                          child: Row(
+                            children: [
+                              Text(icon, style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.accentColor.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'Lv. ${building.level}',
+                                            style: const TextStyle(fontSize: 10, color: AppTheme.accentColor, fontWeight: FontWeight.bold),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.circle, size: 8, color: statusColor),
+                                        const SizedBox(width: 4),
+                                        Text(statusText!, style: TextStyle(fontSize: 10, color: statusColor)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (upgradeButton != null) upgradeButton,
+                            ],
+                          ),
+                        ),
+                        if (prodLines.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            child: Wrap(
+                              spacing: 10,
+                              runSpacing: 2,
+                              children: prodLines,
+                            ),
+                          ),
+                        if (isBuilding)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: LinearProgressIndicator(
+                              value: 1.0 - (building.buildProgress / building.buildTime),
+                              minHeight: 3,
+                              color: AppTheme.accentColor,
+                              backgroundColor: Colors.grey[800],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),

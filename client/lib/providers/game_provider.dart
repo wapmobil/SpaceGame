@@ -516,6 +516,35 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  BuildingUpgradeInfo getBuildingUpgradeInfo(Building building) {
+    if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'No planet selected');
+
+    final isPending = building.pending && building.buildProgress <= 0;
+    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Tap to claim first');
+
+    final isBuilding = building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime;
+    if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Already under construction');
+
+    final nextCostFood = building.nextCostFood;
+    final nextCostMoney = building.nextCostMoney;
+    if (nextCostFood <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Max level');
+
+    final currentFood = (_selectedPlanet!.resources['food'] ?? 0) as num;
+    final currentMoney = (_selectedPlanet!.resources['money'] ?? 0) as num;
+    final canAffordFood = currentFood.toDouble() >= nextCostFood;
+    final canAffordMoney = currentMoney.toDouble() >= nextCostMoney;
+    if (!canAffordFood || !canAffordMoney) {
+      final missing = <String>[];
+      if (!canAffordFood) missing.add('food');
+      if (!canAffordMoney) missing.add('money');
+      return BuildingUpgradeInfo(canUpgrade: false, reason: 'Not enough ${missing.join(" and ")}');
+    }
+
+    if (activeConstructions >= maxConstructions) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Max constructions reached');
+
+    return BuildingUpgradeInfo(canUpgrade: true, reason: null);
+  }
+
   Future<void> confirmBuilding(String buildingType) async {
     if (_selectedPlanet == null) return;
 
@@ -1033,4 +1062,10 @@ class ShipyardInfo {
 
   int get availableSlots => maxSlots - totalSlots;
   double get buildProgressPercent => (shipyardProgress / (shipyardQueueLen > 0 ? 1 : 100)) * 100;
+}
+
+class BuildingUpgradeInfo {
+  final bool canUpgrade;
+  final String? reason;
+  const BuildingUpgradeInfo({required this.canUpgrade, this.reason});
 }
