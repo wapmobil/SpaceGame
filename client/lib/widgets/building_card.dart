@@ -18,19 +18,48 @@ class BuildingCard extends StatelessWidget {
     final icon = info['icon'] ?? '🏗️';
     final description = info['description'] ?? '';
 
-    final isPending = building.pending == true && building.buildProgress >= 1;
-    final cost = Constants.getBuildingCost(building.type, building.level + 1);
-    final Widget? costWidget = cost['food'] > 0
-        ? Column(
-            children: [
-              const SizedBox(height: 2),
-              Text(
-                '🍖 ${cost['food'].toInt()}  💰 ${cost['money'].toInt()}',
-                style: const TextStyle(fontSize: 7, color: Colors.white54),
-              ),
-            ],
-          )
-        : null;
+    final isPending = building.pending && building.buildProgress <= 0;
+    
+    // Cost for next level (from API)
+    final hasNextCost = building.nextCostFood > 0 || building.nextCostMoney > 0;
+
+    Widget? costWidget;
+    if (hasNextCost) {
+      costWidget = Column(
+        children: [
+          const SizedBox(height: 2),
+          Text(
+            '🍖 ${building.nextCostFood.toInt()}  💰 ${building.nextCostMoney.toInt()}',
+            style: const TextStyle(fontSize: 7, color: Colors.white54),
+          ),
+        ],
+      );
+    }
+
+    // Production display
+    Widget? productionWidget;
+    final prodParts = <String>[];
+    if (building.productionFood.abs() > 0.01) {
+      prodParts.add('${building.productionFood >= 0 ? '+' : ''}${building.productionFood.toInt()} 🍖');
+    }
+    if (building.productionEnergy.abs() > 0.01) {
+      prodParts.add('${building.productionEnergy >= 0 ? '+' : ''}${building.productionEnergy.toInt()} ⚡');
+    }
+    if (building.productionComposite.abs() > 0.01) {
+      prodParts.add('${building.productionComposite >= 0 ? '+' : ''}${building.productionComposite.toInt()} 🧬');
+    }
+    if (building.productionMechanisms.abs() > 0.01) {
+      prodParts.add('${building.productionMechanisms >= 0 ? '+' : ''}${building.productionMechanisms.toInt()} ⚙️');
+    }
+    if (building.productionReagents.abs() > 0.01) {
+      prodParts.add('${building.productionReagents >= 0 ? '+' : ''}${building.productionReagents.toInt()} 🧪');
+    }
+    if (prodParts.isNotEmpty) {
+      productionWidget = Text(
+        prodParts.join('  '),
+        style: const TextStyle(fontSize: 7, color: Colors.greenAccent),
+      );
+    }
 
     Widget content = Column(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -64,22 +93,26 @@ class BuildingCard extends StatelessWidget {
             style: const TextStyle(fontSize: 10, color: AppTheme.accentColor),
           ),
         ),
+        if (productionWidget != null) ...[
+          const SizedBox(height: 2),
+          productionWidget,
+        ],
         if (costWidget != null) costWidget,
-        if (building.totalBuildTime > 0 && building.buildProgress > 0 && building.buildProgress < 1) ...[
+        if (building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending) ...[
           const SizedBox(height: 4),
           LinearProgressIndicator(
-            value: building.buildProgress,
+            value: 1.0 - (building.buildProgress / building.buildTime),
             minHeight: 3,
             borderRadius: BorderRadius.circular(2),
             color: AppTheme.accentColor,
           ),
           const SizedBox(height: 2),
           Text(
-            '${((1 - building.buildProgress) * building.totalBuildTime).toInt()}s',
+            '${building.buildProgress.toInt()}s',
             style: const TextStyle(fontSize: 8, color: AppTheme.accentColor),
           ),
         ],
-        if (building.totalBuildTime > 0 && building.buildProgress >= 1 && !isPending) ...[
+        if (building.buildTime > 0 && building.buildProgress <= 0 && !isPending && building.level > 0) ...[
           const SizedBox(height: 4),
           Text(
             'Complete',

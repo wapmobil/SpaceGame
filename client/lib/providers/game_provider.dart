@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:html' show window;
-import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,6 +38,31 @@ class GameProvider extends ChangeNotifier {
   int _activeConstructions = 0;
   int _maxConstructions = 1;
 
+  // Energy buffer
+  double _energyBufferValue = 100;
+  double _energyBufferMax = 100;
+  bool _energyBufferDeficit = false;
+
+  // Energy balance
+  double _energyBalanceProduction = 0;
+  double _energyBalanceConsumption = 0;
+  double _energyBalanceNet = 0;
+
+  // Production totals
+  double _productionFood = 0;
+  double _productionComposite = 0;
+  double _productionMechanisms = 0;
+  double _productionReagents = 0;
+  double _productionEnergy = 0;
+  double _productionMoney = 0;
+  double _productionAlienTech = 0;
+
+  // Base operational flags
+  bool _baseOperational = true;
+  bool _canResearch = true;
+  bool _canExpedition = false;
+  bool _canMining = true;
+
   GameProvider({required this.websocket, String? baseUrl})
       : _baseUrl = baseUrl ?? _getBaseUri();
 
@@ -52,6 +76,7 @@ class GameProvider extends ChangeNotifier {
   }
 
   String get baseUrl => _baseUrl;
+  String getBuildDetailsUrl(String planetId) => '$_baseUrl/api/planets/$planetId/build-details';
   Player? get player => _player;
   List<Planet> get planets => _planets;
   Planet? get selectedPlanet => _selectedPlanet;
@@ -72,6 +97,31 @@ class GameProvider extends ChangeNotifier {
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
   bool get isLoggedIn => _player != null;
+
+  // Energy buffer getters
+  double get energyBufferValue => _energyBufferValue;
+  double get energyBufferMax => _energyBufferMax;
+  bool get energyBufferDeficit => _energyBufferDeficit;
+
+  // Energy balance getters
+  double get energyBalanceProduction => _energyBalanceProduction;
+  double get energyBalanceConsumption => _energyBalanceConsumption;
+  double get energyBalanceNet => _energyBalanceNet;
+
+  // Production getters
+  double get productionFood => _productionFood;
+  double get productionComposite => _productionComposite;
+  double get productionMechanisms => _productionMechanisms;
+  double get productionReagents => _productionReagents;
+  double get productionEnergy => _productionEnergy;
+  double get productionMoney => _productionMoney;
+  double get productionAlienTech => _productionAlienTech;
+
+  // Base operational getters
+  bool get baseOperational => _baseOperational;
+  bool get canResearch => _canResearch;
+  bool get canExpedition => _canExpedition;
+  bool get canMining => _canMining;
   String? get authToken => _player?.authToken;
 
   void _setError(String msg) {
@@ -183,143 +233,78 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  void _handleStateUpdate(Map<String, dynamic>? data) {
+ void _handleStateUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
-      final resources = data['resources'] as Map<String, dynamic>? ??
-          data['state']?['resources'] as Map<String, dynamic>?;
+      final planetId = data['id'] as String?;
+      if (planetId != _selectedPlanet!.id) return;
+
+      // Update resources
+      final resources = data['resources'] as Map<String, dynamic>?;
       if (resources != null) {
         _selectedPlanet = _selectedPlanet!.copyWith(resources: resources);
       }
 
-      final state = data['state'] as Map<String, dynamic>? ?? data;
-      final buildProgress = state['build_progress'] as Map<String, dynamic>?;
-      final buildingsMap = state['buildings'] as Map<String, dynamic>?;
-      final buildSpeed = (state['build_speed'] as num?)?.toDouble() ?? 1.0;
-      final pendingBuildings = state['pending_buildings'] as Map<String, dynamic>? ?? {};
-
-      final activeConstructions = (state['active_constructions'] as num?)?.toInt() ?? 0;
-      final maxConstructions = (state['max_constructions'] as num?)?.toInt() ?? 1;
-      _activeConstructions = activeConstructions;
-      _maxConstructions = maxConstructions;
-
-      if (buildingsMap != null && _selectedPlanet != null) {
-        final planetId = _selectedPlanet!.id;
-        final updatedBuildings = <Building>[];
-
-        for (final entry in buildingsMap.entries) {
-          final type = entry.key as String;
-          final level = (entry.value as num).toInt();
-          final remainingTicks = buildProgress?[type] as num? ?? 0;
-          final remainingTicksDouble = remainingTicks.toDouble();
-
-          final totalBuildTime = _getTotalBuildTime(type, level, buildSpeed);
-          final isUnderConstruction = buildProgress != null && buildProgress.containsKey(type);
-          final progress = isUnderConstruction
-              ? (totalBuildTime > 0 && remainingTicksDouble > 0
-                  ? 1.0 - (remainingTicksDouble / totalBuildTime)
-                  : 1.0)
-              : 1.0;
-
-          final isPending = pendingBuildings[type] as bool? ?? false;
-
-          final existing = _buildings.where((b) => b.type == type).toList();
-          if (existing.isNotEmpty) {
-            updatedBuildings.add(Building(
-              id: existing.first.id,
-              planetId: planetId,
-              type: type,
-              level: level,
-              buildProgress: progress,
-              totalBuildTime: totalBuildTime,
-              pending: isPending,
-            ));
-          } else {
-            updatedBuildings.add(Building(
-              planetId: planetId,
-              type: type,
-              level: level,
-              buildProgress: progress,
-              totalBuildTime: totalBuildTime,
-              pending: isPending,
-            ));
-          }
-        }
-
-        _buildings = updatedBuildings;
-        notifyListeners();
+      // Update energy buffer
+      final energyBuffer = data['energy_buffer'] as Map<String, dynamic>?;
+      if (energyBuffer != null) {
+        _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
+        _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
+        _energyBufferDeficit = energyBuffer['deficit'] as bool? ?? false;
       }
-    }
-  }
 
-  double _getTotalBuildTime(String type, int level, double buildSpeed) {
-    double raw = 100.0;
-    switch (type) {
-      case 'farm':
-        raw = (level * level * level * 20 + 100).toDouble();
-        break;
-      case 'solar':
-        raw = (level * level * 200 + 80).toDouble();
-        break;
-      case 'storage':
-        raw = ((level * level + 1) * 100).toDouble();
-        break;
-      case 'base':
-        raw = math.pow(2, level + 3) + 100;
-        break;
-      case 'factory':
-        raw = ((level * 2 + 1) * 100000).toDouble();
-        break;
-      case 'energy_storage':
-        raw = (level * level + 1000).toDouble();
-        break;
-      case 'shipyard':
-        raw = math.pow(2, level + 7) + 3000;
-        break;
-      case 'comcenter':
-        raw = level == 0 ? 10000000.0 : (10000000 * level).toDouble();
-        break;
-      case 'composite_drone':
-      case 'mechanism_factory':
-      case 'reagent_lab':
-        raw = ((level * level + 1) * 100).toDouble();
-        break;
+      // Update buildings from slice
+      final buildingsJson = data['buildings'] as List<dynamic>?;
+      if (buildingsJson != null) {
+        _buildings = buildingsJson.map((b) => Building.fromJson(b as Map<String, dynamic>)).toList();
+      }
+
+      // Update production
+      final production = data['production'] as Map<String, dynamic>?;
+      if (production != null) {
+        _productionFood = (production['food'] as num?)?.toDouble() ?? 0;
+        _productionComposite = (production['composite'] as num?)?.toDouble() ?? 0;
+        _productionMechanisms = (production['mechanisms'] as num?)?.toDouble() ?? 0;
+        _productionReagents = (production['reagents'] as num?)?.toDouble() ?? 0;
+        _productionEnergy = (production['energy'] as num?)?.toDouble() ?? 0;
+        _productionMoney = (production['money'] as num?)?.toDouble() ?? 0;
+        _productionAlienTech = (production['alien_tech'] as num?)?.toDouble() ?? 0;
+      }
+
+      // Update construction limits
+      final activeConstr = data['active_constructions'];
+      if (activeConstr != null) {
+        _activeConstructions = activeConstr is int ? activeConstr : (activeConstr as num).toInt();
+      }
+      final maxConstr = data['max_constructions'];
+      if (maxConstr != null) {
+        _maxConstructions = maxConstr is int ? maxConstr : (maxConstr as num).toInt();
+      }
+
+      // Update base operational flags
+      final baseOp = data['base_operational'];
+      if (baseOp != null) {
+        _baseOperational = baseOp as bool;
+      }
+      final canRes = data['can_research'];
+      if (canRes != null) {
+        _canResearch = canRes as bool;
+      }
+      final canExp = data['can_expedition'];
+      if (canExp != null) {
+        _canExpedition = canExp as bool;
+      }
+      final canMin = data['can_mining'];
+      if (canMin != null) {
+        _canMining = canMin as bool;
+      }
+
+      notifyListeners();
     }
-    return raw / buildSpeed;
   }
 
   void _handleBuildingUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
-      final buildingType = data['building'] as String?;
-      final newLevel = (data['level'] as num?)?.toInt() ?? 0;
-      if (buildingType != null && newLevel > 0) {
-        final planetId = _selectedPlanet!.id;
-        final totalBuildTime = _getTotalBuildTime(buildingType, newLevel, 1.0);
-        final existing = _buildings.where((b) => b.type == buildingType).toList();
-        if (existing.isNotEmpty) {
-          final idx = _buildings.indexWhere((b) => b.type == buildingType);
-          if (idx >= 0) {
-            _buildings[idx] = Building(
-              id: existing.first.id,
-              planetId: planetId,
-              type: buildingType,
-              level: newLevel,
-              buildProgress: 1.0,
-              totalBuildTime: totalBuildTime,
-              pending: false,
-            );
-          }
-        } else {
-          _buildings.add(Building(
-            planetId: planetId,
-            type: buildingType,
-            level: newLevel,
-            buildProgress: 1.0,
-            totalBuildTime: totalBuildTime,
-            pending: false,
-          ));
-        }
-        notifyListeners();
-      }
+      loadBuildDetails(_selectedPlanet!.id);
     }
   }
 
@@ -407,7 +392,7 @@ class GameProvider extends ChangeNotifier {
   void selectPlanet(Planet planet) {
     _selectedPlanet = planet;
     websocket.subscribe(planet.id);
-    loadBuildings(planet.id);
+    loadBuildDetails(planet.id);
     loadShips(planet.id);
     loadResearch(planet.id);
     loadBattles(planet.id);
@@ -440,76 +425,125 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadBuildings(String planetId) async {
+  Future<void> loadBuildDetails(String planetId) async {
     if (_player == null) return;
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/buildings'),
-        headers: {'X-Auth-Token': _player!.authToken},
+        Uri.parse(getBuildDetailsUrl(planetId)),
+        headers: _authHeaders(),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
-        _buildings = data.map((e) => Building.fromJson(e as Map<String, dynamic>)).toList();
-        notifyListeners();
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _updateFromBuildDetails(data);
       }
     } catch (e) {
-      debugPrint('Failed to load buildings: $e');
+      debugPrint('Error loading build details: $e');
     }
   }
 
+  Map<String, String> _authHeaders() {
+    return {'X-Auth-Token': _player!.authToken};
+  }
+
+  void _updateFromBuildDetails(Map<String, dynamic> data) {
+    if (_selectedPlanet == null) return;
+
+    // Update energy buffer
+    final energyBuffer = data['energy_buffer'] as Map<String, dynamic>?;
+    if (energyBuffer != null) {
+      _energyBufferValue = (energyBuffer['value'] as num?)?.toDouble() ?? 0;
+      _energyBufferMax = (energyBuffer['max'] as num?)?.toDouble() ?? 100;
+      _energyBufferDeficit = energyBuffer['deficit'] as bool? ?? false;
+    }
+
+    // Update energy balance
+    final energyBalance = data['energy_balance'] as Map<String, dynamic>?;
+    if (energyBalance != null) {
+      _energyBalanceProduction = (energyBalance['production'] as num?)?.toDouble() ?? 0;
+      _energyBalanceConsumption = (energyBalance['consumption'] as num?)?.toDouble() ?? 0;
+      _energyBalanceNet = (energyBalance['net'] as num?)?.toDouble() ?? 0;
+    }
+
+    // Update buildings
+    final buildingsJson = data['buildings'] as List<dynamic>?;
+    if (buildingsJson != null) {
+      _buildings = buildingsJson.map((b) => Building.fromJson(b as Map<String, dynamic>)).toList();
+    }
+
+    // Update production
+    final production = data['production'] as Map<String, dynamic>?;
+    if (production != null) {
+      _productionFood = (production['food'] as num?)?.toDouble() ?? 0;
+      _productionComposite = (production['composite'] as num?)?.toDouble() ?? 0;
+      _productionMechanisms = (production['mechanisms'] as num?)?.toDouble() ?? 0;
+      _productionReagents = (production['reagents'] as num?)?.toDouble() ?? 0;
+      _productionEnergy = (production['energy'] as num?)?.toDouble() ?? 0;
+      _productionMoney = (production['money'] as num?)?.toDouble() ?? 0;
+      _productionAlienTech = (production['alien_tech'] as num?)?.toDouble() ?? 0;
+    }
+
+    // Update construction limits
+    _activeConstructions = (data['active_constructions'] as num?)?.toInt() ?? 0;
+    _maxConstructions = (data['max_constructions'] as num?)?.toInt() ?? 1;
+
+    // Update base operational flags
+    _baseOperational = data['base_operational'] as bool? ?? true;
+    _canResearch = data['can_research'] as bool? ?? true;
+    _canExpedition = data['can_expedition'] as bool? ?? false;
+    _canMining = data['can_mining'] as bool? ?? true;
+
+    notifyListeners();
+  }
+
   Future<void> buildStructure(String buildingType) async {
-    if (_player == null || _selectedPlanet == null) return;
+    if (_selectedPlanet == null) return;
+
+    _errorMessage = null;
+
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/buildings'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
+        headers: _authHeaders(),
         body: jsonEncode({'type': buildingType}),
       );
 
       if (response.statusCode == 201) {
-        await loadBuildings(_selectedPlanet!.id);
-        await loadPlanetDetail(_selectedPlanet!.id);
+        await loadBuildDetails(_selectedPlanet!.id);
       } else if (response.statusCode == 400) {
-        final errorBody = jsonDecode(response.body) as Map<String, dynamic>;
-        final errorMsg = errorBody['error'] as String? ?? 'Build failed';
+        final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+        _errorMessage = errorData['error'] as String? ?? 'Build failed';
+        final errorMsg = _errorMessage ?? '';
         if (errorMsg.contains('max_constructions')) {
-          final active = errorBody['active_constructions'] as int? ?? 0;
-          final max = errorBody['max_constructions'] as int? ?? 1;
-          _setError('Max constructions reached ($active/$max). Research Parallel Construction to unlock more.');
-        } else {
-          _setError(errorMsg);
+          _errorMessage = 'Max constructions reached. Research Parallel Construction to unlock more.';
         }
       } else {
-        _setError('Build failed: ${response.body}');
+        _errorMessage = 'Build failed with status ${response.statusCode}';
       }
     } catch (e) {
-      _setError('Build error: $e');
+      _errorMessage = 'Network error: $e';
     }
+
+    notifyListeners();
   }
 
   Future<void> confirmBuilding(String buildingType) async {
-    if (_player == null || _selectedPlanet == null) return;
+    if (_selectedPlanet == null) return;
+
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/buildings/${Uri.encodeComponent(buildingType)}/confirm'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/buildings/$buildingType/confirm'),
+        headers: _authHeaders(),
       );
+
       if (response.statusCode == 200) {
-        await loadBuildings(_selectedPlanet!.id);
-        await loadPlanetDetail(_selectedPlanet!.id);
-      } else {
-        _setError('Failed to confirm building: ${response.body}');
+        await loadBuildDetails(_selectedPlanet!.id);
       }
     } catch (e) {
-      _setError('Confirm building error: $e');
+      debugPrint('Error confirming building: $e');
     }
+
+    notifyListeners();
   }
 
   Future<void> loadShips(String planetId) async {

@@ -49,11 +49,12 @@ class PlanetScreen extends StatelessWidget {
                           label: 'Shipyard',
                           onTap: () => _navigateTo(context, const ship.ShipyardScreen()),
                         ),
-                        _PlanetActionChip(
-                          icon: Icons.science,
-                          label: 'Research',
-                          onTap: () => _navigateTo(context, const research.ResearchScreen()),
-                        ),
+                        if (gameProvider.canResearch)
+                          _PlanetActionChip(
+                            icon: Icons.science,
+                            label: 'Research',
+                            onTap: () => _navigateTo(context, const research.ResearchScreen()),
+                          ),
                         _PlanetActionChip(
                           icon: Icons.local_fire_department,
                           label: 'Battle',
@@ -66,21 +67,23 @@ class PlanetScreen extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        _PlanetActionChip(
-                          icon: Icons.explore,
-                          label: 'Expedition',
-                          onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
-                        ),
+                        if (gameProvider.canExpedition)
+                          _PlanetActionChip(
+                            icon: Icons.explore,
+                            label: 'Expedition',
+                            onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
+                          ),
                         _PlanetActionChip(
                           icon: Icons.store,
                           label: 'Market',
                           onTap: () => _navigateTo(context, const market.MarketScreen()),
                         ),
-                        _PlanetActionChip(
-                          icon: Icons.diamond_outlined,
-                          label: 'Mining',
-                          onTap: () => _navigateTo(context, const mining.MiningScreen()),
-                        ),
+                        if (gameProvider.canMining)
+                          _PlanetActionChip(
+                            icon: Icons.diamond_outlined,
+                            label: 'Mining',
+                            onTap: () => _navigateTo(context, const mining.MiningScreen()),
+                          ),
                       ],
                     ),
                   ),
@@ -101,7 +104,7 @@ class PlanetScreen extends StatelessWidget {
       onRefresh: () async {
         if (gameProvider.selectedPlanet != null) {
           final id = gameProvider.selectedPlanet!.id;
-          await gameProvider.loadBuildings(id);
+          await gameProvider.loadBuildDetails(id);
           await gameProvider.loadPlanetDetail(id);
         }
       },
@@ -111,7 +114,29 @@ class PlanetScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildResourcesSection(context, planet),
+            _buildResourcesSection(context, planet, gameProvider),
+            if (!gameProvider.baseOperational) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.red, size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Base not operational! Produce food to unlock research, expeditions, and mining.',
+                        style: TextStyle(fontSize: 10, color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             _buildBuildingsSection(context, gameProvider),
             const SizedBox(height: 16),
@@ -122,7 +147,7 @@ class PlanetScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildResourcesSection(BuildContext context, planet) {
+  Widget _buildResourcesSection(BuildContext context, planet, GameProvider gameProvider) {
     final resources = planet.resources;
     return Card(
       child: Padding(
@@ -153,34 +178,42 @@ class PlanetScreen extends StatelessWidget {
                 );
               }).toList(),
             ),
-            if (resources['max_energy'] != null && resources['energy'] != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Energy', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                        Text(
-                          '${resources['energy'].toStringAsFixed(0)} / ${resources['max_energy'].toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 12, color: Colors.white70),
+            if (gameProvider.energyBufferMax > 0) ...[
+              const SizedBox(height: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('⚡ Energy:', style: TextStyle(fontSize: 10, color: Colors.white70)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${gameProvider.energyBufferValue.toInt()}/${gameProvider.energyBufferMax.toInt()}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: gameProvider.energyBufferDeficit ? Colors.red : Colors.white,
                         ),
+                      ),
+                      if (gameProvider.energyBufferDeficit) ...[
+                        const SizedBox(width: 4),
+                        const Text('(DEFICIT)', style: TextStyle(fontSize: 8, color: Colors.red)),
                       ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  LinearProgressIndicator(
+                    value: gameProvider.energyBufferMax > 0 
+                        ? gameProvider.energyBufferValue / gameProvider.energyBufferMax 
+                        : 0,
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                    valueColor: AlwaysStoppedAnimation(
+                      gameProvider.energyBufferDeficit ? Colors.red : Colors.yellow,
                     ),
-                    const SizedBox(height: 4),
-                    LinearProgressIndicator(
-                      value: resources['max_energy'] != 0
-                          ? (resources['energy'] / resources['max_energy']).clamp(0, 1)
-                          : 0,
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(3),
-                      color: AppTheme.accentColor,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ],
           ],
         ),
       ),
@@ -227,7 +260,7 @@ class PlanetScreen extends StatelessWidget {
               itemCount: buildings.length,
               itemBuilder: (context, index) {
                 final building = buildings[index];
-                final isPending = building.pending == true && building.buildProgress >= 1;
+                final isPending = building.pending == true && building.buildProgress <= 0;
                 return BuildingCard(
                   building: building,
                   onTap: isPending ? () => gameProvider.confirmBuilding(building.type) : null,
@@ -300,24 +333,24 @@ class PlanetScreen extends StatelessWidget {
               final info = Constants.buildingTypes[key]!;
               final existing = gameProvider.buildings.where((b) => b.type == key).toList();
               final currentLevel = existing.isNotEmpty ? existing.first.level : 0;
-              final isBuilding = existing.isNotEmpty && existing.first.totalBuildTime > 0 && existing.first.buildProgress < 1;
-              final isPending = existing.isNotEmpty && existing.first.pending == true;
-              final nextLevel = currentLevel + 1;
-              final cost = Constants.getBuildingCost(key, nextLevel);
+              final isBuilding = existing.isNotEmpty && existing.first.buildTime > 0 && existing.first.buildProgress > 0 && existing.first.buildProgress <= existing.first.buildTime;
+              final isPending = existing.isNotEmpty && existing.first.pending == true && existing.first.buildProgress <= 0;
+              final nextCostFood = existing.isNotEmpty ? existing.first.nextCostFood : 0;
+              final nextCostMoney = existing.isNotEmpty ? existing.first.nextCostMoney : 0;
               final canAfford = gameProvider.selectedPlanet != null &&
-                   ((gameProvider.selectedPlanet!.resources['food'] ?? 0) as num).toInt() >= cost['food'] &&
-                   ((gameProvider.selectedPlanet!.resources['money'] ?? 0) as num).toInt() >= cost['money'];
+                   ((gameProvider.selectedPlanet!.resources['food'] ?? 0) as num).toDouble() >= nextCostFood &&
+                   ((gameProvider.selectedPlanet!.resources['money'] ?? 0) as num).toDouble() >= nextCostMoney;
               return ListTile(
                 leading: Text(info['icon'] as String, style: const TextStyle(fontSize: 24)),
                 title: Text(info['name'] as String),
                 subtitle: Text(
                   isBuilding
-                      ? 'Building... Lv.${currentLevel}'
+                      ? 'Building... Lv.$currentLevel'
                       : isPending
                           ? 'Pending confirmation - tap the building card to claim'
                           : existing.isNotEmpty
-                              ? 'Lv.${currentLevel} → ${currentLevel + 1} | 🍖${cost['food']} 💰${cost['money']}'
-                              : '${info['description'] as String} | 🍖${cost['food']} 💰${cost['money']}',
+                              ? 'Lv.$currentLevel → ${currentLevel + 1} | 🍖$nextCostFood 💰$nextCostMoney'
+                              : '${info['description'] as String} | 🍖$nextCostFood 💰$nextCostMoney',
                 ),
                 enabled: !isBuilding && !isPending && canAfford && gameProvider.activeConstructions < gameProvider.maxConstructions,
                 onTap: () {
