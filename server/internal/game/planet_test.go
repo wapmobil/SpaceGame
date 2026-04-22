@@ -61,13 +61,17 @@ func TestEnergyBalanceDeficit(t *testing.T) {
 	}
 }
 
-func TestNoProductionWithoutEnergy(t *testing.T) {
+func TestDisabledBuildingProducesNoResources(t *testing.T) {
 	planet := NewPlanet("test-6", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("farm", 1) // consumes 10 energy, no solar
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 1)
+
+	// Disable the farm manually
+	planet.Buildings[0].Enabled = false
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 0 {
-		t.Errorf("expected no food production without energy, got %f", prod.Food)
+		t.Errorf("expected no food production from disabled building, got %f", prod.Food)
 	}
 }
 

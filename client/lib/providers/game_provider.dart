@@ -567,6 +567,50 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleBuilding(String buildingType) async {
+    if (_selectedPlanet == null) return;
+
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/buildings/$buildingType/toggle'),
+        headers: _authHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final enabled = data['enabled'] as bool;
+        final idx = _buildings.indexWhere((b) => b.type == buildingType);
+        if (idx >= 0) {
+          final old = _buildings[idx];
+          _buildings[idx] = Building(
+            type: old.type,
+            level: old.level,
+            buildProgress: old.buildProgress,
+            pending: old.pending,
+            enabled: enabled,
+            buildTime: old.buildTime,
+            costFood: old.costFood,
+            costMoney: old.costMoney,
+            nextCostFood: old.nextCostFood,
+            nextCostMoney: old.nextCostMoney,
+            productionFood: old.productionFood,
+            productionComposite: old.productionComposite,
+            productionMechanisms: old.productionMechanisms,
+            productionReagents: old.productionReagents,
+            productionEnergy: old.productionEnergy,
+            productionMoney: old.productionMoney,
+            productionAlienTech: old.productionAlienTech,
+            consumption: old.consumption,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error toggling building: $e');
+    }
+
+    notifyListeners();
+  }
+
   Future<void> loadShips(String planetId) async {
     if (_player == null) return;
     try {

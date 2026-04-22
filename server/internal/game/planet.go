@@ -172,6 +172,7 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		p.Buildings[idx].Level = currentLevel + 1
 		p.Buildings[idx].BuildProgress = p.GetBuildTime(bt, currentLevel+1)
 		p.Buildings[idx].Pending = false
+		p.Buildings[idx].Enabled = true
 		p.PopulateBuildingEntry(idx)
 	} else {
 		p.Buildings = append(p.Buildings, BuildingEntry{
@@ -179,6 +180,7 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 			Level:         1,
 			BuildProgress: p.GetBuildTime(bt, 1),
 			Pending:       false,
+			Enabled:       true,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
@@ -236,11 +238,12 @@ func (p *Planet) ConfirmBuilding(bt string) error {
 	}
 	p.Buildings[idx].Pending = false
 	p.Buildings[idx].BuildProgress = 0
+	p.Buildings[idx].Enabled = true
 	p.PopulateBuildingEntry(idx)
 
 	if p.game != nil && p.game.db != nil {
 		_, err := p.game.db.Exec(`
-			UPDATE buildings SET pending = false, build_progress = 0, updated_at = NOW()
+			UPDATE buildings SET pending = false, build_progress = 0, enabled = true, updated_at = NOW()
 			WHERE planet_id = $1 AND type = $2
 		`, p.ID, bt)
 		if err != nil {
@@ -450,7 +453,7 @@ func (p *Planet) getEnergyProduction(bt string, level int) float64 {
 func (p *Planet) calculateEnergyProduction() float64 {
 	var total float64
 	for _, b := range p.Buildings {
-		if b.Type == "solar" && b.BuildProgress <= 0 && !b.Pending {
+		if b.Type == "solar" && b.BuildProgress <= 0 && !b.Pending && b.Enabled {
 			total += p.getEnergyProduction(b.Type, b.Level)
 		}
 	}
@@ -461,7 +464,7 @@ func (p *Planet) calculateEnergyProduction() float64 {
 func (p *Planet) calculateEnergyConsumption() float64 {
 	var total float64
 	for _, b := range p.Buildings {
-		if b.Type != "solar" && b.BuildProgress <= 0 && !b.Pending {
+		if b.Type != "solar" && b.BuildProgress <= 0 && !b.Pending && b.Enabled {
 			total += p.getEnergyConsumption(b.Type, b.Level)
 		}
 	}
@@ -473,7 +476,7 @@ func (p *Planet) calculateEnergyConsumption() float64 {
 func (p *Planet) calculateResourceProduction() ProdInfo {
 	var prod ProdInfo
 	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending {
+		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
 			continue
 		}
 		bp := p.getProduction(b.Type, b.Level)
@@ -520,7 +523,7 @@ func (p *Planet) PopulateBuildingEntry(idx int) {
 // calculateEnergyBalance computes total energy production and consumption.
 func (p *Planet) calculateEnergyBalance() (production float64, consumption float64) {
 	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending {
+		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
 			continue
 		}
 		con := p.getEnergyConsumption(b.Type, b.Level)
@@ -581,35 +584,37 @@ func (p *Planet) Tick() {
 	// 5. Calculate energy consumption (all non-solar buildings + fleet)
 	energyConsumption := p.calculateEnergyConsumption()
 
-	// 6. If buffer > 0, apply consumption
-	if p.EnergyBuffer.Value > 0 {
-		p.EnergyBuffer.Value -= energyConsumption
-	}
+	// 6. Apply consumption
+	p.EnergyBuffer.Value -= energyConsumption
 
 	// 7. Clamp buffer to max
 	if p.EnergyBuffer.Value > p.EnergyBuffer.Max {
 		p.EnergyBuffer.Value = p.EnergyBuffer.Max
 	}
 
-	// 8. Update deficit flag
-	p.EnergyBuffer.Deficit = p.EnergyBuffer.Value <= 0
+	// 8. Auto-disable buildings when energy buffer is empty
+	if p.EnergyBuffer.Value <= 0 {
+		for i := range p.Buildings {
+			b := &p.Buildings[i]
+			if b.BuildProgress > 0 || b.Pending {
+				continue
+			}
+			// Never disable solar panels and energy storage
+			if b.Type == "solar" || b.Type == "energy_storage" {
+				continue
+			}
+			if b.Enabled {
+				b.Enabled = false
+			}
+		}
+	}
 
 	// 9. Update max energy for display
 	p.Resources.MaxEnergy = p.EnergyBuffer.Max
 
-	// 10. Calculate resource production (only if not in deficit)
+	// 10. Calculate resource production (only from enabled buildings)
 	var totalProduction ProdInfo
-	if !p.EnergyBuffer.Deficit {
-		totalProduction = p.calculateResourceProduction()
-	} else {
-		// In deficit, only operational farm works at 10%
-		totalProduction = ProdInfo{}
-		for i := range p.Buildings {
-			if p.Buildings[i].Type == "farm" && p.Buildings[i].BuildProgress <= 0 && !p.Buildings[i].Pending {
-				totalProduction.Food = float64(p.Buildings[i].Level) * 0.1
-			}
-		}
-	}
+	totalProduction = p.calculateResourceProduction()
 
 	// 11. Apply resource production to resources (energy is handled in steps 3-6)
 	p.Resources.Energy = p.EnergyBuffer.Value
@@ -627,7 +632,7 @@ func (p *Planet) Tick() {
 	p.Resources.Mechanisms = math.Min(p.Resources.Mechanisms, storageCapacity)
 	p.Resources.Reagents = math.Min(p.Resources.Reagents, storageCapacity)
 
-	// 13. Clamp resources to non-negative (except energy buffer handles this)
+	// 13. Clamp resources to non-negative
 	p.Resources.Food = math.Max(0, p.Resources.Food)
 	p.Resources.Composite = math.Max(0, p.Resources.Composite)
 	p.Resources.Mechanisms = math.Max(0, p.Resources.Mechanisms)
@@ -702,16 +707,9 @@ func (p *Planet) GetEnergyBalance() float64 {
 
 // GetProductionResult returns the production result for this tick.
 func (p *Planet) GetProductionResult() ProductionResult {
-	production := p.calculateEnergyProduction()
-	consumption := p.calculateEnergyConsumption()
-	p.EnergyBuffer.Deficit = production < consumption
-
 	var totalProduction ProductionResult
-	if p.EnergyBuffer.Deficit {
-		return totalProduction
-	}
 	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending {
+		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
 			continue
 		}
 		prod := p.getProduction(b.Type, b.Level)
@@ -723,24 +721,7 @@ func (p *Planet) GetProductionResult() ProductionResult {
 
 // GetResourceProduction returns the per-tick resource production as ProdInfo.
 func (p *Planet) GetResourceProduction() ProdInfo {
-	var prod ProdInfo
-	if p.EnergyBuffer.Deficit {
-		return prod
-	}
-	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending {
-			continue
-		}
-		bp := p.getProduction(b.Type, b.Level)
-		prod.Food += bp.Food
-		prod.Composite += bp.Composite
-		prod.Mechanisms += bp.Mechanisms
-		prod.Reagents += bp.Reagents
-		prod.Energy += bp.Energy
-		prod.Money += bp.Money
-		prod.AlienTech += bp.AlienTech
-	}
-	return prod
+	return p.calculateResourceProduction()
 }
 
 // BuildDetails contains the data needed for the build-details API response.
@@ -764,9 +745,7 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 	energyConsumption := p.calculateEnergyConsumption()
 
 	var resourceProduction ProdInfo
-	if !p.EnergyBuffer.Deficit {
-		resourceProduction = p.calculateResourceProduction()
-	}
+	resourceProduction = p.calculateResourceProduction()
 
 	baseOperational := p.Resources.Food > 0
 	expeditionsUnlocked := false

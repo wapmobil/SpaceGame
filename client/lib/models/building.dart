@@ -3,6 +3,7 @@ class Building {
   final int level;
   final double buildProgress; // remaining seconds
   final bool pending;
+  final bool enabled;
   final double buildTime; // total build time in seconds
   final double costFood;
   final double costMoney;
@@ -22,6 +23,7 @@ class Building {
     this.level = 0,
     this.buildProgress = 0,
     this.pending = false,
+    this.enabled = true,
     this.buildTime = 0,
     this.costFood = 0,
     this.costMoney = 0,
@@ -43,6 +45,7 @@ class Building {
       level: json['level'] as int? ?? 0,
       buildProgress: (json['build_progress'] as num?)?.toDouble() ?? 0,
       pending: json['pending'] as bool? ?? false,
+      enabled: json['enabled'] as bool? ?? true,
       buildTime: (json['build_time'] as num?)?.toDouble() ?? 0,
       costFood: (json['cost']?['food'] as num?)?.toDouble() ?? 0,
       costMoney: (json['cost']?['money'] as num?)?.toDouble() ?? 0,
@@ -65,6 +68,7 @@ class Building {
       'level': level,
       'build_progress': buildProgress,
       'pending': pending,
+      'enabled': enabled,
       'build_time': buildTime,
       'cost': {'food': costFood, 'money': costMoney},
       'next_cost': {'food': nextCostFood, 'money': nextCostMoney},

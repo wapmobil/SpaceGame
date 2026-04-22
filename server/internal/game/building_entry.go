@@ -6,6 +6,7 @@ type BuildingEntry struct {
 	Level         int        `json:"level"`
 	BuildProgress float64    `json:"build_progress"` // remaining seconds until completion
 	Pending       bool       `json:"pending"`
+	Enabled       bool       `json:"enabled"`
 	BuildTime     float64    `json:"build_time"`     // total build time in seconds
 	Cost          CostInfo   `json:"cost"`           // cost to build/upgrade to current level (already paid)
 	NextCost      CostInfo   `json:"next_cost"`      // cost to build/upgrade to next level

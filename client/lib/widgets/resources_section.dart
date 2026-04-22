@@ -98,10 +98,6 @@ class ResourcesSection extends StatelessWidget {
                         '${_formatEnergyProd(gameProvider.productionEnergy)}',
                         style: const TextStyle(fontSize: 10, color: Colors.white70),
                       ),
-                      if ((resources['energy'] ?? 0) <= 0) ...[
-                        const SizedBox(width: 4),
-                        const Text('(DEFICIT)', style: TextStyle(fontSize: 8, color: Colors.red)),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 2),

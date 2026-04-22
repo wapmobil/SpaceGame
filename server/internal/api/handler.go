@@ -553,6 +553,88 @@ func handleConfirmBuilding(db *sql.DB) http.HandlerFunc {
 	}
 }
 
+func handleToggleBuilding(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		buildingType := chiBuildingTypeParam(r)
+		if buildingType == "" {
+			http.Error(w, "Missing building type", http.StatusBadRequest)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
+		}
+
+		if p == nil {
+			http.Error(w, "Planet not found in game instance", http.StatusNotFound)
+			return
+		}
+
+		idx := p.FindBuildingIndex(buildingType)
+		if idx < 0 {
+			http.Error(w, "Building not found", http.StatusNotFound)
+			return
+		}
+
+		b := &p.Buildings[idx]
+		if b.BuildProgress > 0 || b.Pending {
+			http.Error(w, "Building not ready", http.StatusBadRequest)
+			return
+		}
+
+		b.Enabled = !b.Enabled
+
+		level := p.GetBuildingLevel(buildingType)
+		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, buildingType, level)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "toggled",
+			"type":    buildingType,
+			"enabled": b.Enabled,
+		})
+	}
+}
+
 func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

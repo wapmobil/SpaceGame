@@ -18,7 +18,6 @@ class BuildingCard extends StatelessWidget {
 
   bool get isPending => building.pending == true && building.buildProgress <= 0;
   bool get isBuilding => building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime && !isPending;
-  bool get energyDeficit => gameProvider.energyDeficit;
 
   String? get statusText {
     if (isPending) return 'Tap to claim!';
@@ -26,7 +25,7 @@ class BuildingCard extends StatelessWidget {
       final remaining = (building.buildTime - building.buildProgress).toInt();
       return 'Building... ${remaining}s';
     }
-    if (energyDeficit) return '⚠ Energy deficit';
+    if (!building.enabled) return 'Disabled';
     if (building.level == 0) return 'Not built';
     return 'Operational';
   }
@@ -34,7 +33,7 @@ class BuildingCard extends StatelessWidget {
   Color? get statusColor {
     if (isPending) return AppTheme.accentColor;
     if (isBuilding) return Colors.orange;
-    if (energyDeficit) return Colors.red;
+    if (!building.enabled) return Colors.grey;
     if (building.level == 0) return Colors.white54;
     return Colors.green;
   }
@@ -56,7 +55,7 @@ class BuildingCard extends StatelessWidget {
     if (building.productionReagents.abs() > 0.01) {
       lines.add(_prodRow('🧪', building.productionReagents));
     }
-    if (building.consumption > 0 && !energyDeficit) {
+    if (building.consumption > 0) {
       lines.add(Row(mainAxisSize: MainAxisSize.min, children: [
         const Text('⚡', style: TextStyle(fontSize: 11)),
         Text('-${building.consumption.toInt()}', style: const TextStyle(fontSize: 10, color: Colors.orange)),
@@ -115,8 +114,8 @@ class BuildingCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-        color: AppTheme.cardColor,
+        border: Border.all(color: !building.enabled ? Colors.grey.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.15)),
+        color: !building.enabled ? Colors.black.withValues(alpha: 0.3) : AppTheme.cardColor,
       ),
       child: InkWell(
         onTap: isPending ? () => gameProvider.confirmBuilding(building.type) : onTap,
@@ -136,7 +135,7 @@ class BuildingCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: !building.enabled ? Colors.grey : Colors.white)),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -149,6 +148,17 @@ class BuildingCard extends StatelessWidget {
                                 style: const TextStyle(fontSize: 10, color: AppTheme.accentColor, fontWeight: FontWeight.bold),
                               ),
                             ),
+                            if (!isBuilding && building.level > 0) ...[
+                              const SizedBox(width: 8),
+                              Switch(
+                                value: building.enabled,
+                                onChanged: (_) => gameProvider.toggleBuilding(building.type),
+                                activeColor: AppTheme.accentColor,
+                                inactiveThumbColor: Colors.grey,
+                                inactiveTrackColor: Colors.grey[800],
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 2),
