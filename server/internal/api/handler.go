@@ -157,7 +157,7 @@ func handleListPlanets(db *sql.DB) http.HandlerFunc {
 		}
 		defer rows.Close()
 
-		var planets []PlanetResponse
+		planets := make([]PlanetResponse, 0)
 		for rows.Next() {
 			var p PlanetResponse
 			var resourcesJSON []byte

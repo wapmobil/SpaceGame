@@ -337,8 +337,8 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
-        _planets = data.map((e) => Planet.fromJson(e as Map<String, dynamic>)).toList();
+        final data = jsonDecode(response.body);
+        _planets = (data as List?)?.map((e) => Planet.fromJson(e as Map<String, dynamic>)).toList() ?? [];
         notifyListeners();
       }
     } catch (e) {
