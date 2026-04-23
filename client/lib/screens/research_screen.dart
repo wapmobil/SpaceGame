@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../core/app_theme.dart';
+import '../models/research.dart';
 
 class ResearchScreen extends StatelessWidget {
   const ResearchScreen({super.key});
@@ -62,7 +63,7 @@ class ResearchScreen extends StatelessWidget {
     Set<String> completedIds,
     Set<String> inProgressIds,
     Set<String> availableIds,
-    Map<String, dynamic> researchMap,
+    Map<String, ResearchTech> researchMap,
     Function(String) onResearch,
     String? parentId,
     int depth,
@@ -96,9 +97,9 @@ class ResearchScreen extends StatelessWidget {
       else statusColor = Colors.white24;
 
       final research = researchMap[techId];
-      final progressPct = research?['progressPct'] ?? 0.0;
-      final totalTime = research?['totalTime'] ?? 0.0;
-      final progress = research?['progress'] ?? 0.0;
+      final progressPct = research != null ? research.progressPct : 0.0;
+      final totalTime = research != null ? research.totalTime : 0.0;
+      final progress = research != null ? research.progress : 0.0;
 
       children.add(
         Padding(

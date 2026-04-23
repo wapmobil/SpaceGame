@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../core/app_theme.dart';
+import '../models/research.dart';
 
 class ResearchTree extends StatelessWidget {
-  final List research;
-  final List available;
+  final List<ResearchTech> research;
+  final List<ResearchTech> available;
   final Function(String techId) onResearch;
 
   const ResearchTree({
@@ -35,7 +36,7 @@ class ResearchTree extends StatelessWidget {
     Set<String> completedIds,
     Set<String> inProgressIds,
     Set<String> availableIds,
-    Map<String, dynamic> researchMap,
+    Map<String, ResearchTech> researchMap,
     Function(String) onResearch,
     String? parentId,
     int depth,
@@ -69,9 +70,9 @@ class ResearchTree extends StatelessWidget {
       else statusColor = Colors.white24;
 
       final research = researchMap[techId];
-      final progressPct = research?['progressPct'] ?? 0.0;
-      final totalTime = research?['totalTime'] ?? 0.0;
-      final progress = research?['progress'] ?? 0.0;
+      final progressPct = research != null ? research.progressPct : 0.0;
+      final totalTime = research != null ? research.totalTime : 0.0;
+      final progress = research != null ? research.progress : 0.0;
 
       children.add(
         Padding(
