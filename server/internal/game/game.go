@@ -125,7 +125,6 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 		SELECT type, level, build_progress, enabled FROM buildings WHERE planet_id = $1
 	`, planetID)
 	if err == nil {
-		defer buildingRows.Close()
 		for buildingRows.Next() {
 			var bType string
 			var bLevel int
@@ -147,6 +146,7 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 				}
 			}
 		}
+		buildingRows.Close()
 	}
 
 	for i := range planet.Buildings {
@@ -217,7 +217,6 @@ func (g *Game) LoadPlanetsFromDB() error {
 			SELECT type, level, build_progress, enabled FROM buildings WHERE planet_id = $1
 		`, id)
 		if err == nil {
-			defer buildingRows.Close()
 			for buildingRows.Next() {
 				var bType string
 				var bLevel int
@@ -239,6 +238,7 @@ func (g *Game) LoadPlanetsFromDB() error {
 					}
 				}
 			}
+			buildingRows.Close()
 		} else {
 			log.Printf("Error loading buildings for planet %s: %v", id, err)
 		}
@@ -317,13 +317,33 @@ func (g *Game) shouldSave(planetID string) bool {
 	return g.saveCount[planetID] >= 10 // Save every 10 ticks
 }
 
+// dbPlanetResources is the resource struct for database storage (no energy fields).
+type dbPlanetResources struct {
+	Food            float64 `json:"food"`
+	Composite       float64 `json:"composite"`
+	Mechanisms      float64 `json:"mechanisms"`
+	Reagents        float64 `json:"reagents"`
+	Money           float64 `json:"money"`
+	AlienTech       float64 `json:"alien_tech"`
+	StorageCapacity float64 `json:"storage_capacity"`
+}
+
 // savePlanet saves planet state to the database.
 func (g *Game) savePlanet(p *Planet) {
 	if g.db == nil {
 		return
 	}
 
-	resourcesJSON, err := json.Marshal(p.Resources)
+	dbResources := dbPlanetResources{
+		Food:            p.Resources.Food,
+		Composite:       p.Resources.Composite,
+		Mechanisms:      p.Resources.Mechanisms,
+		Reagents:        p.Resources.Reagents,
+		Money:           p.Resources.Money,
+		AlienTech:       p.Resources.AlienTech,
+		StorageCapacity: p.Resources.StorageCapacity,
+	}
+	resourcesJSON, err := json.Marshal(dbResources)
 	if err != nil {
 		log.Printf("Error marshaling resources for planet %s: %v", p.ID, err)
 	} else {

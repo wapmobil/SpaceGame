@@ -208,7 +208,7 @@ func GetRandomEvents() []EventDef {
 	return []EventDef{
 		{
 			Type:      RandomEventShortCircuit,
-			Chance:    0.005, // 0.5% per tick
+			Chance:    0, // disabled — for future special modes
 			Description: "Short Circuit: Energy production disrupted for 1 tick. Pay resources to fix.",
 			ResolveCost: map[string]float64{
 				"money": 100,
@@ -217,14 +217,14 @@ func GetRandomEvents() []EventDef {
 		},
 		{
 			Type:      RandomEventTheft,
-			Chance:    0.005, // 0.5% per tick
+			Chance:    0, // disabled
 			Description: "Theft: Lost 5-20% of money to space pirates.",
 			ResolveCost: map[string]float64{},
 			ApplyFn: applyTheft,
 		},
 		{
 			Type:      RandomEventStorageCollapse,
-			Chance:    0.005, // 0.5% per tick
+			Chance:    0, // disabled
 			Description: "Storage Roof Collapse: Lost 5-20% of stored resources.",
 			ResolveCost: map[string]float64{
 				"money": 50,
@@ -233,7 +233,7 @@ func GetRandomEvents() []EventDef {
 		},
 		{
 			Type:      RandomEventMineCollapse,
-			Chance:    0.003, // 0.3% per tick
+			Chance:    0, // disabled
 			Description: "Mine Collapse: Lost a mining mini-game level.",
 			ResolveCost: map[string]float64{
 				"money": 200,
@@ -289,10 +289,9 @@ func (g *Game) TriggerRandomEvents() {
 }
 
 func applyShortCircuit(p *Planet) (string, error) {
-	// Reset energy production for 1 tick by temporarily setting energy to 0
 	p.EnergyBuffer.Value = 0
 	p.Resources.MaxEnergy = 0
-	return fmt.Sprintf("Short circuit: Energy production reset. Pay 100 money to restore production."), nil
+	return fmt.Sprintf("Short circuit: Energy production disrupted for 1 tick. Pay resources to fix."), nil
 }
 
 func applyTheft(p *Planet) (string, error) {
