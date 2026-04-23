@@ -39,6 +39,7 @@ class ResearchScreen extends StatelessWidget {
     final completedIds = state.research.where((t) => t.completed).map((t) => t.techId).toSet();
     final inProgressIds = state.research.where((t) => t.inProgress).map((t) => t.techId).toSet();
     final availableIds = state.available.map((t) => t.techId).toSet();
+    final researchMap = {for (var t in state.research) t.techId: t};
 
     return Card(
       child: Padding(
@@ -48,7 +49,7 @@ class ResearchScreen extends StatelessWidget {
           children: [
             const Text('Древо исследований', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
-            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, gameProvider.startResearch, null, 0),
+            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, gameProvider.startResearch, null, 0),
           ],
         ),
       ),
@@ -61,6 +62,7 @@ class ResearchScreen extends StatelessWidget {
     Set<String> completedIds,
     Set<String> inProgressIds,
     Set<String> availableIds,
+    Map<String, dynamic> researchMap,
     Function(String) onResearch,
     String? parentId,
     int depth,
@@ -93,6 +95,11 @@ class ResearchScreen extends StatelessWidget {
       else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
       else statusColor = Colors.white24;
 
+      final research = researchMap[techId];
+      final progressPct = research?['progressPct'] ?? 0.0;
+      final totalTime = research?['totalTime'] ?? 0.0;
+      final progress = research?['progress'] ?? 0.0;
+
       children.add(
         Padding(
           padding: EdgeInsets.only(left: depth * 24.0, bottom: 4),
@@ -110,12 +117,15 @@ class ResearchScreen extends StatelessWidget {
             costMoney: (techMap['cost_money'] as num?)?.toDouble() ?? 0,
             costAlien: (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0,
             buildTime: (techMap['build_time'] as num?)?.toDouble() ?? 0,
+            progressPct: progressPct,
+            totalTime: totalTime,
+            progress: progress,
           ),
         ),
       );
 
       // Recursively render children
-      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, onResearch, techId, depth + 1);
+      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1);
       children.addAll(subChildren);
     }
 
@@ -137,6 +147,9 @@ class _TechNode extends StatelessWidget {
   final double costMoney;
   final double costAlien;
   final double buildTime;
+  final double progressPct;
+  final double totalTime;
+  final double progress;
 
   const _TechNode({
     required this.techId,
@@ -152,6 +165,9 @@ class _TechNode extends StatelessWidget {
     required this.costMoney,
     required this.costAlien,
     required this.buildTime,
+    required this.progressPct,
+    required this.totalTime,
+    required this.progress,
   });
 
   String _formatCost() {
@@ -160,6 +176,16 @@ class _TechNode extends StatelessWidget {
     if (costMoney > 0) parts.add('💰${costMoney.toInt()}');
     if (costAlien > 0) parts.add('👽${costAlien.toInt()}');
     return parts.join(' ');
+  }
+
+  String _formatRemainingTime(double seconds) {
+    if (seconds <= 0) return '0 сек';
+    final mins = (seconds / 60).floor();
+    final secs = (seconds % 60).floor();
+    if (mins > 0) {
+      return '${mins} мин ${secs.toString().padLeft(2, '0')} сек';
+    }
+    return '${secs} сек';
   }
 
   @override
@@ -196,7 +222,31 @@ class _TechNode extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(description, style: const TextStyle(fontSize: 11, color: Colors.white54)),
-            if (!isCompleted) ...[
+            if (isInProgress) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: LinearProgressIndicator(
+                      value: progressPct / 100,
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(3),
+                      color: AppTheme.warningColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${progressPct.toStringAsFixed(0)}%',
+                    style: const TextStyle(fontSize: 10, color: Colors.white70, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Text(
+                '⏱ ⏳ ${_formatRemainingTime(totalTime - progress)}',
+                style: const TextStyle(fontSize: 10, color: Colors.white70),
+              ),
+            ],
+            if (!isCompleted && !isInProgress) ...[
               const SizedBox(height: 2),
               Text(
                 _formatCost(),
@@ -206,14 +256,6 @@ class _TechNode extends StatelessWidget {
               Text(
                 '⏱ ${(buildTime / 60).toStringAsFixed(1)} мин',
                 style: const TextStyle(fontSize: 10, color: Colors.white70),
-              ),
-            ],
-            if (isInProgress) ...[
-              const SizedBox(height: 4),
-              LinearProgressIndicator(
-                minHeight: 4,
-                borderRadius: BorderRadius.circular(2),
-                color: AppTheme.warningColor,
               ),
             ],
             if (dependsOn.isNotEmpty && !isCompleted)

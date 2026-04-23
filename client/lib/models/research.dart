@@ -12,6 +12,8 @@ class ResearchTech {
   final bool completed;
   final bool inProgress;
   final double progress;
+  final double totalTime;
+  final double progressPct;
 
   ResearchTech({
     required this.techId,
@@ -27,6 +29,8 @@ class ResearchTech {
     this.completed = false,
     this.inProgress = false,
     this.progress = 0,
+    this.totalTime = 0,
+    this.progressPct = 0,
   });
 
   factory ResearchTech.fromJson(Map<String, dynamic> json) {
@@ -47,8 +51,12 @@ class ResearchTech {
       completed: json['completed'] as bool? ?? false,
       inProgress: json['in_progress'] as bool? ?? false,
       progress: (json['progress'] as num?)?.toDouble() ?? 0,
+      totalTime: (json['total_time'] as num?)?.toDouble() ?? 0,
+      progressPct: (json['progress_pct'] as num?)?.toDouble() ?? 0,
     );
   }
+
+  double get remainingTime => totalTime - progress;
 
   bool get isUnlocked => dependsOn.isEmpty;
   bool get canResearch => !completed && !inProgress && isUnlocked;
