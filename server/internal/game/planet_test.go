@@ -1,15 +1,16 @@
 package game
 
 import (
-	"math"
 	"testing"
 
 	"spacegame/internal/game/research"
 )
 
+// --- Production tests ---
+
 func TestFarmProducesFood(t *testing.T) {
 	planet := NewPlanet("test-1", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1) // energy
+	planet.AddBuildingDirect("solar", 1)
 	planet.AddBuildingDirect("farm", 1)
 
 	prod := planet.GetProductionResult()
@@ -20,12 +21,12 @@ func TestFarmProducesFood(t *testing.T) {
 
 func TestFarmProductionScalesWithLevel(t *testing.T) {
 	planet := NewPlanet("test-2", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 2) // 30 energy total
-	planet.AddBuildingDirect("farm", 3)
+	planet.AddBuildingDirect("solar", 3) // 45 energy total
+	planet.AddBuildingDirect("farm", 3)  // level 3 = 3 food per tick
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 3 {
-		t.Errorf("expected 3 farms at level 1 to produce 3 food, got %f", prod.Food)
+		t.Errorf("expected farm at level 3 to produce 3 food, got %f", prod.Food)
 	}
 }
 
@@ -39,22 +40,95 @@ func TestSolarProducesEnergy(t *testing.T) {
 	}
 }
 
-func TestEnergyBalanceNegative(t *testing.T) {
+func TestSolarProductionScalesWithLevel(t *testing.T) {
+	planet := NewPlanet("test-solar-scale", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 2) // 30 energy
+
+	prod := planet.GetProductionResult()
+	if prod.Energy != 30 {
+		t.Errorf("expected solar at level 2 to produce 30 energy, got %f", prod.Energy)
+	}
+}
+
+func TestFactoryProducesResource(t *testing.T) {
+	planet := NewPlanet("test-13", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("factory", 1)
+
+	prod := planet.GetProductionResult()
+	total := prod.Composite + prod.Mechanisms + prod.Reagents
+	if total != 0.5 {
+		t.Errorf("expected factory at level 1 to produce 0.5 total resource, got %f (composite=%f mechanisms=%f reagents=%f)",
+			total, prod.Composite, prod.Mechanisms, prod.Reagents)
+	}
+}
+
+func TestBaseConsumesFood(t *testing.T) {
+	planet := NewPlanet("test-14", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("base", 1)
+
+	prod := planet.GetProductionResult()
+	if prod.Food != -1 {
+		t.Errorf("expected base at level 1 to consume 1 food (-1), got %f", prod.Food)
+	}
+}
+
+func TestCompositeDroneProducesComposite(t *testing.T) {
+	planet := NewPlanet("test-composite", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("composite_drone", 1)
+
+	prod := planet.GetProductionResult()
+	if prod.Composite != 0.5 {
+		t.Errorf("expected composite_drone at level 1 to produce 0.5 composite, got %f", prod.Composite)
+	}
+}
+
+func TestMechanismFactoryProducesMechanisms(t *testing.T) {
+	planet := NewPlanet("test-mech", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("mechanism_factory", 1)
+
+	prod := planet.GetProductionResult()
+	if prod.Mechanisms != 0.5 {
+		t.Errorf("expected mechanism_factory at level 1 to produce 0.5 mechanisms, got %f", prod.Mechanisms)
+	}
+}
+
+func TestReagentLabProducesReagents(t *testing.T) {
+	planet := NewPlanet("test-reagent", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("reagent_lab", 1)
+
+	prod := planet.GetProductionResult()
+	if prod.Reagents != 0.5 {
+		t.Errorf("expected reagent_lab at level 1 to produce 0.5 reagents, got %f", prod.Reagents)
+	}
+}
+
+// --- Energy tests ---
+
+func TestEnergyBalancePositive(t *testing.T) {
 	planet := NewPlanet("test-4", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
+	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy
 	planet.AddBuildingDirect("solar", 1) // produces 15 energy
 
 	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
 	if balance != 5 {
-		t.Errorf("expected energy balance of 5, got %f", balance)
+		t.Errorf("expected energy balance of 5 (15 solar - 10 farm), got %f", balance)
 	}
 }
 
 func TestEnergyBalanceDeficit(t *testing.T) {
 	planet := NewPlanet("test-5", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
-	// No solar station - energy deficit
 
 	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
@@ -63,19 +137,90 @@ func TestEnergyBalanceDeficit(t *testing.T) {
 	}
 }
 
+func TestEnergyBufferCapsAtMax(t *testing.T) {
+	planet := NewPlanet("test-overflow", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 2) // 30 energy production
+
+	planet.tickEnergy()
+
+	if planet.EnergyBuffer.Value > planet.EnergyBuffer.Max {
+		t.Errorf("expected energy buffer value %f to be clamped at max %f",
+			planet.EnergyBuffer.Value, planet.EnergyBuffer.Max)
+	}
+}
+
+func TestEnergyBalanceUsesCachedValue(t *testing.T) {
+	planet := NewPlanet("test-cached", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 1)
+
+	planet.tickEnergy()
+	balance1 := planet.GetEnergyBalance()
+	balance2 := planet.GetEnergyBalance()
+	if balance1 != balance2 {
+		t.Errorf("expected GetEnergyBalance to return cached value, got %f and %f", balance1, balance2)
+	}
+}
+
+func TestEnergyBufferMaxUpdates(t *testing.T) {
+	planet := NewPlanet("test-energy-2", "owner-1", "Test Planet", nil)
+
+	if planet.EnergyBuffer.Max != 100 {
+		t.Errorf("expected initial max energy of 100, got %f", planet.EnergyBuffer.Max)
+	}
+
+	planet.AddBuildingDirect("energy_storage", 3)
+	planet.EnergyBuffer.UpdateMax(3)
+
+	expectedMax := 100.0 + 3.0*100.0
+	if planet.EnergyBuffer.Max != expectedMax {
+		t.Errorf("expected max energy of %f with 3 energy_storage, got %f", expectedMax, planet.EnergyBuffer.Max)
+	}
+}
+
+func TestEnergyBufferMaxClampsValue(t *testing.T) {
+	planet := NewPlanet("test-clamp", "owner-1", "Test Planet", nil)
+	planet.EnergyBuffer.Value = 150
+	planet.EnergyBuffer.UpdateMax(0)
+
+	if planet.EnergyBuffer.Value != 100 {
+		t.Errorf("expected energy buffer value clamped to 100, got %f", planet.EnergyBuffer.Value)
+	}
+}
+
+// --- Disabled buildings ---
+
 func TestDisabledBuildingProducesNoResources(t *testing.T) {
 	planet := NewPlanet("test-6", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("farm", 1)
 	planet.AddBuildingDirect("solar", 1)
 
-	// Disable the farm manually
-	planet.Buildings[0].Enabled = false
+	farmIdx := planet.FindBuildingIndex("farm")
+	planet.Buildings[farmIdx].Enabled = false
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 0 {
 		t.Errorf("expected no food production from disabled building, got %f", prod.Food)
 	}
 }
+
+func TestDisabledBuildingDoesNotConsumeEnergy(t *testing.T) {
+	planet := NewPlanet("test-disabled-energy", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1) // 15 energy
+	planet.AddBuildingDirect("farm", 1)  // 10 energy consumption
+
+	// Disable the farm
+	farmIdx := planet.FindBuildingIndex("farm")
+	planet.Buildings[farmIdx].Enabled = false
+
+	planet.tickEnergy()
+	balance := planet.GetEnergyBalance()
+	if balance != 15 {
+		t.Errorf("expected energy balance of 15 (farm disabled, no consumption), got %f", balance)
+	}
+}
+
+// --- Storage ---
 
 func TestStorageIncreasesCapacity(t *testing.T) {
 	planet := NewPlanet("test-8", "owner-1", "Test Planet", nil)
@@ -85,43 +230,21 @@ func TestStorageIncreasesCapacity(t *testing.T) {
 	}
 
 	planet.AddBuildingDirect("storage", 2)
-
 	capacity2 := planet.CalculateStorageCapacity()
 	if capacity2 != 3000 {
 		t.Errorf("expected capacity of 3000 with 2 storage buildings, got %f", capacity2)
 	}
 }
 
-func TestMaxEnergyIncreasesWithEnergyStorage(t *testing.T) {
-	planet := NewPlanet("test-9", "owner-1", "Test Planet", nil)
-	planet.EnergyBuffer.UpdateMax(0)
-	if planet.EnergyBuffer.Max != 100 {
-		t.Errorf("expected base max energy of 100, got %f", planet.EnergyBuffer.Max)
-	}
-
-	planet.AddBuildingDirect("energy_storage", 2)
-	planet.EnergyBuffer.UpdateMax(2)
-	if planet.EnergyBuffer.Max != 300 {
-		t.Errorf("expected max energy of 300 with 2 energy storage buildings, got %f", planet.EnergyBuffer.Max)
+func TestNoStorageCapacityIsBase(t *testing.T) {
+	planet := NewPlanet("test-no-storage", "owner-1", "Test Planet", nil)
+	capacity := planet.CalculateStorageCapacity()
+	if capacity != 1000 {
+		t.Errorf("expected base capacity of 1000 with no storage buildings, got %f", capacity)
 	}
 }
 
-func TestResourcesClampedToZero(t *testing.T) {
-	planet := NewPlanet("test-10", "owner-1", "Test Planet", nil)
-
-	// Set negative food
-	planet.Resources.Food = -50
-
-	// Clamp manually
-	planet.Resources.Food = math.Max(0, planet.Resources.Food)
-
-	if planet.Resources.Food < 0 {
-		t.Errorf("expected food to be clamped to 0, got %f", planet.Resources.Food)
-	}
-	if planet.Resources.Food != 0 {
-		t.Errorf("expected food to be exactly 0, got %f", planet.Resources.Food)
-	}
-}
+// --- Building management ---
 
 func TestGetBuildingLevel(t *testing.T) {
 	planet := NewPlanet("test-11", "owner-1", "Test Planet", nil)
@@ -141,6 +264,13 @@ func TestGetBuildingLevel(t *testing.T) {
 	}
 }
 
+func TestGetBuildingLevelUnknown(t *testing.T) {
+	planet := NewPlanet("test-unknown", "owner-1", "Test Planet", nil)
+	if level := planet.GetBuildingLevel("nonexistent"); level != 0 {
+		t.Errorf("expected level 0 for unknown building, got %d", level)
+	}
+}
+
 func TestTotalBuildingLevels(t *testing.T) {
 	planet := NewPlanet("test-12", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("farm", 1)
@@ -153,104 +283,21 @@ func TestTotalBuildingLevels(t *testing.T) {
 	}
 }
 
-func TestFactoryProducesResource(t *testing.T) {
-	planet := NewPlanet("test-13", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1) // energy
-	planet.AddBuildingDirect("solar", 1) // more energy
-	planet.AddBuildingDirect("factory", 1)
+func TestFindBuildingIndex(t *testing.T) {
+	planet := NewPlanet("test-find", "owner-1", "Test Planet", nil)
 
-	prod := planet.GetProductionResult()
-	// Factory produces 0.5 of one resource type
-	total := prod.Composite + prod.Mechanisms + prod.Reagents
-	if total != 0.5 {
-		t.Logf("factory production: composite=%f mechanisms=%f reagents=%f total=%f",
-			prod.Composite, prod.Mechanisms, prod.Reagents, total)
-	}
-}
-
-func TestBaseConsumesFood(t *testing.T) {
-	planet := NewPlanet("test-14", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1) // energy
-	planet.AddBuildingDirect("solar", 1) // more energy
-	planet.AddBuildingDirect("base", 1)  // consumes food
-
-	prod := planet.GetProductionResult()
-	// Base consumes food (negative production)
-	if prod.Food != -1 {
-		t.Logf("base food production: %f", prod.Food)
-	}
-}
-
-func TestBaseOperationalWithFood(t *testing.T) {
-	planet := NewPlanet("test-base-1", "owner-1", "Test Planet", nil)
-	planet.Resources.Food = 10
-	if !planet.BaseOperational() {
-		t.Error("expected base to be operational with food > 0")
-	}
-}
-
-func TestBaseNotOperationalWithoutFood(t *testing.T) {
-	planet := NewPlanet("test-base-2", "owner-1", "Test Planet", nil)
-	planet.Resources.Food = 0
-	if planet.BaseOperational() {
-		t.Error("expected base to NOT be operational with food == 0")
-	}
-}
-
-func TestBaseNotOperationalWithNegativeFood(t *testing.T) {
-	planet := NewPlanet("test-base-3", "owner-1", "Test Planet", nil)
-	planet.Resources.Food = -5
-	if planet.BaseOperational() {
-		t.Error("expected base to NOT be operational with food < 0")
-	}
-}
-
-func TestStartResearchBlockedWithoutFood(t *testing.T) {
-	planet := NewPlanet("test-research-1", "owner-1", "Test Planet", nil)
-	planet.Resources.Food = 0
-
-	tech := research.GetTechByID("planet_exploration")
-	if tech == nil {
-		t.Fatal("expected planet_exploration tech to exist")
+	if idx := planet.FindBuildingIndex("farm"); idx != -1 {
+		t.Errorf("expected -1 for missing building, got %d", idx)
 	}
 
-	err := planet.StartResearch(tech.ID)
-	if err == nil {
-		t.Fatal("expected error when starting research without food")
-	}
-}
-
-func TestStartResearchAllowedWithFood(t *testing.T) {
-	planet := NewPlanet("test-research-2", "owner-1", "Test Planet", nil)
-	planet.Resources.Food = 1000
-	planet.Resources.Money = 1000
-
-	tech := research.GetTechByID("planet_exploration")
-	if tech == nil {
-		t.Fatal("expected planet_exploration tech to exist")
+	planet.AddBuildingDirect("farm", 1)
+	if idx := planet.FindBuildingIndex("farm"); idx != 0 {
+		t.Errorf("expected 0 for first building, got %d", idx)
 	}
 
-	err := planet.StartResearch(tech.ID)
-	if err != nil {
-		t.Fatalf("unexpected error starting research with food: %v", err)
-	}
-}
-
-func TestEnergyBufferMaxUpdates(t *testing.T) {
-	planet := NewPlanet("test-energy-2", "owner-1", "Test Planet", nil)
-
-	initialMax := planet.EnergyBuffer.Max
-	if initialMax != 100 {
-		t.Errorf("expected initial max energy of 100, got %f", initialMax)
-	}
-
-	planet.AddBuildingDirect("energy_storage", 3)
-	planet.EnergyBuffer.UpdateMax(3)
-
-	newMax := planet.EnergyBuffer.Max
-	expectedMax := 100.0 + 3.0*100.0
-	if newMax != expectedMax {
-		t.Errorf("expected max energy of %f with 3 energy_storage, got %f", expectedMax, newMax)
+	planet.AddBuildingDirect("solar", 1)
+	if idx := planet.FindBuildingIndex("solar"); idx != 1 {
+		t.Errorf("expected 1 for second building, got %d", idx)
 	}
 }
 
@@ -316,26 +363,216 @@ func TestConfirmBuildingPopulatesEntry(t *testing.T) {
 	}
 }
 
+func TestConfirmBuildingNotFound(t *testing.T) {
+	planet := NewPlanet("test-confirm-nf", "owner-1", "Test Planet", nil)
+
+	err := planet.ConfirmBuilding("nonexistent")
+	if err == nil {
+		t.Fatal("expected error when confirming non-existent building")
+	}
+}
+
+func TestConfirmBuildingNotPending(t *testing.T) {
+	planet := NewPlanet("test-confirm-notpending", "owner-1", "Test Planet", nil)
+
+	planet.AddBuildingDirect("farm", 1)
+
+	err := planet.ConfirmBuilding("farm")
+	if err == nil {
+		t.Fatal("expected error when confirming non-pending building")
+	}
+}
+
+func TestGetPendingBuildings(t *testing.T) {
+	planet := NewPlanet("test-pending", "owner-1", "Test Planet", nil)
+
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].Pending = true
+
+	pending := planet.GetPendingBuildings()
+	if !pending["farm"] {
+		t.Error("expected farm to be in pending buildings")
+	}
+}
+
+func TestGetPendingBuildingsEmpty(t *testing.T) {
+	planet := NewPlanet("test-pending-empty", "owner-1", "Test Planet", nil)
+
+	pending := planet.GetPendingBuildings()
+	if len(pending) != 0 {
+		t.Errorf("expected no pending buildings, got %v", pending)
+	}
+}
+
+// --- Base operational ---
+
+func TestBaseOperational(t *testing.T) {
+	tests := []struct {
+		name     string
+		food     float64
+		operational bool
+	}{
+		{"with food", 10, true},
+		{"zero food", 0, false},
+		{"negative food", -5, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			planet := NewPlanet(tt.name, "owner-1", "Test Planet", nil)
+			planet.Resources.Food = tt.food
+			if got := planet.BaseOperational(); got != tt.operational {
+				t.Errorf("BaseOperational() = %v, want %v (food=%f)", got, tt.operational, tt.food)
+			}
+		})
+	}
+}
+
+// --- Research ---
+
+func TestStartResearchBlockedWithoutFood(t *testing.T) {
+	planet := NewPlanet("test-research-1", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 0
+
+	tech := research.GetTechByID("planet_exploration")
+	if tech == nil {
+		t.Fatal("expected planet_exploration tech to exist")
+	}
+
+	err := planet.StartResearch(tech.ID)
+	if err == nil {
+		t.Fatal("expected error when starting research without food")
+	}
+}
+
+func TestStartResearchAllowedWithFood(t *testing.T) {
+	planet := NewPlanet("test-research-2", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 1000
+	planet.Resources.Money = 1000
+
+	tech := research.GetTechByID("planet_exploration")
+	if tech == nil {
+		t.Fatal("expected planet_exploration tech to exist")
+	}
+
+	err := planet.StartResearch(tech.ID)
+	if err != nil {
+		t.Fatalf("unexpected error starting research with food: %v", err)
+	}
+}
+
+func TestStartResearchTechNotFound(t *testing.T) {
+	planet := NewPlanet("test-research-nf", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 1000
+
+	err := planet.StartResearch("nonexistent_tech")
+	if err == nil {
+		t.Fatal("expected error for non-existent tech")
+	}
+}
+
+// --- Tick integration ---
+
 func TestTickProducesResources(t *testing.T) {
-	planet := NewPlanet("test-7", "owner-1", "Test Planet", nil)
+	planet := NewPlanet("test-tick", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("solar", 1) // produces 15 energy
 	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy, produces 1 food
 
-	// Verify energy buffer has capacity
 	if planet.EnergyBuffer.Max != 100 {
 		t.Errorf("expected initial energy buffer max of 100, got %f", planet.EnergyBuffer.Max)
 	}
 
-	// Verify energy production exceeds consumption (solar 15 > farm 10)
 	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
 	if balance != 5 {
 		t.Errorf("expected energy balance of 5 (15 solar - 10 farm), got %f", balance)
 	}
 
-	// Verify food production when energy is available
 	prod := planet.GetProductionResult()
 	if prod.Food != 1 {
 		t.Errorf("expected farm to produce 1 food with energy available, got %f", prod.Food)
+	}
+}
+
+func TestTickMultiBuildingProduction(t *testing.T) {
+	planet := NewPlanet("test-multi-prod", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 2) // 30 energy
+	planet.AddBuildingDirect("farm", 2)  // 2 food
+	planet.AddBuildingDirect("factory", 1) // 0.5 composite
+
+	prod := planet.GetProductionResult()
+	if prod.Food != 2 {
+		t.Errorf("expected 2 food from 2 farms, got %f", prod.Food)
+	}
+	total := prod.Composite + prod.Mechanisms + prod.Reagents
+	if total != 0.5 {
+		t.Errorf("expected 0.5 composite from factory, got %f", total)
+	}
+}
+
+func TestMaxConcurrentBuildingsBase(t *testing.T) {
+	planet := NewPlanet("test-max-const", "owner-1", "Test Planet", nil)
+	max := planet.GetMaxConcurrentBuildings()
+	if max != 1 {
+		t.Errorf("expected 1 max concurrent building, got %d", max)
+	}
+}
+
+func TestMaxConcurrentBuildingsWithResearch(t *testing.T) {
+	planet := NewPlanet("test-max-const-res", "owner-1", "Test Planet", nil)
+	planet.Resources.Food = 1000
+	planet.Resources.Money = 1000
+
+	// Mark parallel_construction as completed (level 1)
+	planet.Research.Completed["parallel_construction"] = 1
+
+	max := planet.GetMaxConcurrentBuildings()
+	if max != 2 {
+		t.Errorf("expected 2 max concurrent buildings after parallel_construction, got %d", max)
+	}
+}
+
+// --- Energy balance getter ---
+
+func TestGetEnergyBalanceReturnsCached(t *testing.T) {
+	planet := NewPlanet("test-balance-cached", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 1)
+
+	planet.tickEnergy()
+	expected := planet.EnergyBalance
+
+	got := planet.GetEnergyBalance()
+	if got != expected {
+		t.Errorf("expected GetEnergyBalance to return cached %f, got %f", expected, got)
+	}
+}
+
+// --- GetState ---
+
+func TestGetStateReturnsAllFields(t *testing.T) {
+	planet := NewPlanet("test-state", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("solar", 1)
+	planet.AddBuildingDirect("farm", 1)
+
+	state := planet.GetState()
+
+	if state["id"] != "test-state" {
+		t.Errorf("expected id 'test-state', got %v", state["id"])
+	}
+	if state["owner_id"] != "owner-1" {
+		t.Errorf("expected owner_id 'owner-1', got %v", state["owner_id"])
+	}
+	if state["name"] != "Test Planet" {
+		t.Errorf("expected name 'Test Planet', got %v", state["name"])
+	}
+	if _, ok := state["buildings"]; !ok {
+		t.Error("expected 'buildings' key in state")
+	}
+	if _, ok := state["resources"]; !ok {
+		t.Error("expected 'resources' key in state")
+	}
+	if _, ok := state["expeditions"]; !ok {
+		t.Error("expected 'expeditions' key in state")
 	}
 }
