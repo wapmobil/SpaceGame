@@ -23,3 +23,16 @@ func (p *Planet) calculateResourceProduction() building.ProductionResult {
 func (p *Planet) GetProductionResult() ProductionResult {
 	return p.calculateResourceProduction()
 }
+
+// autoDisableDynamo disables dynamo buildings when food is depleted.
+func (p *Planet) autoDisableDynamo() {
+	if p.Resources.Food > 0 {
+		return
+	}
+	for i := range p.Buildings {
+		b := &p.Buildings[i]
+		if b.Type == "dynamo" && b.IsWorking() {
+			b.Enabled = false
+		}
+	}
+}

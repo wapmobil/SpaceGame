@@ -27,6 +27,8 @@ func (p *Planet) Tick() {
 
 	// 3. Resource production and clamping
 	p.tickResources()
+	// 3.5 Auto-disable dynamo when food is depleted
+	p.autoDisableDynamo()
 
 	// 4. Advance research progress
 	p.Research.Tick()
