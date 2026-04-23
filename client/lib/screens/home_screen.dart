@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 
 import '../widgets/planet_card.dart';
-import '../widgets/resource_bar.dart';
+import '../widgets/resources_panel.dart';
 import 'planet_screen.dart';
 import 'settings_screen.dart';
 
@@ -57,8 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return Column(
           children: [
-            if (gameProvider.planets.isNotEmpty)
-              ResourceBar(planet: gameProvider.selectedPlanet),
+            if (gameProvider.planets.isNotEmpty && gameProvider.selectedPlanet != null)
+              ResourcesPanel(mode: ResourcesPanelMode.compact, planet: gameProvider.selectedPlanet!, gameProvider: gameProvider),
             Expanded(
               child: gameProvider.planets.isEmpty
                   ? _buildEmptyState()

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
-import '../widgets/resource_bar.dart' as resource_bar;
+import '../widgets/resources_panel.dart';
 import '../widgets/planet_action_chip.dart';
 import '../widgets/building_card.dart';
 import '../widgets/build_dialog.dart';
-import '../widgets/resources_section.dart';
 import '../widgets/quick_stats_section.dart';
 import 'shipyard_screen.dart' as ship;
 import 'research_screen.dart' as research;
@@ -14,8 +13,23 @@ import 'expedition_screen.dart' as expedition;
 import 'market_screen.dart' as market;
 import 'mining_screen.dart' as mining;
 
-class PlanetScreen extends StatelessWidget {
+class PlanetScreen extends StatefulWidget {
   const PlanetScreen({super.key});
+
+  @override
+  State<PlanetScreen> createState() => _PlanetScreenState();
+}
+
+class _PlanetScreenState extends State<PlanetScreen> {
+  ResourcesPanelMode _mode = ResourcesPanelMode.expanded;
+
+  void _toggleMode() {
+    setState(() {
+      _mode = _mode == ResourcesPanelMode.expanded
+          ? ResourcesPanelMode.compact
+          : ResourcesPanelMode.expanded;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,68 +43,64 @@ class PlanetScreen extends StatelessWidget {
         return NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) => [
             SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  resource_bar.ResourceBar(planet: planet),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            planet.name,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        planet.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        PlanetActionChip(
-                          icon: Icons.rocket_launch,
-                          label: 'Верфь',
-                          onTap: () => _navigateTo(context, const ship.ShipyardScreen()),
-                        ),
-                        if (gameProvider.canResearch)
-                          PlanetActionChip(
-                            icon: Icons.science,
-                            label: 'Исследования',
-                            onTap: () => _navigateTo(context, const research.ResearchScreen()),
-                          ),
-                        PlanetActionChip(
-                          icon: Icons.local_fire_department,
-                          label: 'Битва',
-                          onTap: () => _navigateTo(context, const battle.BattleScreen()),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        if (gameProvider.canExpedition)
-                          PlanetActionChip(
-                            icon: Icons.explore,
-                            label: 'Экспедиция',
-                            onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
-                          ),
-                        PlanetActionChip(
-                          icon: Icons.store,
-                          label: 'Рынок',
-                          onTap: () => _navigateTo(context, const market.MarketScreen()),
-                        ),
-                        if (gameProvider.canMining)
-                          PlanetActionChip(
-                            icon: Icons.diamond_outlined,
-                            label: 'Копатель',
-                            onTap: () => _navigateTo(context, const mining.MiningScreen()),
-                          ),
-                      ],
+                    PlanetActionChip(
+                      icon: Icons.rocket_launch,
+                      label: 'Верфь',
+                      onTap: () => _navigateTo(context, const ship.ShipyardScreen()),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
+                    if (gameProvider.canResearch)
+                      PlanetActionChip(
+                        icon: Icons.science,
+                        label: 'Исследования',
+                        onTap: () => _navigateTo(context, const research.ResearchScreen()),
+                      ),
+                    PlanetActionChip(
+                      icon: Icons.local_fire_department,
+                      label: 'Битва',
+                      onTap: () => _navigateTo(context, const battle.BattleScreen()),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    if (gameProvider.canExpedition)
+                      PlanetActionChip(
+                        icon: Icons.explore,
+                        label: 'Экспедиция',
+                        onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
+                      ),
+                    PlanetActionChip(
+                      icon: Icons.store,
+                      label: 'Рынок',
+                      onTap: () => _navigateTo(context, const market.MarketScreen()),
+                    ),
+                    if (gameProvider.canMining)
+                      PlanetActionChip(
+                        icon: Icons.diamond_outlined,
+                        label: 'Копатель',
+                        onTap: () => _navigateTo(context, const mining.MiningScreen()),
+                      ),
+                  ],
+                ),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -116,7 +126,12 @@ class PlanetScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ResourcesSection(planet: planet, gameProvider: gameProvider),
+            ResourcesPanel(
+              mode: _mode,
+              planet: planet,
+              gameProvider: gameProvider,
+              onTap: _toggleMode,
+            ),
             if (!gameProvider.baseOperational) ...[
               const SizedBox(height: 8),
               Container(
