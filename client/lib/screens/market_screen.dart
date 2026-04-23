@@ -250,6 +250,40 @@ class _QuickSellFormState extends State<_QuickSellForm> {
           ],
         ),
         const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (foodAvailable >= 100)
+              _QuickSellButton(
+                label: 'Продать 100',
+                amount: 100.0,
+                foodAvailable: foodAvailable,
+                onSell: () {
+                  widget.gameProvider.sellFood(widget.planet.id, 100.0);
+                },
+              ),
+            if (foodAvailable >= 1000)
+              _QuickSellButton(
+                label: 'Продать 1000',
+                amount: 1000.0,
+                foodAvailable: foodAvailable,
+                onSell: () {
+                  widget.gameProvider.sellFood(widget.planet.id, 1000.0);
+                },
+              ),
+            if (foodAvailable >= 10)
+              _QuickSellButton(
+                label: 'Продать всё',
+                amount: foodAvailable - (foodAvailable % 10),
+                foodAvailable: foodAvailable,
+                onSell: () {
+                  widget.gameProvider.sellFood(widget.planet.id, foodAvailable - (foodAvailable % 10));
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -361,6 +395,37 @@ class _OrderFormState extends State<_OrderForm> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuickSellButton extends StatelessWidget {
+  final String label;
+  final double amount;
+  final double foodAvailable;
+  final VoidCallback onSell;
+
+  const _QuickSellButton({
+    required this.label,
+    required this.amount,
+    required this.foodAvailable,
+    required this.onSell,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppTheme.successColor,
+        foregroundColor: Colors.black,
+      ),
+      onPressed: () {
+        final sellAmount = amount <= foodAvailable ? amount : (foodAvailable - (foodAvailable % 10));
+        if (sellAmount >= 10) {
+          onSell();
+        }
+      },
+      child: Text('$label (${(amount / 10).toStringAsFixed(0)}💰)'),
     );
   }
 }
