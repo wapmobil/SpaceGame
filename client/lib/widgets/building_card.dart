@@ -163,9 +163,12 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
           children: [
             const Text('⬆️', style: TextStyle(fontSize: 10)),
             const SizedBox(width: 3),
-            Text(
-              'Lv.${widget.building.level + 1}\n🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
-              style: const TextStyle(fontSize: 9, color: Colors.white, height: 1.2),
+            Flexible(
+              child: Text(
+                'Lv.${widget.building.level + 1} 🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
+                style: const TextStyle(fontSize: 9, color: Colors.white),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -222,6 +225,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
             children: [
               // Header row
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Icon
                   Container(
@@ -234,14 +238,20 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                     child: Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
                   ),
                   const SizedBox(width: 12),
-                  // Name + level + status
+                  // Name + level + actions
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Text(name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+                            Flexible(
+                              child: Text(
+                                name,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -255,10 +265,6 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                                 style: const TextStyle(fontSize: 10, color: AppTheme.accentColor, fontWeight: FontWeight.bold),
                               ),
                             ),
-                            if (upgradeBtn != null) ...[
-                              const SizedBox(width: 6),
-                              upgradeBtn,
-                            ],
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -272,25 +278,32 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                             ),
                           ],
                         ),
+                        if (upgradeBtn != null || (!isBuilding && building.level > 0)) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                             mainAxisSize: MainAxisSize.max,
+                             children: [
+                               if (upgradeBtn != null) ...[
+                                 upgradeBtn,
+                                 const SizedBox(width: 8),
+                               ],
+                               const Expanded(child: SizedBox()),
+                               if (!isBuilding && building.level > 0)
+                                 Switch(
+                                  value: building.enabled,
+                                  onChanged: (_) => gameProvider.toggleBuilding(building.type),
+                                  activeThumbColor: AppTheme.accentColor,
+                                  inactiveThumbColor: Colors.grey,
+                                  inactiveTrackColor: Colors.grey[800],
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+                                ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  // Toggle
-                  if (!isBuilding && building.level > 0)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Switch(
-                          value: building.enabled,
-                          onChanged: (_) => gameProvider.toggleBuilding(building.type),
-                          activeThumbColor: AppTheme.accentColor,
-                          inactiveThumbColor: Colors.grey,
-                          inactiveTrackColor: Colors.grey[800],
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
-                        ),
-                      ],
-                    ),
                 ],
               ),
               // Separator
