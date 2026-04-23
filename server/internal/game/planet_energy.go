@@ -54,6 +54,11 @@ func (p *Planet) tickEnergy() {
 		p.EnergyBuffer.Value = p.EnergyBuffer.Max
 	}
 
+	// Clamp buffer to non-negative
+	if p.EnergyBuffer.Value < 0 {
+		p.EnergyBuffer.Value = 0
+	}
+
 	// Auto-disable buildings when energy buffer is empty
 	if p.EnergyBuffer.Value <= 0 {
 		for i := range p.Buildings {

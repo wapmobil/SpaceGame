@@ -13,8 +13,8 @@ class BuildDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final allBuildings = Constants.buildingTypes.keys.toList();
     final allBuildingsList = gameProvider.buildings;
-    final hasFarm = allBuildingsList.where((b) => b.type == 'farm').any((b) => b.isWorking);
-    final hasSolar = allBuildingsList.where((b) => b.type == 'solar').any((b) => b.isWorking);
+    final hasFarm = allBuildingsList.where((b) => b.type == 'farm').any((b) => b.level > 0);
+    final hasSolar = allBuildingsList.where((b) => b.type == 'solar').any((b) => b.level > 0);
 
     return Dialog(
       backgroundColor: AppTheme.cardColor,

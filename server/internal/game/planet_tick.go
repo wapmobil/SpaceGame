@@ -14,6 +14,7 @@ func (p *Planet) Tick() {
 	for i := range p.Buildings {
 		p.stepBuildingEntry(i)
 	}
+	p.RecalculateActiveConstruction()
 	// Disable buildings that are under construction or ready for confirmation
 	for i := range p.Buildings {
 		b := &p.Buildings[i]

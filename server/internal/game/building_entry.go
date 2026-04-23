@@ -6,7 +6,7 @@ import "spacegame/internal/game/building"
 type BuildingEntry struct {
 	Type          string       `json:"type"`
 	Level         int          `json:"level"`
-	BuildProgress float64      `json:"build_progress"` // -1 = working, 0..buildTime = under construction, >=buildTime = build complete
+	BuildProgress float64      `json:"build_progress"` // -1 = working, 0..buildTime = under construction, 0 = build complete
 	Enabled       bool         `json:"enabled"`
 	BuildTime     float64      `json:"build_time"`     // total build time in seconds
 	Cost          CostInfo     `json:"cost"`           // cost to build/upgrade to current level (already paid)
@@ -29,12 +29,12 @@ var BuildingsOrder = []string{
 
 // IsBuilding returns true if the building is under construction.
 func (b *BuildingEntry) IsBuilding() bool {
-	return b.BuildProgress > 0 && b.BuildProgress < b.BuildTime
+	return b.BuildProgress > 0 && b.BuildTime > 0
 }
 
 // IsBuildComplete returns true if the building is completed and waiting for confirmation.
 func (b *BuildingEntry) IsBuildComplete() bool {
-	return b.BuildProgress >= b.BuildTime && b.BuildProgress > 0
+	return b.BuildProgress == 0 && b.BuildTime > 0
 }
 
 // IsWorking returns true if the building is operational.

@@ -25,12 +25,6 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		currentLevel = p.Buildings[idx].Level
 	}
 
-	// Check if already under construction
-	var alreadyConstructing bool
-	if idx >= 0 && p.Buildings[idx].IsBuilding() {
-		alreadyConstructing = true
-	}
-
 	// Check prerequisites: farm must be built first, solar after farm
 	hasFarm := false
 	hasSolar := false
@@ -54,6 +48,7 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	}
 
 	// Check max concurrent construction limit
+	p.RecalculateActiveConstruction()
 	if p.ActiveConstruction >= p.GetMaxConcurrentBuildings() {
 		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "max_constructions_reached", Extra: fmt.Sprintf("Max constructions reached (%d/%d). Research Parallel Construction to unlock more.", p.ActiveConstruction, p.GetMaxConcurrentBuildings())}
 	}
@@ -87,11 +82,6 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 			Enabled:       false,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
-	}
-
-	// Track active construction
-	if !alreadyConstructing {
-		p.ActiveConstruction++
 	}
 
 	return cost.Food, cost.Money, nil
@@ -192,14 +182,18 @@ func (p *Planet) stepBuildingEntry(idx int) {
 		if b.BuildProgress < 0 {
 			b.BuildProgress = 0
 		}
-		if !b.IsBuilding() && b.BuildProgress >= 0 {
-			// Construction completed
-			p.ActiveConstruction--
-			if p.ActiveConstruction < 0 {
-				p.ActiveConstruction = 0
-			}
+	}
+}
+
+// RecalculateActiveConstruction counts all buildings under construction and sets ActiveConstruction.
+func (p *Planet) RecalculateActiveConstruction() {
+	count := 0
+	for i := range p.Buildings {
+		if p.Buildings[i].IsBuilding() {
+			count++
 		}
 	}
+	p.ActiveConstruction = count
 }
 
 // PopulateBuildingEntry populates all computed fields for a building entry.

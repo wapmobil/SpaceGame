@@ -1,7 +1,7 @@
 class Building {
   final String type;
   final int level;
-  final double buildProgress; // -1 = ready, 0..buildTime = under construction, >=buildTime = ready for confirmation
+  final double buildProgress; // -1 = working, 0..buildTime = under construction, 0 = ready for confirmation
   final bool enabled;
   final double buildTime; // total build time in seconds
   final double costFood;
@@ -37,8 +37,8 @@ class Building {
     this.consumption = 0,
   });
 
-  bool get isBuilding => buildTime > 0 && buildProgress > 0 && buildProgress < buildTime;
-  bool get isBuildComplete => buildTime > 0 && buildProgress >= buildTime;
+  bool get isBuilding => buildTime > 0 && buildProgress > 0;
+  bool get isBuildComplete => buildTime > 0 && buildProgress == 0;
   bool get isWorking => !isBuilding && !isBuildComplete && enabled && level > 0;
 
   factory Building.fromJson(Map<String, dynamic> json) {

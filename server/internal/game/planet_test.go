@@ -351,7 +351,7 @@ func TestConfirmBuildingPopulatesEntry(t *testing.T) {
 	planet := NewPlanet("test-confirm-1", "owner-1", "Test Planet", nil)
 
 	planet.AddBuildingDirect("farm", 1)
-	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
+	planet.Buildings[0].BuildProgress = 0
 
 	err := planet.ConfirmBuilding("farm")
 	if err != nil {
@@ -390,7 +390,7 @@ func TestGetPendingBuildings(t *testing.T) {
 	planet := NewPlanet("test-pending", "owner-1", "Test Planet", nil)
 
 	planet.AddBuildingDirect("farm", 1)
-	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
+	planet.Buildings[0].BuildProgress = 0
 
 	pending := planet.GetPendingBuildings()
 	if !pending["farm"] {
@@ -583,7 +583,7 @@ func TestGetStateReturnsAllFields(t *testing.T) {
 func TestReadyBuildingIsDisabled(t *testing.T) {
 	planet := NewPlanet("test-pending-1", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("farm", 1)
-	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
+	planet.Buildings[0].BuildProgress = 0
 	planet.Buildings[0].Enabled = true
 
 	planet.Tick()
