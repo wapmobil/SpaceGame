@@ -6,13 +6,23 @@ class ResearchTree extends StatelessWidget {
   final List<ResearchTech> research;
   final List<ResearchTech> available;
   final Function(String techId) onResearch;
+  final double currentFood;
+  final double currentMoney;
+  final double currentAlien;
 
   const ResearchTree({
     super.key,
     required this.research,
     required this.available,
     required this.onResearch,
+    this.currentFood = 0,
+    this.currentMoney = 0,
+    this.currentAlien = 0,
   });
+
+  bool _canAfford(double currentFood, double currentMoney, double currentAlien, double costFood, double costMoney, double costAlien) {
+    return currentFood >= costFood && currentMoney >= costMoney && currentAlien >= costAlien;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +36,7 @@ class ResearchTree extends StatelessWidget {
     final researchMap = {for (var t in research) t.techId: t};
 
     return Column(
-      children: _buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, null, 0),
+      children: _buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, null, 0, currentFood, currentMoney, currentAlien),
     );
   }
 
@@ -40,6 +50,9 @@ class ResearchTree extends StatelessWidget {
     Function(String) onResearch,
     String? parentId,
     int depth,
+    double currentFood,
+    double currentMoney,
+    double currentAlien,
   ) {
     final children = <Widget>[];
 
@@ -74,6 +87,11 @@ class ResearchTree extends StatelessWidget {
       final totalTime = research != null ? research.totalTime : 0.0;
       final progress = research != null ? research.progress : 0.0;
 
+      final costFood = (techMap['cost_food'] as num?)?.toDouble() ?? 0;
+      final costMoney = (techMap['cost_money'] as num?)?.toDouble() ?? 0;
+      final costAlien = (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0;
+      final canAfford = _canAfford(currentFood, currentMoney, currentAlien, costFood, costMoney, costAlien);
+
       children.add(
         Padding(
           padding: EdgeInsets.only(left: depth * 24.0, bottom: 4),
@@ -86,10 +104,11 @@ class ResearchTree extends StatelessWidget {
             isCompleted: isCompleted,
             isInProgress: isInProgress,
             isAvailable: isAvailable && hasPrerequisites,
+            canAfford: canAfford,
             onResearch: () => onResearch(techId),
-            costFood: (techMap['cost_food'] as num?)?.toDouble() ?? 0,
-            costMoney: (techMap['cost_money'] as num?)?.toDouble() ?? 0,
-            costAlien: (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0,
+            costFood: costFood,
+            costMoney: costMoney,
+            costAlien: costAlien,
             buildTime: (techMap['build_time'] as num?)?.toDouble() ?? 0,
             progressPct: progressPct,
             totalTime: totalTime,
@@ -99,7 +118,7 @@ class ResearchTree extends StatelessWidget {
       );
 
       // Recursively render children
-      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1);
+      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1, currentFood, currentMoney, currentAlien);
       children.addAll(subChildren);
     }
 
@@ -116,6 +135,7 @@ class _TechNode extends StatelessWidget {
   final bool isCompleted;
   final bool isInProgress;
   final bool isAvailable;
+  final bool canAfford;
   final VoidCallback onResearch;
   final double costFood;
   final double costMoney;
@@ -134,6 +154,7 @@ class _TechNode extends StatelessWidget {
     required this.isCompleted,
     required this.isInProgress,
     required this.isAvailable,
+    required this.canAfford,
     required this.onResearch,
     required this.costFood,
     required this.costMoney,
@@ -232,21 +253,21 @@ class _TechNode extends StatelessWidget {
                 style: const TextStyle(fontSize: 10, color: Colors.white70),
               ),
             ],
-            if (dependsOn.isNotEmpty && !isCompleted)
-              Text(
-                'Требуется: ${dependsOn.join(", ")}',
-                style: const TextStyle(fontSize: 10, color: Colors.white38),
-              ),
+          if (dependsOn.isNotEmpty && !isCompleted && !isAvailable)
+               const Text(
+                 '🔒 Заблокировано',
+                 style: TextStyle(fontSize: 10, color: Colors.white24),
+               ),
           ],
         ),
         trailing: isAvailable
             ? ElevatedButton(
-                onPressed: onResearch,
+                onPressed: canAfford ? onResearch : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  backgroundColor: AppTheme.accentColor,
+                  backgroundColor: canAfford ? AppTheme.accentColor : Colors.white24,
                 ),
-                child: const Text('Исследовать', style: TextStyle(fontSize: 11)),
+                child: Text(canAfford ? 'Исследовать' : 'Нет ресурсов', style: TextStyle(fontSize: 11, color: canAfford ? Colors.white : Colors.white54)),
               )
             : null,
       ),
