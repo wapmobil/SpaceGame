@@ -285,7 +285,7 @@ class _TechNode extends StatelessWidget {
               ),
           ],
         ),
-        trailing: isAvailable
+        trailing: isAvailable && !isCompleted
             ? ElevatedButton(
                 onPressed: canAfford ? onResearch : null,
                 style: ElevatedButton.styleFrom(
