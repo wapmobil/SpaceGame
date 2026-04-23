@@ -37,7 +37,7 @@ func (p *Planet) tickEnergy() {
 	// Update energy buffer max capacity based on energy_storage level
 	energyStorageLevel := 0
 	for _, b := range p.Buildings {
-		if b.Type == "energy_storage" {
+		if b.Type == "energy_storage" && b.IsWorking() {
 			energyStorageLevel += b.Level
 		}
 	}
