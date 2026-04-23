@@ -1,5 +1,8 @@
 package building
 
+// ProdInfo is an alias for ProductionResult for backwards compatibility.
+type ProdInfo = ProductionResult
+
 // ProductionResult holds the resource changes from one tick.
 type ProductionResult struct {
 	Food      float64

@@ -1,0 +1,92 @@
+package game
+
+import (
+	"time"
+
+	"spacegame/internal/game/building"
+)
+
+// GetState returns the planet's state as a JSON-serializable map.
+func (p *Planet) GetState() map[string]interface{} {
+	shipyardLevel := p.GetBuildingLevel("shipyard")
+	baseLevel := p.GetBuildingLevel("base")
+
+	return map[string]interface{}{
+		"id":               p.ID,
+		"owner_id":         p.OwnerID,
+		"name":             p.Name,
+		"level":            p.Level,
+		"resources":        p.Resources,
+		"buildings":        p.Buildings,
+		"build_speed":      p.BuildSpeed,
+		"energy_balance":   p.EnergyBalance,
+		"energy_buffer":    p.EnergyBuffer,
+		"last_tick":        p.LastTick.Format(time.RFC3339),
+		"fleet":            p.Fleet.GetShipState(),
+		"shipyard_level":   shipyardLevel,
+		"shipyard_queue":   p.Shipyard.Queue,
+		"shipyard_slots":   p.Fleet.TotalSlots(),
+		"shipyard_max":     p.Shipyard.MaxSlots(baseLevel),
+		"shipyard_progress": p.Shipyard.GetQueueProgress(),
+		"expeditions":       p.GetExpeditionState(),
+		"active_expeditions":   p.GetActiveExpeditionsCount(),
+		"max_expeditions":      p.GetMaxExpeditions(),
+		"active_constructions": p.ActiveConstruction,
+		"max_constructions":    p.GetMaxConcurrentBuildings(),
+		"pending_buildings":    p.GetPendingBuildings(),
+		"storage_capacity":   p.CalculateStorageCapacity(),
+	}
+}
+
+// GetEnergyBalance returns the current energy balance.
+func (p *Planet) GetEnergyBalance() float64 {
+	production := p.calculateEnergyProduction()
+	consumption := p.calculateEnergyConsumption()
+	return production - consumption
+}
+
+// BuildDetails contains the data needed for the build-details API response.
+type BuildDetails struct {
+	Resources          PlanetResources
+	EnergyBuffer       EnergyBuffer
+	Buildings          []BuildingEntry
+	EnergyBalance      float64
+	ResourceProduction building.ProductionResult
+	ActiveConstruction int
+	MaxConstruction    int
+	BaseOperational    bool
+	CanResearch        bool
+	CanExpedition      bool
+	CanMining          bool
+}
+
+// GetBuildDetails returns a BuildDetails struct for the frontend.
+func (p *Planet) GetBuildDetails() BuildDetails {
+	energyProduction := p.calculateEnergyProduction()
+	energyConsumption := p.calculateEnergyConsumption()
+
+	var resourceProduction building.ProductionResult
+	resourceProduction = p.calculateResourceProduction()
+
+	baseOperational := p.Resources.Food > 0
+	expeditionsUnlocked := false
+	if p.Research != nil {
+		if _, ok := p.Research.GetCompleted()["expeditions"]; ok {
+			expeditionsUnlocked = true
+		}
+	}
+
+	return BuildDetails{
+		Resources:          p.Resources,
+		EnergyBuffer:       p.EnergyBuffer,
+		Buildings:          p.Buildings,
+		EnergyBalance:      energyProduction - energyConsumption,
+		ResourceProduction: resourceProduction,
+		ActiveConstruction: p.ActiveConstruction,
+		MaxConstruction:    p.GetMaxConcurrentBuildings(),
+		BaseOperational:    baseOperational,
+		CanResearch:        baseOperational,
+		CanExpedition:      baseOperational && expeditionsUnlocked,
+		CanMining:          baseOperational,
+	}
+}

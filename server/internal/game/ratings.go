@@ -448,8 +448,16 @@ func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 	switch eventDef.Type {
 	case RandomEventShortCircuit:
 		// Restore energy production
-		p.Resources.MaxEnergy = p.calculateMaxEnergy()
-		production, consumption := p.calculateEnergyBalance()
+		energyStorageLevel := 0
+		for _, b := range p.Buildings {
+			if b.Type == "energy_storage" {
+				energyStorageLevel += b.Level
+			}
+		}
+		p.EnergyBuffer.UpdateMax(energyStorageLevel)
+		p.Resources.MaxEnergy = p.EnergyBuffer.Max
+		production := p.calculateEnergyProduction()
+		consumption := p.calculateEnergyConsumption()
 		if production >= consumption {
 			p.EnergyBuffer.Value = p.Resources.MaxEnergy
 		}
