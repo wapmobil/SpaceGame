@@ -238,17 +238,23 @@ class _TechNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDimmed = researchPaused && !isCompleted;
+    final textColor = isCompleted ? AppTheme.successColor : (isDimmed ? Colors.white38 : Colors.white);
+    final cardColor = isCompleted ? statusColor.withValues(alpha: 0.1) : (isDimmed ? Colors.white.withValues(alpha: 0.03) : statusColor.withValues(alpha: 0.1));
+    final borderColor = isCompleted ? statusColor : (isDimmed ? Colors.white24 : statusColor);
+    final iconColor = isCompleted ? Colors.white : (isDimmed ? Colors.white38 : Colors.white);
+
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: statusColor, width: 2),
+        border: Border.all(color: borderColor, width: 2),
         borderRadius: BorderRadius.circular(8),
-        color: statusColor.withValues(alpha: 0.1),
+        color: cardColor,
       ),
       child: ListTile(
         dense: true,
         leading: CircleAvatar(
           radius: 12,
-          backgroundColor: statusColor,
+          backgroundColor: isDimmed ? Colors.white24 : statusColor,
           child: isCompleted
               ? const Icon(Icons.check, size: 14, color: Colors.white)
               : isInProgress
@@ -262,14 +268,14 @@ class _TechNode extends StatelessWidget {
         title: Text(
           name,
           style: TextStyle(
-            color: isCompleted ? AppTheme.successColor : Colors.white,
-            fontWeight: isAvailable ? FontWeight.bold : FontWeight.normal,
+            color: textColor,
+            fontWeight: isAvailable && !isDimmed ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(description, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+            Text(description, style: TextStyle(fontSize: 11, color: isDimmed ? Colors.white24 : Colors.white54)),
             if (isInProgress) ...[
               const SizedBox(height: 2),
               Row(
@@ -298,12 +304,12 @@ class _TechNode extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 _formatCost(),
-                style: const TextStyle(fontSize: 10, color: Colors.white70),
+                style: TextStyle(fontSize: 10, color: isDimmed ? Colors.white24 : Colors.white70),
               ),
               const SizedBox(height: 2),
               Text(
                 '⏱ ${(buildTime / 60).toStringAsFixed(1)} мин',
-                style: const TextStyle(fontSize: 10, color: Colors.white70),
+                style: TextStyle(fontSize: 10, color: isDimmed ? Colors.white24 : Colors.white70),
               ),
             ],
             if (dependsOn.isNotEmpty && !isCompleted && !isAvailable)
@@ -315,12 +321,12 @@ class _TechNode extends StatelessWidget {
         ),
         trailing: isAvailable && !isCompleted
             ? ElevatedButton(
-                onPressed: canAfford ? onResearch : null,
+                onPressed: canAfford && !isDimmed ? onResearch : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  backgroundColor: canAfford ? AppTheme.accentColor : Colors.white24,
+                  backgroundColor: canAfford && !isDimmed ? AppTheme.accentColor : Colors.white24,
                 ),
-                child: Text(canAfford ? 'Исследовать' : 'Нет ресурсов', style: TextStyle(fontSize: 11, color: canAfford ? Colors.white : Colors.white54)),
+                child: Text(canAfford && !isDimmed ? 'Исследовать' : 'Нет ресурсов', style: TextStyle(fontSize: 11, color: canAfford && !isDimmed ? Colors.white : Colors.white54)),
               )
             : null,
       ),
