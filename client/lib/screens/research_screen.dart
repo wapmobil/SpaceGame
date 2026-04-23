@@ -106,6 +106,10 @@ class ResearchScreen extends StatelessWidget {
             isInProgress: isInProgress,
             isAvailable: isAvailable && hasPrerequisites,
             onResearch: () => onResearch(techId),
+            costFood: (techMap['cost_food'] as num?)?.toDouble() ?? 0,
+            costMoney: (techMap['cost_money'] as num?)?.toDouble() ?? 0,
+            costAlien: (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0,
+            buildTime: (techMap['build_time'] as num?)?.toDouble() ?? 0,
           ),
         ),
       );
@@ -129,6 +133,10 @@ class _TechNode extends StatelessWidget {
   final bool isInProgress;
   final bool isAvailable;
   final VoidCallback onResearch;
+  final double costFood;
+  final double costMoney;
+  final double costAlien;
+  final double buildTime;
 
   const _TechNode({
     required this.techId,
@@ -140,7 +148,19 @@ class _TechNode extends StatelessWidget {
     required this.isInProgress,
     required this.isAvailable,
     required this.onResearch,
+    required this.costFood,
+    required this.costMoney,
+    required this.costAlien,
+    required this.buildTime,
   });
+
+  String _formatCost() {
+    final parts = <String>[];
+    if (costFood > 0) parts.add('🍞${costFood.toInt()}');
+    if (costMoney > 0) parts.add('💰${costMoney.toInt()}');
+    if (costAlien > 0) parts.add('👽${costAlien.toInt()}');
+    return parts.join(' ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +196,18 @@ class _TechNode extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(description, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+            if (!isCompleted) ...[
+              const SizedBox(height: 2),
+              Text(
+                _formatCost(),
+                style: const TextStyle(fontSize: 10, color: Colors.white70),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '⏱ ${(buildTime / 60).toStringAsFixed(1)} мин',
+                style: const TextStyle(fontSize: 10, color: Colors.white70),
+              ),
+            ],
             if (isInProgress) ...[
               const SizedBox(height: 4),
               LinearProgressIndicator(
@@ -184,7 +216,7 @@ class _TechNode extends StatelessWidget {
                 color: AppTheme.warningColor,
               ),
             ],
-            if (dependsOn.isNotEmpty)
+            if (dependsOn.isNotEmpty && !isCompleted)
               Text(
                 'Требуется: ${dependsOn.join(", ")}',
                 style: const TextStyle(fontSize: 10, color: Colors.white38),
