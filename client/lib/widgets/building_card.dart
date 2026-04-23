@@ -184,7 +184,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
     final icon = info['icon'] ?? '🏗️';
     final upgradeBtn = _buildUpgradeButton();
 
-    final remainingTime = isBuilding ? (building.buildTime - building.buildProgress).toInt().clamp(0, 999) : 0;
+    final remainingTime = isBuilding ? building.buildProgress.toInt().clamp(0, 999) : 0;
     final progressValue = building.buildTime > 0
         ? (building.buildProgress / building.buildTime).clamp(0.0, 1.0)
         : 0.0;
