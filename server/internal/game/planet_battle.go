@@ -1,8 +1,22 @@
 package game
 
 import (
+	"time"
+
 	"spacegame/internal/game/battle"
 )
+
+// BattleRecord stores the result of a completed battle.
+type BattleRecord struct {
+	ID         string             `json:"id"`
+	Opponent   string             `json:"opponent"`
+	Result     string             `json:"result"`
+	Loot       map[string]float64 `json:"loot"`
+	LostShips  map[string]int     `json:"lost_ships"`
+	Refund     map[string]float64 `json:"refund"`
+	Rounds     int                `json:"rounds"`
+	Timestamp  time.Time          `json:"timestamp"`
+}
 
 // GetBattleHistory returns the battle history.
 func (p *Planet) GetBattleHistory() []BattleRecord {

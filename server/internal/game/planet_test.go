@@ -44,6 +44,7 @@ func TestEnergyBalanceNegative(t *testing.T) {
 	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
 	planet.AddBuildingDirect("solar", 1) // produces 15 energy
 
+	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
 	if balance != 5 {
 		t.Errorf("expected energy balance of 5, got %f", balance)
@@ -55,6 +56,7 @@ func TestEnergyBalanceDeficit(t *testing.T) {
 	planet.AddBuildingDirect("farm", 1) // consumes 10 energy
 	// No solar station - energy deficit
 
+	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
 	if balance != -10 {
 		t.Errorf("expected energy balance of -10, got %f", balance)
@@ -92,16 +94,15 @@ func TestStorageIncreasesCapacity(t *testing.T) {
 
 func TestMaxEnergyIncreasesWithEnergyStorage(t *testing.T) {
 	planet := NewPlanet("test-9", "owner-1", "Test Planet", nil)
-	maxEnergy1 := planet.calculateMaxEnergy()
-	if maxEnergy1 != 100 {
-		t.Errorf("expected base max energy of 100, got %f", maxEnergy1)
+	planet.EnergyBuffer.UpdateMax(0)
+	if planet.EnergyBuffer.Max != 100 {
+		t.Errorf("expected base max energy of 100, got %f", planet.EnergyBuffer.Max)
 	}
 
 	planet.AddBuildingDirect("energy_storage", 2)
-
-	maxEnergy2 := planet.calculateMaxEnergy()
-	if maxEnergy2 != 300 {
-		t.Errorf("expected max energy of 300 with 2 energy storage buildings, got %f", maxEnergy2)
+	planet.EnergyBuffer.UpdateMax(2)
+	if planet.EnergyBuffer.Max != 300 {
+		t.Errorf("expected max energy of 300 with 2 energy storage buildings, got %f", planet.EnergyBuffer.Max)
 	}
 }
 
@@ -326,6 +327,7 @@ func TestTickProducesResources(t *testing.T) {
 	}
 
 	// Verify energy production exceeds consumption (solar 15 > farm 10)
+	planet.tickEnergy()
 	balance := planet.GetEnergyBalance()
 	if balance != 5 {
 		t.Errorf("expected energy balance of 5 (15 solar - 10 farm), got %f", balance)

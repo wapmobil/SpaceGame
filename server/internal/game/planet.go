@@ -10,32 +10,6 @@ import (
 )
 
 
-
-// PlanetResources holds the current resource amounts.
-type PlanetResources struct {
-	Food           float64 `json:"food"`
-	Composite      float64 `json:"composite"`
-	Mechanisms     float64 `json:"mechanisms"`
-	Reagents       float64 `json:"reagents"`
-	Energy         float64 `json:"energy"`
-	MaxEnergy      float64 `json:"max_energy"`
-	Money          float64 `json:"money"`
-	AlienTech      float64 `json:"alien_tech"`
-	StorageCapacity float64 `json:"storage_capacity"`
-}
-
-// BattleRecord stores the result of a completed battle.
-type BattleRecord struct {
-	ID         string            `json:"id"`
-	Opponent   string            `json:"opponent"`
-	Result     string            `json:"result"`
-	Loot       map[string]float64 `json:"loot"`
-	LostShips  map[string]int    `json:"lost_ships"`
-	Refund     map[string]float64 `json:"refund"`
-	Rounds     int               `json:"rounds"`
-	Timestamp  time.Time         `json:"timestamp"`
-}
-
 // Planet manages a single planet's game state.
 type Planet struct {
 	ID               string
@@ -94,44 +68,6 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		p.Research = research.NewResearchSystem(id, nil)
 	}
 	return p
-}
-
-// Tick processes one game tick (1 second).
-func (p *Planet) Tick() {
-	p.LastTick = time.Now()
-
-	// 1. Step building construction progress
-	for i := range p.Buildings {
-		p.stepBuildingEntry(i)
-	}
-
-	// 2. Energy tick
-	p.tickEnergy()
-
-	// 3. Resource production and clamping
-	p.tickResources()
-
-	// 4. Advance research progress
-	p.Research.Tick()
-
-	// 5. Advance ship construction
-	if completed := p.Shipyard.Tick(); completed != nil {
-		st := ship.GetShipType(*completed)
-		if st != nil {
-			p.Fleet.AddShip(st, 1)
-		}
-	}
-
-	// 6. Advance expeditions
-	p.TickExpeditions()
-
-	// 7. Save to DB (throttled)
-	if p.game.shouldSave(p.ID) {
-		p.game.savePlanet(p)
-	}
-
-	// 8. Broadcast state update
-	p.broadcastPlanetUpdate()
 }
 
 // StartResearch begins researching a technology on this planet.

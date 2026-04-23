@@ -2,8 +2,6 @@ package game
 
 import "spacegame/internal/game/building"
 
-
-
 // ProductionResult is an alias for building.ProductionResult for backwards compatibility.
 type ProductionResult = building.ProductionResult
 
@@ -63,8 +61,6 @@ func ResourceTypes() []ResourceName {
 	return []ResourceName{Food, Composite, Mechanisms, Reagents}
 }
 
-
-
 // StorageResourceType represents a resource that can be stored.
 type StorageResourceType string
 
@@ -90,6 +86,15 @@ func StorageResourceEmojis() map[StorageResourceType]string {
 	}
 }
 
-
-
-
+// PlanetResources holds the current resource amounts.
+type PlanetResources struct {
+	Food            float64 `json:"food"`
+	Composite       float64 `json:"composite"`
+	Mechanisms      float64 `json:"mechanisms"`
+	Reagents        float64 `json:"reagents"`
+	Energy          float64 `json:"energy"`
+	MaxEnergy       float64 `json:"max_energy"`
+	Money           float64 `json:"money"`
+	AlienTech       float64 `json:"alien_tech"`
+	StorageCapacity float64 `json:"storage_capacity"`
+}

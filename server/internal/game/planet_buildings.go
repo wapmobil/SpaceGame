@@ -110,6 +110,7 @@ func (p *Planet) AddBuildingDirect(bt string, level int) {
 			Type:    bt,
 			Level:   level,
 			Pending: false,
+			Enabled: true,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}

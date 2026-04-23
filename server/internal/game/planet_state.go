@@ -40,9 +40,7 @@ func (p *Planet) GetState() map[string]interface{} {
 
 // GetEnergyBalance returns the current energy balance.
 func (p *Planet) GetEnergyBalance() float64 {
-	production := p.calculateEnergyProduction()
-	consumption := p.calculateEnergyConsumption()
-	return production - consumption
+	return p.EnergyBalance
 }
 
 // BuildDetails contains the data needed for the build-details API response.
@@ -62,9 +60,6 @@ type BuildDetails struct {
 
 // GetBuildDetails returns a BuildDetails struct for the frontend.
 func (p *Planet) GetBuildDetails() BuildDetails {
-	energyProduction := p.calculateEnergyProduction()
-	energyConsumption := p.calculateEnergyConsumption()
-
 	var resourceProduction building.ProductionResult
 	resourceProduction = p.calculateResourceProduction()
 
@@ -80,7 +75,7 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 		Resources:          p.Resources,
 		EnergyBuffer:       p.EnergyBuffer,
 		Buildings:          p.Buildings,
-		EnergyBalance:      energyProduction - energyConsumption,
+		EnergyBalance:      p.EnergyBalance,
 		ResourceProduction: resourceProduction,
 		ActiveConstruction: p.ActiveConstruction,
 		MaxConstruction:    p.GetMaxConcurrentBuildings(),

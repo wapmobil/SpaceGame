@@ -13,41 +13,23 @@ func (p *Planet) getEnergyConsumption(bt string, level int) float64 {
 	return building.EnergyConsumption(bt, level)
 }
 
-// calculateEnergyProduction returns total energy production from solar panels.
-func (p *Planet) calculateEnergyProduction() float64 {
-	var total float64
+// calculateEnergy computes total energy production and consumption in a single pass.
+// Returns (production, consumption) where production is from solar panels
+// and consumption is from all other enabled buildings + fleet.
+func (p *Planet) calculateEnergy() (production, consumption float64) {
 	for _, b := range p.Buildings {
-		if b.Type == "solar" && b.BuildProgress <= 0 && !b.Pending && b.Enabled {
-			con := p.getEnergyConsumption(b.Type, b.Level)
-			if con < 0 {
-				total += -con
-			}
+		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
+			continue
+		}
+		con := p.getEnergyConsumption(b.Type, b.Level)
+		if con < 0 {
+			production += -con
+		} else {
+			consumption += con
 		}
 	}
-	return total
-}
-
-// calculateEnergyConsumption returns total energy consumption from non-solar buildings and fleet.
-func (p *Planet) calculateEnergyConsumption() float64 {
-	var total float64
-	for _, b := range p.Buildings {
-		if b.Type != "solar" && b.BuildProgress <= 0 && !b.Pending && b.Enabled {
-			total += p.getEnergyConsumption(b.Type, b.Level)
-		}
-	}
-	total += p.Fleet.TotalEnergyConsumption()
-	return total
-}
-
-// calculateMaxEnergy returns the max energy based on energy_storage level.
-func (p *Planet) calculateMaxEnergy() float64 {
-	energyStorageLevel := 0
-	for _, b := range p.Buildings {
-		if b.Type == "energy_storage" {
-			energyStorageLevel += b.Level
-		}
-	}
-	return float64(100 + energyStorageLevel*100)
+	consumption += p.Fleet.TotalEnergyConsumption()
+	return
 }
 
 // tickEnergy processes energy production, consumption, clamping, and auto-disable logic.
@@ -61,12 +43,10 @@ func (p *Planet) tickEnergy() {
 	}
 	p.EnergyBuffer.UpdateMax(energyStorageLevel)
 
-	// Calculate and apply energy production
-	energyProduction := p.calculateEnergyProduction()
-	p.EnergyBuffer.Value += energyProduction
+	// Calculate energy production and consumption in single pass
+	energyProduction, energyConsumption := p.calculateEnergy()
 
-	// Calculate and apply energy consumption
-	energyConsumption := p.calculateEnergyConsumption()
+	p.EnergyBuffer.Value += energyProduction
 	p.EnergyBuffer.Value -= energyConsumption
 
 	// Clamp buffer to max

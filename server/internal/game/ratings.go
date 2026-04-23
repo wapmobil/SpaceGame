@@ -456,8 +456,7 @@ func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 		}
 		p.EnergyBuffer.UpdateMax(energyStorageLevel)
 		p.Resources.MaxEnergy = p.EnergyBuffer.Max
-		production := p.calculateEnergyProduction()
-		consumption := p.calculateEnergyConsumption()
+		production, consumption := p.calculateEnergy()
 		if production >= consumption {
 			p.EnergyBuffer.Value = p.Resources.MaxEnergy
 		}
