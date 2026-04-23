@@ -423,6 +423,7 @@ func TestBaseOperational(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			planet := NewPlanet(tt.name, "owner-1", "Test Planet", nil)
+			planet.AddBuildingDirect("base", 1)
 			planet.Resources.Food = tt.food
 			if got := planet.BaseOperational(); got != tt.operational {
 				t.Errorf("BaseOperational() = %v, want %v (food=%f)", got, tt.operational, tt.food)
@@ -435,6 +436,7 @@ func TestBaseOperational(t *testing.T) {
 
 func TestStartResearchBlockedWithoutFood(t *testing.T) {
 	planet := NewPlanet("test-research-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("base", 1)
 	planet.Resources.Food = 0
 
 	tech := research.GetTechByID("planet_exploration")
@@ -450,6 +452,7 @@ func TestStartResearchBlockedWithoutFood(t *testing.T) {
 
 func TestStartResearchAllowedWithFood(t *testing.T) {
 	planet := NewPlanet("test-research-2", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("base", 1)
 	planet.Resources.Food = 1000
 	planet.Resources.Money = 1000
 
@@ -466,6 +469,7 @@ func TestStartResearchAllowedWithFood(t *testing.T) {
 
 func TestStartResearchTechNotFound(t *testing.T) {
 	planet := NewPlanet("test-research-nf", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("base", 1)
 	planet.Resources.Food = 1000
 
 	err := planet.StartResearch("nonexistent_tech")

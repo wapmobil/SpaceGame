@@ -62,6 +62,12 @@ class GameProvider extends ChangeNotifier {
   bool _canExpedition = false;
   bool _canMining = true;
 
+  // Research unlocks (planet_exploration random unlock)
+  String _researchUnlocks = '';
+  
+  // Research paused status
+  bool _researchPaused = false;
+
   GameProvider({required this.websocket, String? baseUrl})
       : _baseUrl = baseUrl ?? _getBaseUri();
 
@@ -125,6 +131,8 @@ class GameProvider extends ChangeNotifier {
   bool get canResearch => _canResearch;
   bool get canExpedition => _canExpedition;
   bool get canMining => _canMining;
+  String get researchUnlocks => _researchUnlocks;
+  bool get researchPaused => _researchPaused;
   String? get authToken => _player?.authToken;
 
   void _setError(String msg) {
@@ -275,6 +283,35 @@ class GameProvider extends ChangeNotifier {
       final maxConstr = stateData['max_constructions'];
       if (maxConstr != null) {
         _maxConstructions = maxConstr is int ? maxConstr : (maxConstr as num).toInt();
+      }
+
+      // Update research paused status
+      final resPaused = stateData['research_paused'];
+      if (resPaused != null) {
+        _researchPaused = resPaused is bool ? resPaused : (resPaused as num).toInt() != 0;
+      }
+
+      // Update research progress from state
+      final researchList = stateData['research'] as List<dynamic>?;
+      if (researchList != null && _researchState != null) {
+        final updatedResearch = List<ResearchTech>.from(_researchState!.research);
+        for (final r in researchList) {
+          final techId = r['tech_id'] as String;
+          final idx = updatedResearch.indexWhere((t) => t.techId == techId);
+          if (idx >= 0) {
+            updatedResearch[idx] = updatedResearch[idx].copyWith(
+              completed: r['completed'] as bool? ?? updatedResearch[idx].completed,
+              inProgress: r['in_progress'] as bool? ?? updatedResearch[idx].inProgress,
+              progress: (r['progress'] as num?)?.toDouble() ?? updatedResearch[idx].progress,
+              totalTime: (r['total_time'] as num?)?.toDouble() ?? updatedResearch[idx].totalTime,
+              progressPct: (r['progress_pct'] as num?)?.toDouble() ?? updatedResearch[idx].progressPct,
+            );
+          }
+        }
+        _researchState = ResearchState(
+          research: updatedResearch,
+          available: _researchState!.available,
+        );
       }
 
       notifyListeners();
@@ -482,6 +519,9 @@ class GameProvider extends ChangeNotifier {
     _canResearch = data['can_research'] as bool? ?? true;
     _canExpedition = data['can_expedition'] as bool? ?? false;
     _canMining = data['can_mining'] as bool? ?? true;
+
+    // Update research unlocks
+    _researchUnlocks = data['research_unlocks'] as String? ?? '';
 
     notifyListeners();
   }
@@ -696,8 +736,9 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        _researchState = ResearchState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _researchState = ResearchState.fromJson(data);
+        _researchPaused = data['research_paused'] as bool? ?? false;
         notifyListeners();
       }
     } catch (e) {

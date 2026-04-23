@@ -16,6 +16,19 @@ func (p *Planet) GetState() map[string]interface{} {
 		p.PopulateBuildingEntry(i)
 	}
 
+	// Build research state for WS updates
+	researchStates := make([]map[string]interface{}, 0)
+	for techID, state := range p.Research.States {
+		researchStates = append(researchStates, map[string]interface{}{
+			"tech_id":      techID,
+			"completed":    state.Completed,
+			"in_progress":  state.InProgress,
+			"progress":     state.TotalTime - state.Progress,
+			"total_time":   state.TotalTime,
+			"progress_pct": p.Research.GetResearchProgress(techID),
+		})
+	}
+
 	return map[string]interface{}{
 		"id":               p.ID,
 		"owner_id":         p.OwnerID,
@@ -40,6 +53,8 @@ func (p *Planet) GetState() map[string]interface{} {
 		"max_constructions":    p.GetMaxConcurrentBuildings(),
 		"pending_buildings":    p.GetPendingBuildings(),
 		"storage_capacity":   p.CalculateStorageCapacity(),
+		"research_paused":    !p.HasOperationalBase(),
+		"research":           researchStates,
 	}
 }
 

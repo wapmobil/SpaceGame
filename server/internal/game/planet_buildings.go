@@ -47,6 +47,11 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		}
 	}
 
+	// Check research requirements
+	if !IsBuildingUnlocked(bt, p.Research.GetCompleted(), p.Resources.ResearchUnlocks) {
+		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "research_not_unlocked", Extra: "Research required to build this structure."}
+	}
+
 	// Check max concurrent construction limit
 	p.RecalculateActiveConstruction()
 	if p.ActiveConstruction >= p.GetMaxConcurrentBuildings() {
@@ -236,7 +241,17 @@ func (p *Planet) GetTotalBuildingLevels() int {
 	return total
 }
 
-// BaseOperational returns true if the planet has food available.
+// HasOperationalBase returns true if the planet has a base building that exists and is enabled.
+func (p *Planet) HasOperationalBase() bool {
+	for _, b := range p.Buildings {
+		if b.Type == "base" && b.Enabled && b.Level > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// BaseOperational returns true if the planet has a base and food available.
 func (p *Planet) BaseOperational() bool {
-	return p.Resources.Food > 0
+	return p.HasOperationalBase() && p.Resources.Food > 0
 }

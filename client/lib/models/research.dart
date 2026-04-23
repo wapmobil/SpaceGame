@@ -60,6 +60,42 @@ class ResearchTech {
 
   bool get isUnlocked => dependsOn.isEmpty;
   bool get canResearch => !completed && !inProgress && isUnlocked;
+
+  ResearchTech copyWith({
+    String? techId,
+    String? name,
+    String? description,
+    double? costFood,
+    double? costMoney,
+    double? costAlienTech,
+    double? buildTime,
+    int? maxLevel,
+    List<String>? dependsOn,
+    int? level,
+    bool? completed,
+    bool? inProgress,
+    double? progress,
+    double? totalTime,
+    double? progressPct,
+  }) {
+    return ResearchTech(
+      techId: techId ?? this.techId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      costFood: costFood ?? this.costFood,
+      costMoney: costMoney ?? this.costMoney,
+      costAlienTech: costAlienTech ?? this.costAlienTech,
+      buildTime: buildTime ?? this.buildTime,
+      maxLevel: maxLevel ?? this.maxLevel,
+      dependsOn: dependsOn ?? this.dependsOn,
+      level: level ?? this.level,
+      completed: completed ?? this.completed,
+      inProgress: inProgress ?? this.inProgress,
+      progress: progress ?? this.progress,
+      totalTime: totalTime ?? this.totalTime,
+      progressPct: progressPct ?? this.progressPct,
+    );
+  }
 }
 
 class ResearchState {

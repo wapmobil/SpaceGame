@@ -97,4 +97,5 @@ type PlanetResources struct {
 	Money           float64 `json:"money"`
 	AlienTech       float64 `json:"alien_tech"`
 	StorageCapacity float64 `json:"storage_capacity"`
+	ResearchUnlocks string  `json:"research_unlocks"`
 }

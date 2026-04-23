@@ -27,6 +27,40 @@ var BuildingsOrder = []string{
 	"composite_drone", "mechanism_factory", "reagent_lab", "dynamo",
 }
 
+// BuildingResearchRequirements maps building types to their required research tech ID.
+// Empty string means no research required.
+var BuildingResearchRequirements = map[string]string{
+	"energy_storage": "energy_storage",
+	"shipyard":       "ships",
+	"comcenter":      "expeditions",
+}
+
+// RandomUnlockBuildings lists buildings that are randomly unlocked by planet_exploration.
+var RandomUnlockBuildings = []string{"composite_drone", "mechanism_factory", "reagent_lab"}
+
+// IsBuildingUnlocked checks if a building type is unlocked by research.
+// researchUnlocks is the building type unlocked by planet_exploration (for random unlocks).
+func IsBuildingUnlocked(buildingType string, completed map[string]int, researchUnlocks string) bool {
+	// Check fixed research requirements
+	if req, ok := BuildingResearchRequirements[buildingType]; ok {
+		if completed[req] <= 0 {
+			return false
+		}
+	}
+
+	// Check random unlocks (planet_exploration)
+	for _, bt := range RandomUnlockBuildings {
+		if buildingType == bt {
+			if completed["planet_exploration"] <= 0 {
+				return false
+			}
+			return researchUnlocks == bt
+		}
+	}
+
+	return true
+}
+
 // IsBuilding returns true if the building is under construction.
 func (b *BuildingEntry) IsBuilding() bool {
 	return b.BuildProgress > 0 && b.BuildTime > 0

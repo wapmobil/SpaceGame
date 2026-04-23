@@ -23,6 +23,30 @@ class ResearchScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (gameProvider.researchPaused) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Исследования приостановлены — Центр исследований отключён',
+                              style: const TextStyle(fontSize: 12, color: Colors.orange),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   _buildTreeSection(context, gameProvider),
                 ],
               ),
@@ -54,7 +78,7 @@ class ResearchScreen extends StatelessWidget {
           children: [
             const Text('Древо исследований', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
-            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, gameProvider.startResearch, null, 0, currentFood, currentMoney, currentAlien),
+            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, gameProvider.startResearch, null, 0, currentFood, currentMoney, currentAlien, gameProvider.researchPaused),
           ],
         ),
       ),
@@ -78,6 +102,7 @@ class ResearchScreen extends StatelessWidget {
     num currentFood,
     num currentMoney,
     num currentAlien,
+    bool researchPaused,
   ) {
     final children = <Widget>[];
 
@@ -138,12 +163,13 @@ class ResearchScreen extends StatelessWidget {
             progressPct: progressPct,
             totalTime: totalTime,
             progress: progress,
+            researchPaused: researchPaused,
           ),
         ),
       );
 
       // Recursively render children
-      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1, currentFood, currentMoney, currentAlien);
+      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1, currentFood, currentMoney, currentAlien, researchPaused);
       children.addAll(subChildren);
     }
 
@@ -169,6 +195,7 @@ class _TechNode extends StatelessWidget {
   final double progressPct;
   final double totalTime;
   final double progress;
+  final bool researchPaused;
 
   const _TechNode({
     required this.techId,
@@ -188,6 +215,7 @@ class _TechNode extends StatelessWidget {
     required this.progressPct,
     required this.totalTime,
     required this.progress,
+    required this.researchPaused,
   });
 
   String _formatCost() {
@@ -251,7 +279,7 @@ class _TechNode extends StatelessWidget {
                       value: progressPct / 100,
                       minHeight: 6,
                       borderRadius: BorderRadius.circular(3),
-                      color: AppTheme.warningColor,
+                      color: researchPaused ? Colors.orange : AppTheme.warningColor,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -262,8 +290,8 @@ class _TechNode extends StatelessWidget {
                 ],
               ),
               Text(
-                '⏱ ⏳ ${_formatRemainingTime(totalTime - progress)}',
-                style: const TextStyle(fontSize: 10, color: Colors.white70),
+                '${researchPaused ? '⏸' : '⏱'} ⏳ ${_formatRemainingTime(totalTime - progress)}',
+                style: TextStyle(fontSize: 10, color: researchPaused ? Colors.orange : Colors.white70),
               ),
             ],
             if (!isCompleted && !isInProgress) ...[

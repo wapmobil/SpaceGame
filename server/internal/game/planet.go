@@ -2,6 +2,7 @@ package game
 
 import (
 	"log"
+	"math/rand"
 	"time"
 
 	"spacegame/internal/game/expedition"
@@ -95,6 +96,28 @@ func (p *Planet) GetResearchJSON() ([]byte, error) {
 // GetResearchErrors returns the completed tech map.
 func (p *Planet) GetResearchCompleted() map[string]int {
 	return p.Research.GetCompleted()
+}
+
+// RecalculateBuildSpeed updates BuildSpeed based on fast_construction research level.
+func (p *Planet) RecalculateBuildSpeed() {
+	speed := 1.0
+	if lvl, ok := p.Research.GetCompleted()["fast_construction"]; ok && lvl > 0 {
+		speed += float64(lvl) * 0.2
+	}
+	p.BuildSpeed = speed
+}
+
+// applyResearchEffects applies effects for newly completed research.
+func (p *Planet) applyResearchEffects() {
+	for techID := range p.Research.GetLastCompleted() {
+		switch techID {
+		case "planet_exploration":
+			buildings := []string{"composite_drone", "mechanism_factory", "reagent_lab"}
+			idx := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(buildings))
+			p.Research.RandomUnlock = buildings[idx]
+			p.Resources.ResearchUnlocks = p.Research.RandomUnlock
+		}
+	}
 }
 
 // CanBuildShip checks if the planet can build a ship of the given type.

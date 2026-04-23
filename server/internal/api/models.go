@@ -314,6 +314,7 @@ type BuildDetailsResponse struct {
 	CanExpedition      bool                       `json:"can_expedition"`
 	CanMining          bool                       `json:"can_mining"`
 	BuildingCosts      map[string]CostDetail      `json:"building_costs"`
+	ResearchUnlocks    string                     `json:"research_unlocks"`
 }
 
 // EnergyBalanceDetail represents energy production and consumption.

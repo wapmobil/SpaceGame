@@ -10,19 +10,22 @@ import (
 
 // ResearchSystem manages research state for a planet.
 type ResearchSystem struct {
-	PlanetID  string
-	States    map[string]*ResearchState // techID -> ResearchState
-	Completed map[string]int            // techID -> highest level reached
-	db        *db.Database
+	PlanetID       string
+	States         map[string]*ResearchState // techID -> ResearchState
+	Completed      map[string]int            // techID -> highest level reached
+	RandomUnlock   string                    // building unlocked by planet_exploration
+	lastCompleted  map[string]bool           // techs completed in the last tick
+	db             *db.Database
 }
 
 // NewResearchSystem creates a new ResearchSystem for a planet.
 func NewResearchSystem(planetID string, d *db.Database) *ResearchSystem {
 	return &ResearchSystem{
-		PlanetID:  planetID,
-		States:    make(map[string]*ResearchState),
-		Completed: make(map[string]int),
-		db:        d,
+		PlanetID:      planetID,
+		States:        make(map[string]*ResearchState),
+		Completed:     make(map[string]int),
+		lastCompleted: make(map[string]bool),
+		db:            d,
 	}
 }
 
@@ -170,6 +173,7 @@ func (rs *ResearchSystem) StartResearch(tech *Tech, food, money, alienTech *floa
 
 // Tick advances all in-progress research by 1 second.
 func (rs *ResearchSystem) Tick() {
+	rs.lastCompleted = make(map[string]bool)
 	for techID, state := range rs.States {
 		if !state.InProgress || state.Completed {
 			continue
@@ -181,6 +185,7 @@ func (rs *ResearchSystem) Tick() {
 			state.InProgress = false
 			state.Completed = true
 			rs.Completed[techID] = state.Level
+			rs.lastCompleted[techID] = true
 		}
 	}
 }
@@ -214,6 +219,11 @@ func (rs *ResearchSystem) GetAllStates() map[string]*ResearchState {
 // GetCompleted returns the completed tech map.
 func (rs *ResearchSystem) GetCompleted() map[string]int {
 	return rs.Completed
+}
+
+// GetLastCompleted returns techs that completed in the last tick.
+func (rs *ResearchSystem) GetLastCompleted() map[string]bool {
+	return rs.lastCompleted
 }
 
 // GetAvailableTechs returns techs that can be researched.

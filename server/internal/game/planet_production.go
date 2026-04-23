@@ -37,3 +37,15 @@ func (p *Planet) autoDisableDynamo() {
 		}
 	}
 }
+
+// autoDisableBase disables the base building when food is depleted.
+func (p *Planet) autoDisableBase() {
+	if p.Resources.Food <= 0 {
+		for i := range p.Buildings {
+			b := &p.Buildings[i]
+			if b.Type == "base" && b.IsWorking() {
+				b.Enabled = false
+			}
+		}
+	}
+}

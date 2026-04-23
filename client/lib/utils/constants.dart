@@ -40,7 +40,7 @@ class Constants {
   };
 
   static const buildingTypes = {
-    'base': {'name': 'База', 'icon': '🏠', 'description': 'Штаб-квартира'},
+    'base': {'name': 'Центр исследований', 'icon': '🏠', 'description': 'Штаб-квартира'},
     'farm': {'name': 'Ферма', 'icon': '🌾', 'description': 'Производит еду'},
     'composite_drone': {'name': 'Дрон-композит', 'icon': '🤖', 'description': 'Производит композит'},
     'mechanism_factory': {'name': 'Механическая фабрика', 'icon': '🏭', 'description': 'Производит механизмы'},
@@ -51,7 +51,33 @@ class Constants {
     'factory': {'name': 'Фабрика', 'icon': '🏗️', 'description': 'Расширенное производство'},
     'shipyard': {'name': 'Верфь', 'icon': '🚀', 'description': 'Строит корабли'},
     'comcenter': {'name': 'Центр связи', 'icon': '📡', 'description': 'Связь'},
-    'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребляет еду'},
+    'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребждает еду'},
+  };
+
+  static const researchRequirements = {
+    'energy_storage': 'energy_storage',
+    'shipyard': 'ships',
+    'comcenter': 'expeditions',
+  };
+
+  static const researchRandomUnlockBuildings = [
+    'composite_drone',
+    'mechanism_factory',
+    'reagent_lab',
+  ];
+
+  static const researchNames = {
+    'planet_exploration': 'Исследование планет',
+    'energy_storage': 'Аккумулятор',
+    'ships': 'Корабли',
+    'expeditions': 'Экспедиции',
+    'fast_construction': 'Быстрое строительство',
+  };
+
+  static const buildingNames = {
+    'composite_drone': 'Дрон-композит',
+    'mechanism_factory': 'Механическая фабрика',
+    'reagent_lab': 'Лаборатория реагентов',
   };
 
   static const shipIcons = {

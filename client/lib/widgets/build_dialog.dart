@@ -60,10 +60,40 @@ class BuildDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
               ],
+              if (gameProvider.researchUnlocks.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Исследование планет: доступен ${Constants.buildingNames[gameProvider.researchUnlocks] ?? gameProvider.researchUnlocks}',
+                    style: const TextStyle(fontSize: 11, color: Colors.green),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
               const SizedBox(height: 8),
               ...allBuildings.where((key) {
                 if (key != 'farm' && !hasFarm) return false;
                 if (key != 'farm' && key != 'solar' && !hasSolar) return false;
+                final req = Constants.researchRequirements[key];
+                if (req != null) {
+                  final isUnlocked = gameProvider.researchState?.research
+                          .any((r) => r.techId == req && r.completed) ??
+                      false;
+                  if (!isUnlocked) return false;
+                }
+                if (Constants.researchRandomUnlockBuildings.contains(key)) {
+                  if (gameProvider.researchUnlocks.isEmpty ||
+                      gameProvider.researchUnlocks != key) {
+                    return false;
+                  }
+                }
                 return true;
               }).toList().map((key) => _buildItem(context, key, allBuildingsList)),
             ],

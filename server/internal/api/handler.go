@@ -731,7 +731,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			existingTypes[b.Type] = true
 		}
 		for _, bt := range game.BuildingsOrder {
-			if !existingTypes[bt] {
+			if !existingTypes[bt] && game.IsBuildingUnlocked(bt, p.Research.GetCompleted(), p.Resources.ResearchUnlocks) {
 				cost := p.GetBuildingCost(bt, 0)
 				buildingCosts[bt] = CostDetail{
 					Food:  cost.Food,
@@ -771,6 +771,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			CanExpedition:      details.CanExpedition,
 			CanMining:          details.CanMining,
 			BuildingCosts:      buildingCosts,
+			ResearchUnlocks:    p.Resources.ResearchUnlocks,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -839,10 +840,11 @@ func handleGetResearch(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"research":  json.RawMessage(jsonBytes),
-			"available": json.RawMessage(availableBytes),
-		})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"research":       json.RawMessage(jsonBytes),
+		"available":      json.RawMessage(availableBytes),
+		"research_paused": !p.HasOperationalBase(),
+	})
 	}
 }
 

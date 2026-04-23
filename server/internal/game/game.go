@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -151,6 +152,13 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 
 	for i := range planet.Buildings {
 		planet.PopulateBuildingEntry(i)
+	}
+
+	// If planet_exploration is completed but no random unlock, generate one
+	if planet.Research.Completed["planet_exploration"] > 0 && planet.Research.RandomUnlock == "" {
+		buildings := []string{"composite_drone", "mechanism_factory", "reagent_lab"}
+		planet.Research.RandomUnlock = buildings[rand.Intn(len(buildings))]
+		planet.Resources.ResearchUnlocks = planet.Research.RandomUnlock
 	}
 
 	g.AddPlanet(planet)
@@ -326,6 +334,7 @@ type dbPlanetResources struct {
 	Money           float64 `json:"money"`
 	AlienTech       float64 `json:"alien_tech"`
 	StorageCapacity float64 `json:"storage_capacity"`
+	ResearchUnlocks string  `json:"research_unlocks"`
 }
 
 // savePlanet saves planet state to the database.
@@ -342,6 +351,7 @@ func (g *Game) savePlanet(p *Planet) {
 		Money:           p.Resources.Money,
 		AlienTech:       p.Resources.AlienTech,
 		StorageCapacity: p.Resources.StorageCapacity,
+		ResearchUnlocks: p.Resources.ResearchUnlocks,
 	}
 	resourcesJSON, err := json.Marshal(dbResources)
 	if err != nil {

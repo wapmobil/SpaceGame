@@ -10,6 +10,9 @@ import (
 func (p *Planet) Tick() {
 	p.LastTick = time.Now()
 
+	// 0. Recalculate build speed from research
+	p.RecalculateBuildSpeed()
+
 	// 1. Step building construction progress
 	for i := range p.Buildings {
 		p.stepBuildingEntry(i)
@@ -30,9 +33,14 @@ func (p *Planet) Tick() {
 	p.tickResources()
 	// 3.5 Auto-disable dynamo when food is depleted
 	p.autoDisableDynamo()
+	// 3.6 Auto-disable base when food is depleted
+	p.autoDisableBase()
 
-	// 4. Advance research progress
-	p.Research.Tick()
+	// 4. Advance research progress (pause if base is not operational)
+	if p.HasOperationalBase() {
+		p.Research.Tick()
+		p.applyResearchEffects()
+	}
 
 	// 5. Advance ship construction
 	if completed := p.Shipyard.Tick(); completed != nil {
