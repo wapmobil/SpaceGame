@@ -155,10 +155,9 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 	}
 
 	// If planet_exploration is completed but no random unlock, generate one
-	if planet.Research.Completed["planet_exploration"] > 0 && planet.Research.RandomUnlock == "" {
+	if planet.Research.Completed["planet_exploration"] > 0 && planet.Resources.ResearchUnlocks == "" {
 		buildings := []string{"composite_drone", "mechanism_factory", "reagent_lab"}
-		planet.Research.RandomUnlock = buildings[rand.Intn(len(buildings))]
-		planet.Resources.ResearchUnlocks = planet.Research.RandomUnlock
+		planet.Resources.ResearchUnlocks = buildings[rand.Intn(len(buildings))]
 	}
 
 	g.AddPlanet(planet)

@@ -1,7 +1,5 @@
 package research
 
-import "log"
-
 // TreeID identifies which research tree a technology belongs to.
 type TreeID int
 
@@ -9,9 +7,6 @@ const (
 	TreeStandard TreeID = 1
 	TreeAlien    TreeID = 2
 )
-
-// EffectFunc is called when a technology is researched.
-type EffectFunc func(planetID string, level int)
 
 // Tech defines a single technology node in a research tree.
 type Tech struct {
@@ -25,7 +20,6 @@ type Tech struct {
 	Tree        TreeID
 	MaxLevel    int
 	DependsOn   []string // tech IDs that must be completed first
-	Effect      EffectFunc
 }
 
 // AllTechs returns every defined technology node.
@@ -42,7 +36,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   nil,
-			Effect:      applyPlanetExploration,
 		},
 		{
 			ID:          "energy_storage",
@@ -54,7 +47,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    5,
 			DependsOn:   []string{"planet_exploration"},
-			Effect:      applyEnergyStorage,
 		},
 		{
 			ID:          "energy_saving",
@@ -66,7 +58,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    4,
 			DependsOn:   []string{"energy_storage"},
-			Effect:      applyEnergySaving,
 		},
 		{
 			ID:          "trade",
@@ -78,7 +69,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    2,
 			DependsOn:   []string{"planet_exploration"},
-			Effect:      applyTrade,
 		},
 		{
 			ID:          "ships",
@@ -90,7 +80,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"planet_exploration"},
-			Effect:      applyShips,
 		},
 		{
 			ID:          "upgraded_energy_storage",
@@ -102,7 +91,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    3,
 			DependsOn:   []string{"energy_saving"},
-			Effect:      applyUpgradedEnergyStorage,
 		},
 		{
 			ID:          "fast_construction",
@@ -114,7 +102,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    3,
 			DependsOn:   []string{"ships"},
-			Effect:      applyFastConstruction,
 		},
 		{
 			ID:          "compact_storage",
@@ -126,7 +113,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    3,
 			DependsOn:   []string{"fast_construction"},
-			Effect:      applyCompactStorage,
 		},
 		{
 			ID:          "parallel_construction",
@@ -138,7 +124,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    3,
 			DependsOn:   []string{"fast_construction", "compact_storage"},
-			Effect:      applyParallelConstruction,
 		},
 		{
 			ID:          "expeditions",
@@ -150,7 +135,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"trade"},
-			Effect:      applyExpeditions,
 		},
 		{
 			ID:          "command_center",
@@ -162,7 +146,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"expeditions"},
-			Effect:      applyCommandCenter,
 		},
 		{
 			ID:          "trade_connections",
@@ -174,7 +157,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"trade"},
-			Effect:      applyTradeConnections,
 		},
 		{
 			ID:          "fast_construction_2",
@@ -186,7 +168,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"fast_construction"},
-			Effect:      applyFastConstruction2,
 		},
 		{
 			ID:          "compact_storage_2",
@@ -198,7 +179,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"compact_storage", "fast_construction_2"},
-			Effect:      applyCompactStorage2,
 		},
 		{
 			ID:          "fast_construction_3",
@@ -210,7 +190,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"fast_construction_2"},
-			Effect:      applyFastConstruction3,
 		},
 		{
 			ID:          "compact_storage_3",
@@ -222,7 +201,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"compact_storage_2", "fast_construction_3"},
-			Effect:      applyCompactStorage3,
 		},
 		{
 			ID:          "upgraded_energy_storage_2",
@@ -234,7 +212,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"upgraded_energy_storage"},
-			Effect:      applyUpgradedEnergyStorage2,
 		},
 		// Tree 2 - Alien Technology
 		{
@@ -246,7 +223,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeAlien,
 			MaxLevel:    1,
 			DependsOn:   []string{"command_center"},
-			Effect:      applyAlienTechnologies,
 		},
 		{
 			ID:          "additional_expedition",
@@ -257,7 +233,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeAlien,
 			MaxLevel:    1,
 			DependsOn:   []string{"alien_technologies"},
-			Effect:      applyAdditionalExpedition,
 		},
 		{
 			ID:          "super_energy_storage",
@@ -268,7 +243,6 @@ func AllTechs() []*Tech {
 			Tree:        TreeAlien,
 			MaxLevel:    5,
 			DependsOn:   []string{"alien_technologies"},
-			Effect:      applySuperEnergyStorage,
 		},
 	}
 }
@@ -315,76 +289,3 @@ func (t *Tech) DeductCost(food, money, alienTech *float64) {
 	*alienTech -= t.CostAlien
 }
 
-// Effect names for each tech.
-func (t *Tech) EffectName() string {
-	switch t.ID {
-	case "planet_exploration":
-		return "enable_factory"
-	case "energy_storage":
-		return "enable_accum"
-	case "energy_saving":
-		return "eco_power"
-	case "trade":
-		return "enable_trading"
-	case "ships":
-		return "enable_ships"
-	case "upgraded_energy_storage":
-		return "upgrade_accum"
-	case "fast_construction":
-		return "fastbuild"
-	case "parallel_construction":
-		return "parallel_construction"
-	case "compact_storage":
-		return "upgrade_capacity"
-	case "expeditions":
-		return "enable_expeditions"
-	case "command_center":
-		return "enable_commandcenter"
-	case "alien_technologies":
-		return "upgrage_inotech"
-	case "additional_expedition":
-		return "upgrage_max_expeditions"
-	case "super_energy_storage":
-		return "upgrade_super_accum"
-	case "trade_connections":
-		return "trade_connections"
-	case "fast_construction_2":
-		return "fast_construction_2"
-	case "compact_storage_2":
-		return "compact_storage_2"
-	case "fast_construction_3":
-		return "fast_construction_3"
-	case "compact_storage_3":
-		return "compact_storage_3"
-	case "upgraded_energy_storage_2":
-		return "upgraded_energy_storage_2"
-	default:
-		return ""
-	}
-}
-
-// Effect functions that modify planet behavior when research completes.
-
-func applyTradeConnections(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Trade Connections (level %d)", planetID, level)
-}
-
-func applyFastConstruction2(planetID string, level int) {
-	log.Printf("[Research] Planet %s Fast Construction 2 (level %d)", planetID, level)
-}
-
-func applyCompactStorage2(planetID string, level int) {
-	log.Printf("[Research] Planet %s Compact Storage 2 (level %d)", planetID, level)
-}
-
-func applyFastConstruction3(planetID string, level int) {
-	log.Printf("[Research] Planet %s Fast Construction 3 (level %d)", planetID, level)
-}
-
-func applyCompactStorage3(planetID string, level int) {
-	log.Printf("[Research] Planet %s Compact Storage 3 (level %d)", planetID, level)
-}
-
-func applyUpgradedEnergyStorage2(planetID string, level int) {
-	log.Printf("[Research] Planet %s Upgraded Energy Storage 2 (level %d)", planetID, level)
-}

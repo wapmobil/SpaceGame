@@ -114,8 +114,7 @@ func (p *Planet) applyResearchEffects() {
 		case "planet_exploration":
 			buildings := []string{"composite_drone", "mechanism_factory", "reagent_lab"}
 			idx := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(buildings))
-			p.Research.RandomUnlock = buildings[idx]
-			p.Resources.ResearchUnlocks = p.Research.RandomUnlock
+			p.Resources.ResearchUnlocks = buildings[idx]
 		}
 	}
 }

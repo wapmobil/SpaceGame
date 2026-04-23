@@ -10,12 +10,11 @@ import (
 
 // ResearchSystem manages research state for a planet.
 type ResearchSystem struct {
-	PlanetID       string
-	States         map[string]*ResearchState // techID -> ResearchState
-	Completed      map[string]int            // techID -> highest level reached
-	RandomUnlock   string                    // building unlocked by planet_exploration
-	lastCompleted  map[string]bool           // techs completed in the last tick
-	db             *db.Database
+	PlanetID      string
+	States        map[string]*ResearchState // techID -> ResearchState
+	Completed     map[string]int            // techID -> highest level reached
+	lastCompleted map[string]bool           // techs completed in the last tick
+	db            *db.Database
 }
 
 // NewResearchSystem creates a new ResearchSystem for a planet.
@@ -371,60 +370,4 @@ func (e *ResearchError) Error() string {
 	return "research error: " + e.reason + " (tech: " + e.techID + ")"
 }
 
-// Effect functions that modify planet behavior when research completes.
 
-func applyPlanetExploration(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Factory building (level %d)", planetID, level)
-}
-
-func applyEnergyStorage(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Energy Storage building (level %d)", planetID, level)
-}
-
-func applyEnergySaving(planetID string, level int) {
-	log.Printf("[Research] Planet %s Energy Saving level %d: -10%% energy consumption", planetID, level)
-}
-
-func applyTrade(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Marketplace (level %d)", planetID, level)
-}
-
-func applyShips(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Shipyard (level %d)", planetID, level)
-}
-
-func applyUpgradedEnergyStorage(planetID string, level int) {
-	log.Printf("[Research] Planet %s Upgraded Energy Storage level %d: +20%% capacity", planetID, level)
-}
-
-func applyFastConstruction(planetID string, level int) {
-	log.Printf("[Research] Planet %s Fast Construction level %d: building speed bonus", planetID, level)
-}
-
-func applyParallelConstruction(planetID string, level int) {
-	log.Printf("[Research] Planet %s Parallel Construction level %d: +%d simultaneous construction", planetID, level, level)
-}
-
-func applyCompactStorage(planetID string, level int) {
-	log.Printf("[Research] Planet %s Compact Storage level %d: 2x storage capacity", planetID, level)
-}
-
-func applyExpeditions(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Expedition system (level %d)", planetID, level)
-}
-
-func applyCommandCenter(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Command Center - Alien Technology tree available (level %d)", planetID, level)
-}
-
-func applyAlienTechnologies(planetID string, level int) {
-	log.Printf("[Research] Planet %s unlocked Alien Technologies tree (level %d)", planetID, level)
-}
-
-func applyAdditionalExpedition(planetID string, level int) {
-	log.Printf("[Research] Planet %s Additional Expedition level %d: +1 concurrent expedition", planetID, level)
-}
-
-func applySuperEnergyStorage(planetID string, level int) {
-	log.Printf("[Research] Planet %s Super Energy Storage level %d: +20%% capacity", planetID, level)
-}

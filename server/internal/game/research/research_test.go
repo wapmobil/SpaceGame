@@ -112,9 +112,6 @@ func TestCompletedResearchAppliesEffects(t *testing.T) {
 	if rs.Completed["planet_exploration"] != 1 {
 		t.Errorf("expected completed level 1, got %d", rs.Completed["planet_exploration"])
 	}
-
-	// Effect should have been logged (no panic = success)
-	tech.Effect("test-planet", 1)
 }
 
 func TestCannotStartWithoutResources(t *testing.T) {
