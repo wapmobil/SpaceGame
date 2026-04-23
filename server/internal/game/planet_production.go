@@ -24,9 +24,10 @@ func (p *Planet) GetProductionResult() ProductionResult {
 	return p.calculateResourceProduction()
 }
 
-// autoDisableDynamo disables dynamo buildings when food is depleted.
+// autoDisableDynamo disables dynamo buildings when food deficit is unsustainable.
 func (p *Planet) autoDisableDynamo() {
-	if p.Resources.Food > 0 {
+	prod := p.calculateResourceProduction()
+	if prod.Food >= 0 || p.Resources.Food > -prod.Food {
 		return
 	}
 	for i := range p.Buildings {
