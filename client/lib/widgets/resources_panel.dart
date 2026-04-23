@@ -72,7 +72,7 @@ class ResourcesPanel extends StatelessWidget {
                       Text(icon, style: const TextStyle(fontSize: 14)),
                       const SizedBox(width: 4),
                       Text(
-                        value.toStringAsFixed(value == value.toInt() ? 0 : 1),
+                        value.toInt().toString(),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -134,7 +134,7 @@ class ResourcesPanel extends StatelessWidget {
                     }
                     final cap = gameProvider.storageCapacity;
                     String capStr = '';
-                    if (key != 'energy' && cap > 0) {
+                    if (key != 'energy' && key != 'money' && cap > 0) {
                       capStr = ' / ${cap.toStringAsFixed(0)}';
                     }
                     return Chip(
