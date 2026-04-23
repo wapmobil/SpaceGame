@@ -419,7 +419,7 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 			"farm": true, "solar": true, "storage": true, "base": true,
 			"factory": true, "energy_storage": true, "shipyard": true,
 			"comcenter": true, "composite_drone": true, "mechanism_factory": true,
-			"reagent_lab": true,
+			"reagent_lab": true, "dynamo": true,
 		}
 		if !validBuildings[req.Type] {
 			http.Error(w, "Unknown building type", http.StatusBadRequest)

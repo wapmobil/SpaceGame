@@ -26,5 +26,5 @@ type CostInfo struct {
 var BuildingsOrder = []string{
 	"base", "farm", "solar", "storage", "factory",
 	"energy_storage", "shipyard", "comcenter",
-	"composite_drone", "mechanism_factory", "reagent_lab",
+	"composite_drone", "mechanism_factory", "reagent_lab", "dynamo",
 }

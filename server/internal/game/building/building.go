@@ -33,6 +33,8 @@ func BuildTime(bt string, level int) float64 {
 		return float64(level*level+1) * 5
 	case "reagent_lab":
 		return float64(level*level+1) * 5
+	case "dynamo":
+		return float64(level*level+1) * 5 + 10
 	default:
 		return 10
 	}
@@ -84,6 +86,11 @@ func Cost(bt string, level int) CostMulti {
 			Food:  float64(level*level+1) * 60,
 			Money: float64(level*level+1) * 40,
 		}
+	case "dynamo":
+		return CostMulti{
+			Food:  float64(level*level*30 + 10),
+			Money: float64(level*level*10),
+		}
 	default:
 		return CostMulti{}
 	}
@@ -115,6 +122,8 @@ func EnergyConsumption(bt string, level int) float64 {
 		return float64(level) * 10
 	case "reagent_lab":
 		return float64(level) * 10
+	case "dynamo":
+		return float64(level) * -12
 	default:
 		return 0
 	}
@@ -141,6 +150,8 @@ func Production(bt string, level int) ProductionResult {
 		prod.Mechanisms = float64(level) * 0.5
 	case "reagent_lab":
 		prod.Reagents = float64(level) * 0.5
+	case "dynamo":
+		prod.Food = -float64(level)
 	}
 	return prod
 }

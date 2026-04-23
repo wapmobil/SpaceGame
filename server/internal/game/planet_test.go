@@ -165,14 +165,14 @@ func TestEnergyBalanceUsesCachedValue(t *testing.T) {
 func TestEnergyBufferMaxUpdates(t *testing.T) {
 	planet := NewPlanet("test-energy-2", "owner-1", "Test Planet", nil)
 
-	if planet.EnergyBuffer.Max != 100 {
-		t.Errorf("expected initial max energy of 100, got %f", planet.EnergyBuffer.Max)
+	if planet.EnergyBuffer.Max != 20 {
+		t.Errorf("expected initial max energy of 20, got %f", planet.EnergyBuffer.Max)
 	}
 
 	planet.AddBuildingDirect("energy_storage", 3)
 	planet.EnergyBuffer.UpdateMax(3)
 
-	expectedMax := 100.0 + 3.0*100.0
+	expectedMax := 20.0 + 3.0*100.0
 	if planet.EnergyBuffer.Max != expectedMax {
 		t.Errorf("expected max energy of %f with 3 energy_storage, got %f", expectedMax, planet.EnergyBuffer.Max)
 	}
@@ -183,8 +183,8 @@ func TestEnergyBufferMaxClampsValue(t *testing.T) {
 	planet.EnergyBuffer.Value = 150
 	planet.EnergyBuffer.UpdateMax(0)
 
-	if planet.EnergyBuffer.Value != 100 {
-		t.Errorf("expected energy buffer value clamped to 100, got %f", planet.EnergyBuffer.Value)
+	if planet.EnergyBuffer.Value != 20 {
+		t.Errorf("expected energy buffer value clamped to 20, got %f", planet.EnergyBuffer.Value)
 	}
 }
 
@@ -478,8 +478,8 @@ func TestTickProducesResources(t *testing.T) {
 	planet.AddBuildingDirect("solar", 1) // produces 15 energy
 	planet.AddBuildingDirect("farm", 1)  // consumes 10 energy, produces 1 food
 
-	if planet.EnergyBuffer.Max != 100 {
-		t.Errorf("expected initial energy buffer max of 100, got %f", planet.EnergyBuffer.Max)
+	if planet.EnergyBuffer.Max != 20 {
+		t.Errorf("expected initial energy buffer max of 20, got %f", planet.EnergyBuffer.Max)
 	}
 
 	planet.tickEnergy()

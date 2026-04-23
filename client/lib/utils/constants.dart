@@ -51,6 +51,7 @@ class Constants {
     'factory': {'name': 'Фабрика', 'icon': '🏗️', 'description': 'Расширенное производство'},
     'shipyard': {'name': 'Верфь', 'icon': '🚀', 'description': 'Строит корабли'},
     'comcenter': {'name': 'Центр связи', 'icon': '📡', 'description': 'Связь'},
+    'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребляет еду'},
   };
 
   static const shipIcons = {
