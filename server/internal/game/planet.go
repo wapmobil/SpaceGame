@@ -79,7 +79,7 @@ func (p *Planet) StartResearch(techID string) error {
 	if tech == nil {
 		return &PlanetError{PlanetID: p.ID, Reason: "tech_not_found"}
 	}
-	return p.Research.StartResearch(tech, p.Resources.Food, p.Resources.Money, p.Resources.AlienTech)
+	return p.Research.StartResearch(tech, &p.Resources.Food, &p.Resources.Money, &p.Resources.AlienTech)
 }
 
 // GetAvailableResearch returns technologies that can be researched on this planet.

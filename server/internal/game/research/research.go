@@ -129,7 +129,7 @@ func (rs *ResearchSystem) SaveToDB() error {
 }
 
 // StartResearch begins researching a technology. Returns error if prerequisites not met or resources insufficient.
-func (rs *ResearchSystem) StartResearch(tech *Tech, food, money, alienTech float64) error {
+func (rs *ResearchSystem) StartResearch(tech *Tech, food, money, alienTech *float64) error {
 	// Check max level
 	if rs.Completed[tech.ID] >= tech.MaxLevel {
 		return &ResearchError{techID: tech.ID, reason: "max_level"}
@@ -149,12 +149,12 @@ func (rs *ResearchSystem) StartResearch(tech *Tech, food, money, alienTech float
 	}
 
 	// Check resources
-	if !tech.CanStart(food, money, alienTech) {
+	if !tech.CanStart(*food, *money, *alienTech) {
 		return &ResearchError{techID: tech.ID, reason: "insufficient_resources"}
 	}
 
 	// Deduct resources and start research
-	tech.DeductCost(&food, &money, &alienTech)
+	tech.DeductCost(food, money, alienTech)
 
 	rs.States[tech.ID] = &ResearchState{
 		TechID:     tech.ID,
@@ -245,6 +245,7 @@ func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 	type ResearchEntry struct {
 		TechID      string  `json:"tech_id"`
 		Name        string  `json:"name"`
+		Description string  `json:"description"`
 		Level       int     `json:"level"`
 		Completed   bool    `json:"completed"`
 		InProgress  bool    `json:"in_progress"`
@@ -260,6 +261,7 @@ func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 		entry := ResearchEntry{
 			TechID:    tech.ID,
 			Name:      tech.Name,
+			Description: tech.Description,
 			Level:     rs.Completed[tech.ID],
 			Completed: false,
 			InProgress: false,
@@ -285,6 +287,7 @@ func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 		entry := ResearchEntry{
 			TechID:    tech.ID,
 			Name:      tech.Name,
+			Description: tech.Description,
 			Level:     rs.Completed[tech.ID],
 			Completed: false,
 			InProgress: false,

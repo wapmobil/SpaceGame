@@ -1,5 +1,7 @@
 package research
 
+import "log"
+
 // TreeID identifies which research tree a technology belongs to.
 type TreeID int
 
@@ -50,7 +52,7 @@ func AllTechs() []*Tech {
 			CostMoney:   150,
 			BuildTime:   90,
 			Tree:        TreeStandard,
-			MaxLevel:    1,
+			MaxLevel:    5,
 			DependsOn:   []string{"planet_exploration"},
 			Effect:      applyEnergyStorage,
 		},
@@ -74,7 +76,7 @@ func AllTechs() []*Tech {
 			CostMoney:   300,
 			BuildTime:   120,
 			Tree:        TreeStandard,
-			MaxLevel:    1,
+			MaxLevel:    2,
 			DependsOn:   []string{"planet_exploration"},
 			Effect:      applyTrade,
 		},
@@ -115,18 +117,6 @@ func AllTechs() []*Tech {
 			Effect:      applyFastConstruction,
 		},
 		{
-			ID:          "parallel_construction",
-			Name:        "Parallel Construction",
-			Description: "+1 simultaneous construction project per level (up to 3 levels)",
-			CostFood:    2000,
-			CostMoney:   1500,
-			BuildTime:   300,
-			Tree:        TreeStandard,
-			MaxLevel:    3,
-			DependsOn:   []string{"fast_construction"},
-			Effect:      applyParallelConstruction,
-		},
-		{
 			ID:          "compact_storage",
 			Name:        "Compact Storage",
 			Description: "2x storage capacity per level (up to 3 levels)",
@@ -135,8 +125,20 @@ func AllTechs() []*Tech {
 			BuildTime:   240,
 			Tree:        TreeStandard,
 			MaxLevel:    3,
-			DependsOn:   []string{"ships"},
+			DependsOn:   []string{"fast_construction"},
 			Effect:      applyCompactStorage,
+		},
+		{
+			ID:          "parallel_construction",
+			Name:        "Parallel Construction",
+			Description: "+1 simultaneous construction project per level (up to 3 levels)",
+			CostFood:    2000,
+			CostMoney:   1500,
+			BuildTime:   300,
+			Tree:        TreeStandard,
+			MaxLevel:    3,
+			DependsOn:   []string{"fast_construction", "compact_storage"},
+			Effect:      applyParallelConstruction,
 		},
 		{
 			ID:          "expeditions",
@@ -161,6 +163,78 @@ func AllTechs() []*Tech {
 			MaxLevel:    1,
 			DependsOn:   []string{"expeditions"},
 			Effect:      applyCommandCenter,
+		},
+		{
+			ID:          "trade_connections",
+			Name:        "Trade Connections",
+			Description: "Unlocks advanced trading options",
+			CostFood:    600,
+			CostMoney:   450,
+			BuildTime:   150,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"trade"},
+			Effect:      applyTradeConnections,
+		},
+		{
+			ID:          "fast_construction_2",
+			Name:        "Fast Construction 2",
+			Description: "Further building speed bonus",
+			CostFood:    1200,
+			CostMoney:   900,
+			BuildTime:   250,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"fast_construction"},
+			Effect:      applyFastConstruction2,
+		},
+		{
+			ID:          "compact_storage_2",
+			Name:        "Compact Storage 2",
+			Description: "4x storage capacity",
+			CostFood:    1500,
+			CostMoney:   1200,
+			BuildTime:   300,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"compact_storage", "fast_construction_2"},
+			Effect:      applyCompactStorage2,
+		},
+		{
+			ID:          "fast_construction_3",
+			Name:        "Fast Construction 3",
+			Description: "Maximum building speed bonus",
+			CostFood:    2000,
+			CostMoney:   1500,
+			BuildTime:   350,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"fast_construction_2"},
+			Effect:      applyFastConstruction3,
+		},
+		{
+			ID:          "compact_storage_3",
+			Name:        "Compact Storage 3",
+			Description: "8x storage capacity",
+			CostFood:    2500,
+			CostMoney:   2000,
+			BuildTime:   400,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"compact_storage_2", "fast_construction_3"},
+			Effect:      applyCompactStorage3,
+		},
+		{
+			ID:          "upgraded_energy_storage_2",
+			Name:        "Upgraded Energy Storage 2",
+			Description: "Maximum energy capacity boost",
+			CostFood:    800,
+			CostMoney:   700,
+			BuildTime:   200,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"upgraded_energy_storage"},
+			Effect:      applyUpgradedEnergyStorage2,
 		},
 		// Tree 2 - Alien Technology
 		{
@@ -272,7 +346,45 @@ func (t *Tech) EffectName() string {
 		return "upgrage_max_expeditions"
 	case "super_energy_storage":
 		return "upgrade_super_accum"
+	case "trade_connections":
+		return "trade_connections"
+	case "fast_construction_2":
+		return "fast_construction_2"
+	case "compact_storage_2":
+		return "compact_storage_2"
+	case "fast_construction_3":
+		return "fast_construction_3"
+	case "compact_storage_3":
+		return "compact_storage_3"
+	case "upgraded_energy_storage_2":
+		return "upgraded_energy_storage_2"
 	default:
 		return ""
 	}
+}
+
+// Effect functions that modify planet behavior when research completes.
+
+func applyTradeConnections(planetID string, level int) {
+	log.Printf("[Research] Planet %s unlocked Trade Connections (level %d)", planetID, level)
+}
+
+func applyFastConstruction2(planetID string, level int) {
+	log.Printf("[Research] Planet %s Fast Construction 2 (level %d)", planetID, level)
+}
+
+func applyCompactStorage2(planetID string, level int) {
+	log.Printf("[Research] Planet %s Compact Storage 2 (level %d)", planetID, level)
+}
+
+func applyFastConstruction3(planetID string, level int) {
+	log.Printf("[Research] Planet %s Fast Construction 3 (level %d)", planetID, level)
+}
+
+func applyCompactStorage3(planetID string, level int) {
+	log.Printf("[Research] Planet %s Compact Storage 3 (level %d)", planetID, level)
+}
+
+func applyUpgradedEnergyStorage2(planetID string, level int) {
+	log.Printf("[Research] Planet %s Upgraded Energy Storage 2 (level %d)", planetID, level)
 }

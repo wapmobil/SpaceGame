@@ -36,7 +36,10 @@ func TestResearchProgressAdvances(t *testing.T) {
 	}
 
 	// Start research with sufficient resources
-	err := rs.StartResearch(tech, 100, 100, 0)
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start research: %v", err)
 	}
@@ -86,7 +89,10 @@ func TestCompletedResearchAppliesEffects(t *testing.T) {
 	}
 
 	// Start and complete research
-	err := rs.StartResearch(tech, 100, 100, 0)
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start research: %v", err)
 	}
@@ -119,7 +125,10 @@ func TestCannotStartWithoutResources(t *testing.T) {
 		t.Fatal("planet_exploration tech not found")
 	}
 
-	err := rs.StartResearch(tech, 50, 50, 0)
+	food := 50.0
+	money := 50.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err == nil {
 		t.Error("expected error when starting research without sufficient resources")
 	}
@@ -138,7 +147,10 @@ func TestCannotStartWithoutPrerequisites(t *testing.T) {
 		t.Fatal("energy_storage tech not found")
 	}
 
-	err := rs.StartResearch(tech, 1000, 1000, 0)
+	food := 1000.0
+	money := 1000.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err == nil {
 		t.Error("expected error when starting research without prerequisites")
 	}
@@ -156,13 +168,16 @@ func TestCannotStartAlreadyInProgress(t *testing.T) {
 		t.Fatal("planet_exploration tech not found")
 	}
 
-	err := rs.StartResearch(tech, 100, 100, 0)
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start research: %v", err)
 	}
 
 	// Try to start again
-	err = rs.StartResearch(tech, 100, 100, 0)
+	err = rs.StartResearch(tech, &food, &money, &alienTech)
 	if err == nil {
 		t.Error("expected error when starting already in-progress research")
 	}
@@ -182,7 +197,10 @@ func TestGetResearchProgress(t *testing.T) {
 		t.Errorf("expected 0%% progress before starting, got %f%%", pct)
 	}
 
-	err := rs.StartResearch(tech, 100, 100, 0)
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start research: %v", err)
 	}
@@ -214,9 +232,13 @@ func TestMultiLevelTech(t *testing.T) {
 		t.Fatal("energy_saving tech not found")
 	}
 
+	food := 1000.0
+	money := 1000.0
+	alienTech := 0.0
+
 	// Must complete planet_exploration first
 	planetTech := GetTechByID("planet_exploration")
-	err := rs.StartResearch(planetTech, 1000, 1000, 0)
+	err := rs.StartResearch(planetTech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start planet_exploration: %v", err)
 	}
@@ -229,7 +251,7 @@ func TestMultiLevelTech(t *testing.T) {
 
 	// Must complete energy_storage first
 	energyTech := GetTechByID("energy_storage")
-	err = rs.StartResearch(energyTech, 1000, 1000, 0)
+	err = rs.StartResearch(energyTech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start energy_storage: %v", err)
 	}
@@ -241,7 +263,7 @@ func TestMultiLevelTech(t *testing.T) {
 	}
 
 	// Now energy_saving should be available
-	err = rs.StartResearch(tech, 1000, 1000, 0)
+	err = rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start energy_saving: %v", err)
 	}
@@ -255,7 +277,7 @@ func TestMultiLevelTech(t *testing.T) {
 	}
 
 	// Should be able to start level 2
-	err = rs.StartResearch(tech, 1000, 1000, 0)
+	err = rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start energy_saving level 2: %v", err)
 	}
@@ -301,8 +323,11 @@ func TestAlienTechRequiresCommandCenter(t *testing.T) {
 		t.Fatal("alien_technologies tech not found")
 	}
 
+	food := 0.0
+	money := 0.0
+	alien := 10.0
 	// Should fail without command_center
-	err := rs.StartResearch(alienTech, 0, 0, 10)
+	err := rs.StartResearch(alienTech, &food, &money, &alien)
 	if err == nil {
 		t.Error("expected error when starting alien tech without command_center")
 	}
@@ -317,8 +342,11 @@ func TestStandardAndAlienTreesIndependent(t *testing.T) {
 		t.Fatal("planet_exploration not found")
 	}
 
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
 	// Should be able to start standard research without any alien tech
-	err := rs.StartResearch(standardTech, 100, 100, 0)
+	err := rs.StartResearch(standardTech, &food, &money, &alienTech)
 	if err != nil {
 		t.Fatalf("failed to start standard research: %v", err)
 	}
@@ -327,5 +355,68 @@ func TestStandardAndAlienTreesIndependent(t *testing.T) {
 	alien := rs.GetAvailableAlienTechs()
 	if len(alien) != 0 {
 		t.Errorf("expected 0 available alien techs, got %d", len(alien))
+	}
+}
+
+func TestResourceDeduction(t *testing.T) {
+	rs := NewResearchSystem("test-planet", nil)
+
+	tech := GetTechByID("planet_exploration")
+	if tech == nil {
+		t.Fatal("planet_exploration tech not found")
+	}
+
+	food := 100.0
+	money := 100.0
+	alienTech := 0.0
+
+	// Start research
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
+	if err != nil {
+		t.Fatalf("failed to start research: %v", err)
+	}
+
+	// Resources should be deducted
+	if food != 0.0 {
+		t.Errorf("expected food to be 0, got %f", food)
+	}
+	if money != 0.0 {
+		t.Errorf("expected money to be 0, got %f", money)
+	}
+}
+
+func TestCompactStorageDependsOnFastConstruction(t *testing.T) {
+	rs := NewResearchSystem("test-planet", nil)
+
+	tech := GetTechByID("compact_storage")
+	if tech == nil {
+		t.Fatal("compact_storage tech not found")
+	}
+
+	// Should not be available without fast_construction
+	food := 1000.0
+	money := 800.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
+	if err == nil {
+		t.Error("expected error when starting compact_storage without fast_construction")
+	}
+}
+
+func TestParallelConstructionDependsOnBoth(t *testing.T) {
+	rs := NewResearchSystem("test-planet", nil)
+
+	tech := GetTechByID("parallel_construction")
+	if tech == nil {
+		t.Fatal("parallel_construction tech not found")
+	}
+
+	// Should not be available without fast_construction and compact_storage
+	food := 2000.0
+	money := 1500.0
+	alienTech := 0.0
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
+	if err == nil {
+		t.Error("expected error when starting parallel_construction without prerequisites")
 	}
 }

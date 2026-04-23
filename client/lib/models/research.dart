@@ -50,7 +50,7 @@ class ResearchTech {
     );
   }
 
-  bool get isUnlocked => dependsOn.every((dep) => true);
+  bool get isUnlocked => dependsOn.isEmpty;
   bool get canResearch => !completed && !inProgress && isUnlocked;
 }
 
