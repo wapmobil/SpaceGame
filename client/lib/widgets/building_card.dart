@@ -24,13 +24,9 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
   late final AnimationController _pulseController;
   late final AnimationController _opacityController;
 
-  bool get isBuilding =>
-      widget.building.buildTime > 0 &&
-      widget.building.buildProgress > 0 &&
-      widget.building.buildProgress <= widget.building.buildTime &&
-      !isPending;
+  bool get isBuilding => widget.building.isBuilding;
 
-  bool get isPending => widget.building.pending == true && widget.building.buildProgress <= 0;
+  bool get isPending => widget.building.isBuildComplete;
 
   @override
   void initState() {
@@ -52,11 +48,8 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
   @override
   void didUpdateWidget(BuildingCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final wasBuilding = oldWidget.building.buildTime > 0 &&
-        oldWidget.building.buildProgress > 0 &&
-        oldWidget.building.buildProgress <= oldWidget.building.buildTime &&
-        !(oldWidget.building.pending == true && oldWidget.building.buildProgress <= 0);
-    final wasPending = oldWidget.building.pending == true && oldWidget.building.buildProgress <= 0;
+    final wasBuilding = oldWidget.building.isBuilding;
+    final wasPending = oldWidget.building.isBuildComplete;
     if ((isBuilding || isPending) && !(wasBuilding || wasPending)) {
       _pulseController.repeat(reverse: true);
       _opacityController.repeat(reverse: true);

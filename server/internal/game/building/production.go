@@ -5,13 +5,13 @@ type ProdInfo = ProductionResult
 
 // ProductionResult holds the resource changes from one tick.
 type ProductionResult struct {
-	Food      float64
-	Composite float64
-	Mechanisms float64
-	Reagents  float64
-	Energy    float64
-	Money     float64
-	AlienTech float64
+	Food      float64 `json:"food"`
+	Composite float64 `json:"composite"`
+	Mechanisms float64 `json:"mechanisms"`
+	Reagents  float64 `json:"reagents"`
+	Energy    float64 `json:"energy"`
+	Money     float64 `json:"money"`
+	AlienTech float64 `json:"alien_tech"`
 }
 
 // Add adds another ProductionResult to this one.

@@ -27,7 +27,7 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 
 	// Check if already under construction
 	var alreadyConstructing bool
-	if idx >= 0 && p.Buildings[idx].BuildProgress > 0 {
+	if idx >= 0 && p.Buildings[idx].IsBuilding() {
 		alreadyConstructing = true
 	}
 
@@ -35,10 +35,10 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	hasFarm := false
 	hasSolar := false
 	for _, b := range p.Buildings {
-		if b.Type == "farm" && !b.Pending && b.Level > 0 {
+		if b.Type == "farm" && b.Level > 0 {
 			hasFarm = true
 		}
-		if b.Type == "solar" && !b.Pending && b.Level > 0 {
+		if b.Type == "solar" && b.Level > 0 {
 			hasSolar = true
 		}
 	}
@@ -77,16 +77,14 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	if idx >= 0 {
 		p.Buildings[idx].Level = currentLevel + 1
 		p.Buildings[idx].BuildProgress = p.GetBuildTime(bt, currentLevel+1)
-		p.Buildings[idx].Pending = false
-		p.Buildings[idx].Enabled = true
+		p.Buildings[idx].Enabled = false
 		p.PopulateBuildingEntry(idx)
 	} else {
 		p.Buildings = append(p.Buildings, BuildingEntry{
 			Type:          bt,
 			Level:         1,
 			BuildProgress: p.GetBuildTime(bt, 1),
-			Pending:       false,
-			Enabled:       true,
+			Enabled:       false,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
@@ -104,13 +102,15 @@ func (p *Planet) AddBuildingDirect(bt string, level int) {
 	idx := p.FindBuildingIndex(bt)
 	if idx >= 0 {
 		p.Buildings[idx].Level = level
+		p.Buildings[idx].BuildProgress = -1
+		p.Buildings[idx].Enabled = true
 		p.PopulateBuildingEntry(idx)
 	} else {
 		p.Buildings = append(p.Buildings, BuildingEntry{
-			Type:    bt,
-			Level:   level,
-			Pending: false,
-			Enabled: true,
+			Type:          bt,
+			Level:         level,
+			BuildProgress: -1,
+			Enabled:       true,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
@@ -134,23 +134,22 @@ func (p *Planet) GetMaxConcurrentBuildings() int {
 	return max
 }
 
-// ConfirmBuilding confirms a pending building construction, making it operational.
+// ConfirmBuilding confirms a completed building construction, making it operational.
 func (p *Planet) ConfirmBuilding(bt string) error {
 	idx := p.FindBuildingIndex(bt)
 	if idx < 0 {
 		return &PlanetError{PlanetID: p.ID, Reason: "building_not_found"}
 	}
-	if !p.Buildings[idx].Pending {
-		return &PlanetError{PlanetID: p.ID, Reason: "building_not_pending"}
+	if !p.Buildings[idx].IsBuildComplete() {
+		return &PlanetError{PlanetID: p.ID, Reason: "building_not_ready"}
 	}
-	p.Buildings[idx].Pending = false
-	p.Buildings[idx].BuildProgress = 0
+	p.Buildings[idx].BuildProgress = -1
 	p.Buildings[idx].Enabled = true
 	p.PopulateBuildingEntry(idx)
 
 	if p.game != nil && p.game.db != nil {
 		_, err := p.game.db.Exec(`
-			UPDATE buildings SET pending = false, build_progress = 0, enabled = true, updated_at = NOW()
+			UPDATE buildings SET build_progress = -1, enabled = true, updated_at = NOW()
 			WHERE planet_id = $1 AND type = $2
 		`, p.ID, bt)
 		if err != nil {
@@ -161,11 +160,11 @@ func (p *Planet) ConfirmBuilding(bt string) error {
 	return nil
 }
 
-// GetPendingBuildings returns all pending building types.
+// GetPendingBuildings returns all completed-but-unconfirmed building types.
 func (p *Planet) GetPendingBuildings() map[string]bool {
 	result := make(map[string]bool)
 	for _, b := range p.Buildings {
-		if b.Pending {
+		if b.IsBuildComplete() {
 			result[b.Type] = true
 		}
 	}
@@ -188,15 +187,17 @@ func (p *Planet) stepBuildingEntry(idx int) {
 		return
 	}
 	b := &p.Buildings[idx]
-	if b.BuildProgress > 0 {
+	if b.IsBuilding() {
 		b.BuildProgress -= p.BuildSpeed
-		if b.BuildProgress <= 0 {
+		if b.BuildProgress < 0 {
 			b.BuildProgress = 0
+		}
+		if !b.IsBuilding() && b.BuildProgress >= 0 {
+			// Construction completed
 			p.ActiveConstruction--
 			if p.ActiveConstruction < 0 {
 				p.ActiveConstruction = 0
 			}
-			b.Pending = true
 		}
 	}
 }
@@ -215,11 +216,11 @@ func (p *Planet) PopulateBuildingEntry(idx int) {
 	nextCost := p.GetBuildingCost(b.Type, level)
 	b.NextCost = CostInfo{Food: nextCost.Food, Money: nextCost.Money}
 
-	b.Production = p.getProduction(b.Type, level)
-
-	b.Consumption = p.getEnergyConsumption(b.Type, level)
-	if b.Consumption < 0 {
-		b.Consumption = -b.Consumption
+	if b.Enabled {
+		b.Production = p.getProduction(b.Type, level)
+		b.Production.Energy = -p.getEnergyConsumption(b.Type, level)
+	} else {
+		b.Production = building.ProductionResult{}
 	}
 }
 

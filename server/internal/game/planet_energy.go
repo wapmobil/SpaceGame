@@ -18,7 +18,7 @@ func (p *Planet) getEnergyConsumption(bt string, level int) float64 {
 // and consumption is from all other enabled buildings + fleet.
 func (p *Planet) calculateEnergy() (production, consumption float64) {
 	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
+		if !b.IsWorking() {
 			continue
 		}
 		con := p.getEnergyConsumption(b.Type, b.Level)
@@ -58,7 +58,7 @@ func (p *Planet) tickEnergy() {
 	if p.EnergyBuffer.Value <= 0 {
 		for i := range p.Buildings {
 			b := &p.Buildings[i]
-			if b.BuildProgress > 0 || b.Pending {
+			if b.IsBuilding() || b.IsBuildComplete() {
 				continue
 			}
 			if b.Type == "solar" || b.Type == "energy_storage" {

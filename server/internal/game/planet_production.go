@@ -11,7 +11,7 @@ func (p *Planet) getProduction(bt string, level int) building.ProductionResult {
 func (p *Planet) calculateResourceProduction() building.ProductionResult {
 	var prod building.ProductionResult
 	for _, b := range p.Buildings {
-		if b.BuildProgress > 0 || b.Pending || !b.Enabled {
+		if !b.IsWorking() {
 			continue
 		}
 		prod.Add(p.getProduction(b.Type, b.Level))

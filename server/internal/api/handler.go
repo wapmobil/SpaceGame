@@ -339,7 +339,7 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 				Type:          b.Type,
 				Level:         b.Level,
 				BuildProgress: b.BuildProgress,
-				Pending:       b.Pending,
+				Enabled:       b.Enabled,
 				BuildTime:     b.BuildTime,
 				Cost: CostDetail{
 					Food:  b.Cost.Food,
@@ -358,7 +358,6 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 					Money:      b.Production.Money,
 					AlienTech:  b.Production.AlienTech,
 				},
-				Consumption: b.Consumption,
 			}
 		}
 
@@ -616,7 +615,7 @@ func handleToggleBuilding(db *sql.DB) http.HandlerFunc {
 		}
 
 		b := &p.Buildings[idx]
-		if b.BuildProgress > 0 || b.Pending {
+		if b.IsBuilding() || b.IsBuildComplete() {
 			http.Error(w, "Building not ready", http.StatusBadRequest)
 			return
 		}
@@ -692,7 +691,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 				Type:          b.Type,
 				Level:         b.Level,
 				BuildProgress: b.BuildProgress,
-				Pending:       b.Pending,
+				Enabled:       b.Enabled,
 				BuildTime:     b.BuildTime,
 				Cost: CostDetail{
 					Food:  b.Cost.Food,
@@ -711,7 +710,6 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 					Money:      b.Production.Money,
 					AlienTech:  b.Production.AlienTech,
 				},
-				Consumption: b.Consumption,
 			}
 		}
 

@@ -13,8 +13,8 @@ class BuildDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final allBuildings = Constants.buildingTypes.keys.toList();
     final allBuildingsList = gameProvider.buildings;
-    final hasFarm = allBuildingsList.where((b) => b.type == 'farm').any((b) => !b.pending && b.level > 0);
-    final hasSolar = allBuildingsList.where((b) => b.type == 'solar').any((b) => !b.pending && b.level > 0);
+    final hasFarm = allBuildingsList.where((b) => b.type == 'farm').any((b) => b.isWorking);
+    final hasSolar = allBuildingsList.where((b) => b.type == 'solar').any((b) => b.isWorking);
 
     return Dialog(
       backgroundColor: AppTheme.cardColor,
@@ -77,8 +77,8 @@ class BuildDialog extends StatelessWidget {
     final info = Constants.buildingTypes[key]!;
     final existing = allBuildingsList.where((b) => b.type == key).toList();
     final currentLevel = existing.isNotEmpty ? existing.first.level : 0;
-    final isBuilding = existing.isNotEmpty && existing.first.buildTime > 0 && existing.first.buildProgress > 0 && existing.first.buildProgress <= existing.first.buildTime;
-    final isPending = existing.isNotEmpty && existing.first.pending == true && existing.first.buildProgress <= 0;
+    final isBuilding = existing.isNotEmpty && existing.first.isBuilding;
+    final isReady = existing.isNotEmpty && existing.first.isBuildComplete;
     double nextCostFood, nextCostMoney;
     if (existing.isNotEmpty) {
       nextCostFood = existing.first.nextCostFood;
@@ -98,13 +98,13 @@ class BuildDialog extends StatelessWidget {
       subtitle: Text(
         isBuilding
             ? 'Строится... Ур.$currentLevel'
-            : isPending
+            : isReady
                 ? 'Ожидает подтверждения - нажмите на здание, чтобы забрать'
                 : existing.isNotEmpty
                     ? 'Ур.$currentLevel → ${currentLevel + 1} | 🍖$nextCostFood 💰$nextCostMoney'
                     : '${info['description'] as String} | 🍖$nextCostFood 💰$nextCostMoney',
       ),
-      enabled: !isBuilding && !isPending && canAfford && gameProvider.activeConstructions < gameProvider.maxConstructions,
+      enabled: !isBuilding && !isReady && canAfford && gameProvider.activeConstructions < gameProvider.maxConstructions,
       onTap: () {
         Navigator.pop(context);
         gameProvider.buildStructure(key);

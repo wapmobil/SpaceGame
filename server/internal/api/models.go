@@ -268,12 +268,11 @@ type BuildingDetail struct {
 	Type          string      `json:"type"`
 	Level         int         `json:"level"`
 	BuildProgress float64     `json:"build_progress"`
-	Pending       bool        `json:"pending"`
+	Enabled       bool        `json:"enabled"`
 	BuildTime     float64     `json:"build_time"`
 	Cost          CostDetail  `json:"cost"`
 	NextCost      CostDetail  `json:"next_cost"`
 	Production    ProdDetail  `json:"production"`
-	Consumption   float64     `json:"consumption"`
 }
 
 // CostDetail represents build costs for the API.

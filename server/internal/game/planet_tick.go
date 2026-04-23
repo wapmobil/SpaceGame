@@ -14,6 +14,13 @@ func (p *Planet) Tick() {
 	for i := range p.Buildings {
 		p.stepBuildingEntry(i)
 	}
+	// Disable buildings that are under construction or ready for confirmation
+	for i := range p.Buildings {
+		b := &p.Buildings[i]
+		if (b.IsBuilding() || b.IsBuildComplete()) && b.Enabled {
+			b.Enabled = false
+		}
+	}
 
 	// 2. Energy tick
 	p.tickEnergy()
@@ -36,7 +43,7 @@ func (p *Planet) Tick() {
 	p.TickExpeditions()
 
 	// 7. Save to DB (throttled)
-	if p.game.shouldSave(p.ID) {
+	if p.game != nil && p.game.shouldSave(p.ID) {
 		p.game.savePlanet(p)
 	}
 

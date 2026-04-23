@@ -342,8 +342,8 @@ func TestAddBuildingPopulatesEntry(t *testing.T) {
 	if b.Production.Food <= 0 {
 		t.Errorf("expected positive food production, got %f", b.Production.Food)
 	}
-	if b.Consumption <= 0 {
-		t.Errorf("expected positive energy consumption, got %f", b.Consumption)
+	if b.Production.Energy >= 0 {
+		t.Errorf("expected negative energy (consumption), got %f", b.Production.Energy)
 	}
 }
 
@@ -351,15 +351,18 @@ func TestConfirmBuildingPopulatesEntry(t *testing.T) {
 	planet := NewPlanet("test-confirm-1", "owner-1", "Test Planet", nil)
 
 	planet.AddBuildingDirect("farm", 1)
-	planet.Buildings[0].Pending = true
+	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
 
 	err := planet.ConfirmBuilding("farm")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if planet.Buildings[0].Pending {
-		t.Error("expected building to not be pending after confirmation")
+	if planet.Buildings[0].BuildProgress != -1 {
+		t.Errorf("expected build_progress to be -1 after confirmation, got %f", planet.Buildings[0].BuildProgress)
+	}
+	if !planet.Buildings[0].Enabled {
+		t.Error("expected building to be enabled after confirmation")
 	}
 }
 
@@ -372,14 +375,14 @@ func TestConfirmBuildingNotFound(t *testing.T) {
 	}
 }
 
-func TestConfirmBuildingNotPending(t *testing.T) {
+func TestConfirmBuildingNotReady(t *testing.T) {
 	planet := NewPlanet("test-confirm-notpending", "owner-1", "Test Planet", nil)
 
 	planet.AddBuildingDirect("farm", 1)
 
 	err := planet.ConfirmBuilding("farm")
 	if err == nil {
-		t.Fatal("expected error when confirming non-pending building")
+		t.Fatal("expected error when confirming non-ready building")
 	}
 }
 
@@ -387,7 +390,7 @@ func TestGetPendingBuildings(t *testing.T) {
 	planet := NewPlanet("test-pending", "owner-1", "Test Planet", nil)
 
 	planet.AddBuildingDirect("farm", 1)
-	planet.Buildings[0].Pending = true
+	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
 
 	pending := planet.GetPendingBuildings()
 	if !pending["farm"] {
@@ -574,5 +577,84 @@ func TestGetStateReturnsAllFields(t *testing.T) {
 	}
 	if _, ok := state["expeditions"]; !ok {
 		t.Error("expected 'expeditions' key in state")
+	}
+}
+
+func TestReadyBuildingIsDisabled(t *testing.T) {
+	planet := NewPlanet("test-pending-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].BuildProgress = planet.Buildings[0].BuildTime
+	planet.Buildings[0].Enabled = true
+
+	planet.Tick()
+
+	if planet.Buildings[0].Enabled {
+		t.Error("expected ready building to be disabled after tick")
+	}
+}
+
+func TestBuildingUnderConstructionIsDisabled(t *testing.T) {
+	planet := NewPlanet("test-construction-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].BuildProgress = 5
+	planet.Buildings[0].Enabled = true
+
+	planet.Tick()
+
+	if planet.Buildings[0].Enabled {
+		t.Error("expected building under construction to be disabled after tick")
+	}
+}
+
+func TestCompletedBuildingIsEnabled(t *testing.T) {
+	planet := NewPlanet("test-completed-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].BuildProgress = -1
+	planet.Buildings[0].Enabled = true
+
+	planet.Tick()
+
+	if !planet.Buildings[0].IsWorking() {
+		t.Error("expected completed building to remain working after tick")
+	}
+}
+
+func TestDisabledBuildingProductionIsZero(t *testing.T) {
+	planet := NewPlanet("test-disabled-prod-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.Buildings[0].Enabled = true
+	planet.PopulateBuildingEntry(0)
+
+	prodEnabled := planet.Buildings[0].Production.Food
+
+	planet.Buildings[0].Enabled = false
+	planet.PopulateBuildingEntry(0)
+
+	prodDisabled := planet.Buildings[0].Production.Food
+
+	if prodEnabled != 1 {
+		t.Errorf("expected enabled farm production to be 1, got %f", prodEnabled)
+	}
+	if prodDisabled != 0 {
+		t.Errorf("expected disabled farm production to be 0, got %f", prodDisabled)
+	}
+}
+
+func TestGetStatePopulatesProduction(t *testing.T) {
+	planet := NewPlanet("test-state-prod-1", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+	planet.AddBuildingDirect("solar", 1)
+
+	state := planet.GetState()
+	buildings := state["buildings"].([]BuildingEntry)
+
+	farm := buildings[0]
+	if farm.Production.Food != 1 {
+		t.Errorf("expected farm production in GetState to be 1, got %f", farm.Production.Food)
+	}
+
+	solar := buildings[1]
+	if solar.Production.Energy != 15 {
+		t.Errorf("expected solar production in GetState to be 15, got %f", solar.Production.Energy)
 	}
 }

@@ -522,10 +522,10 @@ class GameProvider extends ChangeNotifier {
   BuildingUpgradeInfo getBuildingUpgradeInfo(Building building) {
     if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
 
-    final isPending = building.pending && building.buildProgress <= 0;
-    if (isPending) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
+    final isReady = building.isBuildComplete;
+    if (isReady) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
 
-    final isBuilding = building.buildTime > 0 && building.buildProgress > 0 && building.buildProgress <= building.buildTime;
+    final isBuilding = building.isBuilding;
     if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
 
     final nextCostFood = building.nextCostFood;
@@ -586,7 +586,6 @@ class GameProvider extends ChangeNotifier {
             type: old.type,
             level: old.level,
             buildProgress: old.buildProgress,
-            pending: old.pending,
             enabled: enabled,
             buildTime: old.buildTime,
             costFood: old.costFood,

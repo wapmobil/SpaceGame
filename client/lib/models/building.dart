@@ -1,8 +1,7 @@
 class Building {
   final String type;
   final int level;
-  final double buildProgress; // remaining seconds
-  final bool pending;
+  final double buildProgress; // -1 = ready, 0..buildTime = under construction, >=buildTime = ready for confirmation
   final bool enabled;
   final double buildTime; // total build time in seconds
   final double costFood;
@@ -22,7 +21,6 @@ class Building {
     required this.type,
     this.level = 0,
     this.buildProgress = 0,
-    this.pending = false,
     this.enabled = true,
     this.buildTime = 0,
     this.costFood = 0,
@@ -39,12 +37,15 @@ class Building {
     this.consumption = 0,
   });
 
+  bool get isBuilding => buildTime > 0 && buildProgress > 0 && buildProgress < buildTime;
+  bool get isBuildComplete => buildTime > 0 && buildProgress >= buildTime;
+  bool get isWorking => !isBuilding && !isBuildComplete && enabled && level > 0;
+
   factory Building.fromJson(Map<String, dynamic> json) {
     return Building(
       type: json['type'] as String? ?? '',
       level: json['level'] as int? ?? 0,
       buildProgress: (json['build_progress'] as num?)?.toDouble() ?? 0,
-      pending: json['pending'] as bool? ?? false,
       enabled: json['enabled'] as bool? ?? true,
       buildTime: (json['build_time'] as num?)?.toDouble() ?? 0,
       costFood: (json['cost']?['food'] as num?)?.toDouble() ?? 0,
@@ -67,7 +68,6 @@ class Building {
       'type': type,
       'level': level,
       'build_progress': buildProgress,
-      'pending': pending,
       'enabled': enabled,
       'build_time': buildTime,
       'cost': {'food': costFood, 'money': costMoney},

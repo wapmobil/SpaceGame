@@ -11,6 +11,11 @@ func (p *Planet) GetState() map[string]interface{} {
 	shipyardLevel := p.GetBuildingLevel("shipyard")
 	baseLevel := p.GetBuildingLevel("base")
 
+	// Populate building production/consumption for WS state updates
+	for i := range p.Buildings {
+		p.PopulateBuildingEntry(i)
+	}
+
 	return map[string]interface{}{
 		"id":               p.ID,
 		"owner_id":         p.OwnerID,
