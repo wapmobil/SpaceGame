@@ -24,40 +24,71 @@ class ResearchTree extends StatelessWidget {
     final inProgressIds = research.where((t) => t.inProgress).map((t) => t.techId).toSet();
 
     return Column(
-      children: Constants.techList.map((tech) {
-        final techMap = Map<String, dynamic>.from(tech);
-        final techId = techMap['id'] as String;
-        final name = techMap['name'] as String;
-        final description = techMap['description'] as String;
-        final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
+      children: _buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, onResearch, null, 0),
+    );
+  }
 
-        final isCompleted = completedIds.contains(techId);
-        final isInProgress = inProgressIds.contains(techId);
-        final isAvailable = availableIds.contains(techId);
-        final hasPrerequisites = dependsOn.every((dep) => completedIds.contains(dep));
+  List<Widget> _buildTree(
+    BuildContext context,
+    List techList,
+    Set<String> completedIds,
+    Set<String> inProgressIds,
+    Set<String> availableIds,
+    Function(String) onResearch,
+    String? parentId,
+    int depth,
+  ) {
+    final children = <Widget>[];
 
-        Color statusColor;
-        if (isCompleted) statusColor = AppTheme.successColor;
-        else if (isInProgress) statusColor = AppTheme.warningColor;
-        else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
-        else statusColor = Colors.white24;
+    for (final tech in techList) {
+      final techMap = Map<String, dynamic>.from(tech);
+      final techId = techMap['id'] as String;
+      final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+      // Filter by parent or show root nodes
+      if (parentId != null) {
+        if (!dependsOn.contains(parentId)) continue;
+      } else {
+        if (dependsOn.isNotEmpty) continue;
+      }
+
+      final isCompleted = completedIds.contains(techId);
+      final isInProgress = inProgressIds.contains(techId);
+      final isAvailable = availableIds.contains(techId);
+      final hasPrerequisites = dependsOn.every((dep) => completedIds.contains(dep));
+
+      // Hide if not visible (not completed, not in progress, prerequisites not met)
+      if (!isCompleted && !isInProgress && !hasPrerequisites) continue;
+
+      Color statusColor;
+      if (isCompleted) statusColor = AppTheme.successColor;
+      else if (isInProgress) statusColor = AppTheme.warningColor;
+      else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
+      else statusColor = Colors.white24;
+
+      children.add(
+        Padding(
+          padding: EdgeInsets.only(left: depth * 24.0, bottom: 4),
           child: _TechNode(
             techId: techId,
-            name: name,
-            description: description,
-            dependsOn: dependsOn,
+            name: techMap['name'] as String,
+            description: techMap['description'] as String,
+            dependsOn: dependsOn.toList(),
             statusColor: statusColor,
             isCompleted: isCompleted,
             isInProgress: isInProgress,
             isAvailable: isAvailable && hasPrerequisites,
             onResearch: () => onResearch(techId),
           ),
-        );
-      }).toList(),
-    );
+        ),
+      );
+
+      // Recursively render children
+      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, onResearch, techId, depth + 1);
+      children.addAll(subChildren);
+    }
+
+    return children;
   }
 }
 

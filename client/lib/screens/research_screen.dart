@@ -13,7 +13,7 @@ class ResearchScreen extends StatelessWidget {
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null)    return const Center(child: Text('Планета не выбрана'));
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
             onRefresh: () async => gameProvider.loadResearch(planet.id),
@@ -23,8 +23,6 @@ class ResearchScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildTreeSection(context, gameProvider),
-                  const SizedBox(height: 16),
-                  _buildAllTechsSection(context, gameProvider),
                 ],
               ),
             ),
@@ -38,6 +36,10 @@ class ResearchScreen extends StatelessWidget {
     final state = gameProvider.researchState;
     if (state == null) return const Center(child: CircularProgressIndicator());
 
+    final completedIds = state.research.where((t) => t.completed).map((t) => t.techId).toSet();
+    final inProgressIds = state.research.where((t) => t.inProgress).map((t) => t.techId).toSet();
+    final availableIds = state.available.map((t) => t.techId).toSet();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -46,78 +48,74 @@ class ResearchScreen extends StatelessWidget {
           children: [
             const Text('Древо исследований', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 12),
-            _buildResearchTree(context, state.research, state.available, gameProvider),
+            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, gameProvider.startResearch, null, 0),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildResearchTree(BuildContext context, List research, List available, GameProvider gameProvider) {
-    final availableIds = available.map((t) => t.techId).toSet();
-    final completedIds = research.where((t) => t.completed).map((t) => t.techId).toSet();
-    final inProgressIds = research.where((t) => t.inProgress).map((t) => t.techId).toSet();
+  List<Widget> _buildTree(
+    BuildContext context,
+    List techList,
+    Set<String> completedIds,
+    Set<String> inProgressIds,
+    Set<String> availableIds,
+    Function(String) onResearch,
+    String? parentId,
+    int depth,
+  ) {
+    final children = <Widget>[];
 
-    return Column(
-      children: Constants.techList.map((tech) {
-        final techMap = Map<String, dynamic>.from(tech);
-        final techId = techMap['id'] as String;
-        final name = techMap['name'] as String;
-        final description = techMap['description'] as String;
-        final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
+    for (final tech in techList) {
+      final techMap = Map<String, dynamic>.from(tech);
+      final techId = techMap['id'] as String;
+      final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
 
-        final isCompleted = completedIds.contains(techId);
-        final isInProgress = inProgressIds.contains(techId);
-        final isAvailable = availableIds.contains(techId);
-        final hasPrerequisites = dependsOn.every((dep) => completedIds.contains(dep));
+      // Filter by parent or show root nodes
+      if (parentId != null) {
+        if (!dependsOn.contains(parentId)) continue;
+      } else {
+        if (dependsOn.isNotEmpty) continue;
+      }
 
-        Color statusColor;
-        if (isCompleted) statusColor = AppTheme.successColor;
-        else if (isInProgress) statusColor = AppTheme.warningColor;
-        else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
-        else statusColor = Colors.white24;
+      final isCompleted = completedIds.contains(techId);
+      final isInProgress = inProgressIds.contains(techId);
+      final isAvailable = availableIds.contains(techId);
+      final hasPrerequisites = dependsOn.every((dep) => completedIds.contains(dep));
 
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+      // Hide if not visible (not completed, not in progress, prerequisites not met)
+      if (!isCompleted && !isInProgress && !hasPrerequisites) continue;
+
+      Color statusColor;
+      if (isCompleted) statusColor = AppTheme.successColor;
+      else if (isInProgress) statusColor = AppTheme.warningColor;
+      else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
+      else statusColor = Colors.white24;
+
+      children.add(
+        Padding(
+          padding: EdgeInsets.only(left: depth * 24.0, bottom: 4),
           child: _TechNode(
             techId: techId,
-            name: name,
-            description: description,
-            dependsOn: dependsOn,
+            name: techMap['name'] as String,
+            description: techMap['description'] as String,
+            dependsOn: dependsOn.toList(),
             statusColor: statusColor,
             isCompleted: isCompleted,
             isInProgress: isInProgress,
             isAvailable: isAvailable && hasPrerequisites,
-            onResearch: () => gameProvider.startResearch(techId),
+            onResearch: () => onResearch(techId),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildAllTechsSection(BuildContext context, GameProvider gameProvider) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Все технологии', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-            const SizedBox(height: 8),
-            ...Constants.techList.map((tech) {
-              final techMap = Map<String, dynamic>.from(tech);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  '• ${techMap['name']} ${techMap['depends_on'].isNotEmpty ? '(требуется: ${(techMap['depends_on'] as List).join(", ")})' : ''}',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-              );
-            }),
-          ],
         ),
-      ),
-    );
+      );
+
+      // Recursively render children
+      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, onResearch, techId, depth + 1);
+      children.addAll(subChildren);
+    }
+
+    return children;
   }
 }
 
