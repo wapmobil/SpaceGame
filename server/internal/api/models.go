@@ -245,6 +245,7 @@ type EncounterResponse struct {
 
 // MiningStartResponse is the response for starting a mining session.
 type MiningStartResponse struct {
+	PlanetID       string     `json:"planet_id"`
 	Status         string     `json:"status"`
 	SessionID      string     `json:"session_id"`
 	Maze           [][]string `json:"maze"`

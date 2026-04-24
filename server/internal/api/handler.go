@@ -2295,7 +2295,7 @@ func handleStartMining(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Check if base is operational (has food)
+		// Check if mine is operational (has food)
 		p := game.Instance().GetPlanet(planetID)
 		if p == nil {
 			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
@@ -2303,12 +2303,12 @@ func handleStartMining(db *sql.DB) http.HandlerFunc {
 			}
 			p = game.Instance().GetPlanet(planetID)
 		}
-		if !p.BaseOperational() {
+		if !p.HasOperationalMine() || p.Resources.Food <= 0 {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]string{
-				"error":   "base_not_operational",
-				"message": "Planet base requires food to operate.",
+				"error":   "mine_not_operational",
+				"message": "Planet requires an operational mine and food to start mining.",
 			})
 			return
 		}
@@ -2354,6 +2354,7 @@ func handleStartMining(db *sql.DB) http.HandlerFunc {
 
 		// Build response
 		response := MiningStartResponse{
+			PlanetID:       planetID,
 			Status:         "active",
 			SessionID:      session.SessionID,
 			Maze:           runeMazeToStringMaze(mg.GetDisplayMaze()),

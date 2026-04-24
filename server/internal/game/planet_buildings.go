@@ -260,6 +260,16 @@ func (p *Planet) HasOperationalBase() bool {
 	return false
 }
 
+// HasOperationalMine returns true if the planet has a mine building that exists and is enabled.
+func (p *Planet) HasOperationalMine() bool {
+	for _, b := range p.Buildings {
+		if b.Type == "mine" && b.Enabled && b.Level > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // BaseOperational returns true if the planet has a base and food available.
 func (p *Planet) BaseOperational() bool {
 	return p.HasOperationalBase() && p.Resources.Food > 0

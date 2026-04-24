@@ -102,6 +102,6 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 		BaseOperational:    baseOperational,
 		CanResearch:        baseOperational,
 		CanExpedition:      baseOperational && expeditionsUnlocked,
-		CanMining:          baseOperational,
+		CanMining:          p.HasOperationalMine() && p.Resources.Food > 0,
 	}
 }
