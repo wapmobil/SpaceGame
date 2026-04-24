@@ -175,94 +175,6 @@ type MarketOrderResponse struct {
 	ReservedResources map[string]float64    `json:"reserved_resources,omitempty"`
 }
 
-// MiningMoveRequest is the request body for moving in a mining session.
-type MiningMoveRequest struct {
-	Direction string `json:"direction"` // "up", "down", "left", "right"
-	Slide     bool   `json:"slide"`     // if true, slide to wall
-}
-
-// MiningStateResponse represents the current state of a mining session.
-type MiningStateResponse struct {
-	SessionID      string     `json:"session_id"`
-	PlanetID       string     `json:"planet_id"`
-	PlayerID       string     `json:"player_id"`
-	Maze           [][]string `json:"maze"`
-	PlayerX        int        `json:"player_x"`
-	PlayerY        int        `json:"player_y"`
-	PlayerHP       int        `json:"player_hp"`
-	PlayerMaxHP    int        `json:"player_max_hp"`
-	PlayerBombs    int        `json:"player_bombs"`
-	MoneyCollected float64    `json:"money_collected"`
-	Status         string     `json:"status"`
-	ExitX          int        `json:"exit_x"`
-	ExitY          int        `json:"exit_y"`
-	BaseLevel      int        `json:"base_level"`
-	Monsters       []MonsterResponse `json:"monsters"`
-	AvailableMoves []string    `json:"available_moves"`
-	StartTime      string    `json:"start_time"`
-	CompletedAt    string    `json:"completed_at,omitempty"`
-}
-
-// MonsterResponse represents a monster in API responses.
-type MonsterResponse struct {
-	ID        string  `json:"id"`
-	Type      string  `json:"type"`
-	Name      string  `json:"name"`
-	Icon      string  `json:"icon"`
-	X         int     `json:"x"`
-	Y         int     `json:"y"`
-	HP        int     `json:"hp"`
-	MaxHP     int     `json:"max_hp"`
-	Damage    int     `json:"damage"`
-	Reward    float64 `json:"reward"`
-	Alive     bool    `json:"alive"`
-}
-
-// MiningMoveResponse represents the result of a move action.
-type MiningMoveResponse struct {
-	Success        bool            `json:"success"`
-	Message        string          `json:"message,omitempty"`
-	Maze           [][]string      `json:"maze"`
-	PlayerX        int             `json:"player_x"`
-	PlayerY        int             `json:"player_y"`
-	PlayerHP       int             `json:"player_hp"`
-	PlayerBombs    int             `json:"player_bombs"`
-	MoneyCollected float64         `json:"money_collected"`
-	Encounter      *EncounterResponse `json:"encounter,omitempty"`
-	GameEnded      bool            `json:"game_ended"`
-	EndReason      string          `json:"end_reason,omitempty"`
-}
-
-// EncounterResponse represents a monster encounter.
-type EncounterResponse struct {
-	MonsterID   string  `json:"monster_id"`
-	MonsterName string  `json:"monster_name"`
-	MonsterIcon string  `json:"monster_icon"`
-	Damage      int     `json:"damage"`
-	Reward      float64 `json:"reward"`
-	Killed      bool    `json:"killed"`
-}
-
-// MiningStartResponse is the response for starting a mining session.
-type MiningStartResponse struct {
-	PlanetID       string     `json:"planet_id"`
-	Status         string     `json:"status"`
-	SessionID      string     `json:"session_id"`
-	Maze           [][]string `json:"maze"`
-	PlayerX        int        `json:"player_x"`
-	PlayerY        int        `json:"player_y"`
-	PlayerHP       int        `json:"player_hp"`
-	PlayerMaxHP    int        `json:"player_max_hp"`
-	PlayerBombs    int        `json:"player_bombs"`
-	MoneyCollected float64    `json:"money_collected"`
-	ExitX          int        `json:"exit_x"`
-	ExitY          int        `json:"exit_y"`
-	BaseLevel      int        `json:"base_level"`
-	Monsters       []MonsterResponse `json:"monsters"`
-	AvailableMoves []string   `json:"available_moves"`
-}
-
-
 
 // BuildingDetail represents a building with all computed data for the frontend.
 type BuildingDetail struct {
@@ -325,7 +237,6 @@ type BuildDetailsResponse struct {
 	BaseOperational    bool                       `json:"base_operational"`
 	CanResearch        bool                       `json:"can_research"`
 	CanExpedition      bool                       `json:"can_expedition"`
-	CanMining          bool                       `json:"can_mining"`
 	BuildingCosts      map[string]BuildingCostDetail `json:"building_costs"`
 	ResearchUnlocks    string                     `json:"research_unlocks"`
 }
@@ -339,3 +250,85 @@ type EnergyBalanceDetail struct {
 
 // PlanetResources is an alias for the game package's PlanetResources.
 type PlanetResources = game.PlanetResources
+
+// DrillMoveRequest is the request body for drill movement.
+type DrillMoveRequest struct {
+	Direction string `json:"direction"` // "left", "right", "down"
+	Extract   bool   `json:"extract"`   // whether to extract resources
+}
+
+// DrillResourceResponse represents a collected resource.
+type DrillResourceResponse struct {
+	Type    string  `json:"type"`
+	Name    string  `json:"name"`
+	Icon    string  `json:"icon"`
+	Amount  float64 `json:"amount"`
+	Value   float64 `json:"value"`
+}
+
+// DrillHitResource represents a newly encountered resource.
+type DrillHitResource struct {
+	Type     string  `json:"type"`
+	Name     string  `json:"name"`
+	Icon     string  `json:"icon"`
+	Amount   float64 `json:"amount"`
+	Value    float64 `json:"value"`
+}
+
+// DrillMoveResponse represents the result of a drill move action.
+type DrillMoveResponse struct {
+	Success       bool                    `json:"success"`
+	Message       string                  `json:"message,omitempty"`
+	DrillHP       int                     `json:"drill_hp"`
+	DrillMaxHP    int                     `json:"drill_max_hp"`
+	Depth         int                     `json:"depth"`
+	DrillX        int                     `json:"drill_x"`
+	Resources     []DrillResourceResponse `json:"resources"`
+	TotalEarned   float64                 `json:"total_earned"`
+	GameEnded     bool                    `json:"game_ended"`
+	EndReason     string                  `json:"end_reason,omitempty"`
+	NewResource   *DrillHitResource       `json:"new_resource,omitempty"`
+	Extracted     float64                 `json:"extracted,omitempty"`
+}
+
+// DrillStateResponse represents the current state of a drill session.
+type DrillStateResponse struct {
+	SessionID     string                  `json:"session_id"`
+	PlanetID      string                  `json:"planet_id"`
+	DrillHP       int                     `json:"drill_hp"`
+	DrillMaxHP    int                     `json:"drill_max_hp"`
+	Depth         int                     `json:"depth"`
+	DrillX        int                     `json:"drill_x"`
+	WorldWidth    int                     `json:"world_width"`
+	World         [][]DrillCellResponse   `json:"world"`
+	Resources     []DrillResourceResponse `json:"resources"`
+	Status        string                  `json:"status"`
+	TotalEarned   float64                 `json:"total_earned"`
+	CreatedAt     string                  `json:"created_at"`
+	CompletedAt   string                  `json:"completed_at,omitempty"`
+}
+
+// DrillCellResponse represents a cell in the drill world.
+type DrillCellResponse struct {
+	X              int     `json:"x"`
+	Y              int     `json:"y"`
+	CellType       string  `json:"cell_type"`
+	ResourceType   string  `json:"resource_type,omitempty"`
+	ResourceAmount float64 `json:"resource_amount,omitempty"`
+	ResourceValue  float64 `json:"resource_value,omitempty"`
+	Extracted      bool    `json:"extracted"`
+}
+
+// DrillStartResponse is the response for starting a drill session.
+type DrillStartResponse struct {
+	SessionID  string                  `json:"session_id"`
+	PlanetID   string                  `json:"planet_id"`
+	DrillHP    int                     `json:"drill_hp"`
+	DrillMaxHP int                     `json:"drill_max_hp"`
+	Depth      int                     `json:"depth"`
+	DrillX     int                     `json:"drill_x"`
+	WorldWidth int                     `json:"world_width"`
+	World      [][]DrillCellResponse   `json:"world"`
+	Status     string                  `json:"status"`
+	CreatedAt  string                  `json:"created_at"`
+}

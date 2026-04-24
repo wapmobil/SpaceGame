@@ -9,7 +9,7 @@ import 'shipyard_screen.dart' as ship;
 import 'research_screen.dart' as research;
 import 'expedition_screen.dart' as expedition;
 import 'market_screen.dart' as market;
-import 'mining_screen.dart' as mining;
+import 'drill_screen.dart';
 
 class PlanetScreen extends StatefulWidget {
   const PlanetScreen({super.key});
@@ -171,8 +171,9 @@ class _PlanetScreenState extends State<PlanetScreen> {
         return const ship.ShipyardScreen();
       case 'expedition':
         return const expedition.ExpeditionScreen();
-      case 'mining':
-        return const mining.MiningScreen();
+      case 'drill':
+        final gameProvider = context.read<GameProvider>();
+        return DrillScreen(planetId: gameProvider.selectedPlanet!.id);
       case 'market':
         return const market.MarketScreen();
       default:

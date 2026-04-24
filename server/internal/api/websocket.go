@@ -519,13 +519,6 @@ func (bs *WSBroadcastService) BroadcastMarketUpdate(playerID, orderID, status st
 	})
 }
 
-// BroadcastMiningUpdate sends a mining update to the owning player.
-func (bs *WSBroadcastService) BroadcastMiningUpdate(playerID, sessionID string, state map[string]interface{}) {
-	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "mining_update",
-		Data: json.RawMessage(fmt.Sprintf(`{"session_id":"%s","state":%s}`, sessionID, toJSON(state))),
-	})
-}
 
 // BroadcastBuildShip sends a ship build notification.
 func (bs *WSBroadcastService) BroadcastBuildShip(playerID, planetID, shipType string, queued bool) {
@@ -580,22 +573,6 @@ func (bs *WSBroadcastService) BroadcastMarketOrderFilled(playerID, orderID, reso
 	bs.cm.SendToPlayer(playerID, WSMessage{
 		Type: "market_update",
 		Data: json.RawMessage(fmt.Sprintf(`{"order_id":"%s","status":"filled","resource":"%s","amount":%.0f,"price":%.0f}`, orderID, resource, amount, price)),
-	})
-}
-
-// BroadcastMiningComplete sends a mining session completion notification.
-func (bs *WSBroadcastService) BroadcastMiningComplete(playerID, sessionID string, moneyCollected float64, reason string) {
-	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "mining_update",
-		Data: json.RawMessage(fmt.Sprintf(`{"session_id":"%s","status":"completed","money_collected":%.0f,"reason":"%s"}`, sessionID, moneyCollected, escapeJSON(reason))),
-	})
-}
-
-// BroadcastMiningDeath sends a mining death notification.
-func (bs *WSBroadcastService) BroadcastMiningDeath(playerID, sessionID string) {
-	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "mining_update",
-		Data: json.RawMessage(fmt.Sprintf(`{"session_id":"%s","status":"dead"}`, sessionID)),
 	})
 }
 
@@ -830,8 +807,7 @@ func (c *WSClient) handleMessage(msg WSMessage) {
 		c.handleCreateMarketOrder(msg)
 	case "delete_market_order":
 		c.handleDeleteMarketOrder(msg)
-	case "mining_move":
-		c.handleMiningMove(msg)
+	
 	default:
 		c.WriteJSON(WSMessage{
 			Type: "ack",
@@ -886,14 +862,6 @@ func (c *WSClient) handleDeleteMarketOrder(msg WSMessage) {
 	if msg.Data != nil {
 		data, _ := json.Marshal(msg.Data)
 		log.Printf("Player %s delete market order: %s", c.playerID, string(data))
-	}
-}
-
-// handleMiningMove handles a mining move action.
-func (c *WSClient) handleMiningMove(msg WSMessage) {
-	if msg.Data != nil {
-		data, _ := json.Marshal(msg.Data)
-		log.Printf("Player %s mining move: %s", c.playerID, string(data))
 	}
 }
 

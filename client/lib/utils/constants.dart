@@ -101,16 +101,7 @@ class Constants {
     'support': {'name': 'Поддержка', 'icon': '🏥', 'description': 'Помогает союзным силам'},
   };
 
-  static const miningIcons = {
-    'wall': '🧱',
-    'floor': '⬛',
-    'player': '🧑‍🚀',
-    'exit': '🚪',
-    'money': '💰',
-    'monster': '👾',
-    'bomb': '💣',
-  };
-
+  
  static const techList = [
     {'id': 'planet_exploration', 'name': 'Исследование планет', 'description': 'Открывает здание Фабрики', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
     {'id': 'energy_storage', 'name': 'Аккумулятор', 'description': 'Открывает здание Аккумулятора', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},

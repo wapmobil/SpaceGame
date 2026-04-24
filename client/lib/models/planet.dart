@@ -17,8 +17,7 @@ class Planet {
   final bool? baseOperational;
   final bool? canResearch;
   final bool? canExpedition;
-  final bool? canMining;
-
+  
   // Building list from API
   final List<Building>? buildings;
 
@@ -56,7 +55,7 @@ class Planet {
     this.baseOperational,
     this.canResearch,
     this.canExpedition,
-    this.canMining,
+
     this.buildings,
     this.productionFood,
     this.productionComposite,
@@ -103,8 +102,7 @@ class Planet {
       baseOperational: json['base_operational'] as bool?,
       canResearch: json['can_research'] as bool?,
       canExpedition: json['can_expedition'] as bool?,
-      canMining: json['can_mining'] as bool?,
-      buildings: json['buildings'] != null
+            buildings: json['buildings'] != null
           ? List<Building>.from((json['buildings'] as List).map((b) => Building.fromJson(b as Map<String, dynamic>)))
           : null,
       productionFood: (json['production_food'] as num?)?.toDouble(),
@@ -156,8 +154,7 @@ class Planet {
     bool? baseOperational,
     bool? canResearch,
     bool? canExpedition,
-    bool? canMining,
-    int? activeConstructions,
+        int? activeConstructions,
     int? maxConstructions,
     double? storageCapacity,
   }) {
@@ -174,8 +171,7 @@ class Planet {
       baseOperational: baseOperational ?? this.baseOperational,
       canResearch: canResearch ?? this.canResearch,
       canExpedition: canExpedition ?? this.canExpedition,
-      canMining: canMining ?? this.canMining,
-      buildings: buildings ?? this.buildings,
+            buildings: buildings ?? this.buildings,
       productionFood: productionFood ?? this.productionFood,
       productionComposite: productionComposite ?? this.productionComposite,
       productionMechanisms: productionMechanisms ?? this.productionMechanisms,

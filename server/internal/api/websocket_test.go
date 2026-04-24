@@ -175,25 +175,6 @@ func TestWSBroadcastService(t *testing.T) {
 	default:
 		t.Fatal("expected market update message in send channel")
 	}
-
-	// Test BroadcastMiningUpdate
-	miningState := map[string]interface{}{
-		"player_x": 5, "player_y": 3, "status": "active",
-	}
-	bs.BroadcastMiningUpdate("player1", "session1", miningState)
-
-	select {
-	case msg := <-client.send:
-		var wsMsg WSMessage
-		if err := json.Unmarshal(msg, &wsMsg); err != nil {
-			t.Fatalf("failed to unmarshal message: %v", err)
-		}
-		if wsMsg.Type != "mining_update" {
-			t.Fatalf("expected type 'mining_update', got '%s'", wsMsg.Type)
-		}
-	default:
-		t.Fatal("expected mining update message in send channel")
-	}
 }
 
 func TestWSBroadcastServiceToDisconnectedPlayer(t *testing.T) {

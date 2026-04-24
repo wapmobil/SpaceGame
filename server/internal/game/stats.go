@@ -46,11 +46,6 @@ func (st *StatsTracker) TrackResearchOutcome(planetID, playerID string, complete
 	}
 }
 
-// TrackMiningOutcome records mining session results.
-func (st *StatsTracker) TrackMiningOutcome(planetID, playerID string, completed bool) {
-	st.game.TrackMiningSession(planetID, playerID, completed)
-}
-
 // TrackMoneyTransaction records money earned or spent.
 func (st *StatsTracker) TrackMoneyTransaction(planetID, playerID string, amount float64, earned bool) {
 	if earned {
@@ -105,11 +100,7 @@ func (st *StatsTracker) GetStatsSummary(playerID string) (map[string]interface{}
 			},
 			"expeditions": stats[string(StatTotalExpeditions)],
 			"research":    stats[string(StatTotalResearch)],
-			"mining": map[string]interface{}{
-				"played":   stats[string(StatMiningPlayed)],
-				"completed": stats[string(StatMiningCompleted)],
-				"failed":   stats[string(StatMiningFailed)],
-			},
+			
 		},
 	}
 

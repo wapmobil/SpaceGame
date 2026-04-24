@@ -75,8 +75,7 @@ type BuildDetails struct {
 	BaseOperational    bool
 	CanResearch        bool
 	CanExpedition      bool
-	CanMining          bool
-}
+	}
 
 // GetBuildDetails returns a BuildDetails struct for the frontend.
 func (p *Planet) GetBuildDetails() BuildDetails {
@@ -102,6 +101,5 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 		BaseOperational:    baseOperational,
 		CanResearch:        baseOperational,
 		CanExpedition:      baseOperational && expeditionsUnlocked,
-		CanMining:          p.HasOperationalMine() && p.Resources.Food > 0,
 	}
 }

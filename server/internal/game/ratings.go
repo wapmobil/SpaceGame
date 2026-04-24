@@ -231,15 +231,7 @@ func GetRandomEvents() []EventDef {
 			},
 			ApplyFn: applyStorageCollapse,
 		},
-		{
-			Type:      RandomEventMineCollapse,
-			Chance:    0, // disabled
-			Description: "Mine Collapse: Lost a mining mini-game level.",
-			ResolveCost: map[string]float64{
-				"money": 200,
-			},
-			ApplyFn: applyMineCollapse,
-		},
+	
 	}
 }
 
@@ -342,16 +334,6 @@ func applyStorageCollapse(p *Planet) (string, error) {
 	}
 
 	return fmt.Sprintf("Storage collapse: Lost %.0f %s (%.0f%%) due to roof collapse.", loss, selected.name, lossPercent*100), nil
-}
-
-func applyMineCollapse(p *Planet) (string, error) {
-	// Reduce planet level (representing mining mini-game level loss)
-	if p.Level > 1 {
-		oldLevel := p.Level
-		p.Level--
-		return fmt.Sprintf("Mine collapse: Planet level reduced from %d to %d (lost a mining mini-game level).", oldLevel, p.Level), nil
-	}
-	return "Mine collapse: Could not reduce level further (already at minimum).", nil
 }
 
 // ComputePlanetRatingValue calculates the total resource value for a planet.
@@ -498,10 +480,7 @@ const (
 	StatTotalBuildings   StatsKey = "total_buildings_constructed"
 	StatTotalResearch    StatsKey = "total_research_completed"
 	StatTotalExpeditions StatsKey = "total_expeditions_completed"
-	StatMiningPlayed     StatsKey = "total_mining_sessions_played"
-	StatMiningCompleted  StatsKey = "total_mining_sessions_completed"
-	StatMiningFailed     StatsKey = "total_mining_sessions_failed"
-	StatTotalAlienTech   StatsKey = "total_alien_tech_earned"
+		StatTotalAlienTech   StatsKey = "total_alien_tech_earned"
 	StatTotalEnergyProd  StatsKey = "total_energy_produced"
 
 	// Per-type stats (indexed by building/ship type)
@@ -541,9 +520,7 @@ func AllStatsKeys() []StatsKey {
 		StatTotalBuildings,
 		StatTotalResearch,
 		StatTotalExpeditions,
-		StatMiningPlayed,
-		StatMiningCompleted,
-		StatMiningFailed,
+		
 		StatTotalAlienTech,
 		StatTotalEnergyProd,
 		StatFarmBuilt,
@@ -701,36 +678,6 @@ func (g *Game) TrackResearchCompleted(planetID, playerID string) {
 		ON CONFLICT (player_id, stat_key)
 		DO UPDATE SET stat_value = player_stats.stat_value + 1, updated_at = NOW()
 	`, playerID, planetID, string(StatTotalResearch))
-}
-
-// TrackMiningSession records a mining session result.
-func (g *Game) TrackMiningSession(planetID, playerID string, completed bool) {
-	if g.db == nil {
-		return
-	}
-
-	g.db.Exec(`
-		INSERT INTO player_stats (player_id, planet_id, stat_key, stat_value, updated_at)
-		VALUES ($1, $2, $3, 1, NOW())
-		ON CONFLICT (player_id, stat_key)
-		DO UPDATE SET stat_value = player_stats.stat_value + 1, updated_at = NOW()
-	`, playerID, planetID, string(StatMiningPlayed))
-
-	if completed {
-		g.db.Exec(`
-			INSERT INTO player_stats (player_id, planet_id, stat_key, stat_value, updated_at)
-			VALUES ($1, $2, $3, 1, NOW())
-			ON CONFLICT (player_id, stat_key)
-			DO UPDATE SET stat_value = player_stats.stat_value + 1, updated_at = NOW()
-		`, playerID, planetID, string(StatMiningCompleted))
-	} else {
-		g.db.Exec(`
-			INSERT INTO player_stats (player_id, planet_id, stat_key, stat_value, updated_at)
-			VALUES ($1, $2, $3, 1, NOW())
-			ON CONFLICT (player_id, stat_key)
-			DO UPDATE SET stat_value = player_stats.stat_value + 1, updated_at = NOW()
-		`, playerID, planetID, string(StatMiningFailed))
-	}
 }
 
 // TrackShipBuilt records a ship being built.

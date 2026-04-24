@@ -10,7 +10,7 @@ import '../models/ship.dart';
 import '../models/research.dart';
 import '../models/expedition.dart';
 import '../models/market.dart';
-import '../models/mining.dart';
+import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
 
@@ -28,7 +28,7 @@ class GameProvider extends ChangeNotifier {
    ExpeditionsListResponse? _expeditions;
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
-  MiningState? _miningState;
+  DrillState? _drillState;
   List<RatingEntry> _ratings = [];
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _events = [];
@@ -59,8 +59,7 @@ class GameProvider extends ChangeNotifier {
   bool _baseOperational = true;
   bool _canResearch = true;
   bool _canExpedition = false;
-  bool _canMining = true;
-
+  
   // Research unlocks (planet_exploration random unlock)
   String _researchUnlocks = '';
   
@@ -92,7 +91,7 @@ class GameProvider extends ChangeNotifier {
     ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
-  MiningState? get miningState => _miningState;
+  DrillState? get drillState => _drillState;
   List<RatingEntry> get ratings => _ratings;
   Map<String, dynamic>? get stats => _stats;
   List<Map<String, dynamic>> get events => _events;
@@ -129,8 +128,7 @@ class GameProvider extends ChangeNotifier {
   bool get baseOperational => _baseOperational;
   bool get canResearch => _canResearch;
   bool get canExpedition => _canExpedition;
-  bool get canMining => _canMining;
-  String get researchUnlocks => _researchUnlocks;
+    String get researchUnlocks => _researchUnlocks;
   bool get researchPaused => _researchPaused;
   String? get authToken => _player?.authToken;
 
@@ -231,10 +229,7 @@ class GameProvider extends ChangeNotifier {
       case 'market_update':
         _handleMarketUpdate(data);
         break;
-      case 'mining_update':
-        _handleMiningUpdate(data);
-        break;
-      case 'notification':
+            case 'notification':
         _handleNotification(data);
         break;
     }
@@ -342,14 +337,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  void _handleMiningUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      loadMiningState(_selectedPlanet?.id ?? '');
-      notifyListeners();
-    }
-  }
-
-  void _handleNotification(Map<String, dynamic>? data) {
+    void _handleNotification(Map<String, dynamic>? data) {
     // Notifications are handled by the UI layer
     debugPrint('Notification: ${data?['message']}');
   }
@@ -403,8 +391,7 @@ class GameProvider extends ChangeNotifier {
      loadExpeditions(planet.id);
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
-    loadMiningState(planet.id);
-    notifyListeners();
+        notifyListeners();
   }
 
   Future<void> loadPlanetDetail(String planetId) async {
@@ -511,8 +498,7 @@ class GameProvider extends ChangeNotifier {
     _baseOperational = data['base_operational'] as bool? ?? true;
     _canResearch = data['can_research'] as bool? ?? true;
     _canExpedition = data['can_expedition'] as bool? ?? false;
-    _canMining = data['can_mining'] as bool? ?? true;
-
+    
     // Update research unlocks
     _researchUnlocks = data['research_unlocks'] as String? ?? '';
 
@@ -953,70 +939,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadMiningState(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/mining'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
 
-      if (response.statusCode == 200) {
-        _miningState = MiningState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load mining state: $e');
-    }
-  }
-
-  Future<void> startMining() async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/mining/start'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-      );
-
-      if (response.statusCode == 201) {
-        _miningState = MiningState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-      } else {
-         _setError('Не удалось начать добычу: ${response.body}');
-       }
-    } catch (e) {
-      _setError('Ошибка добычи: $e');
-    }
-  }
-
-  Future<void> miningMove(String direction, {bool slide = false}) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/mining/move'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'direction': direction, 'slide': slide}),
-      );
-
-      if (response.statusCode == 200) {
-        _miningState = MiningState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-     } else {
-         _setError('Не удалось выполнить ход в шахте: ${response.body}');
-       }
-    } catch (e) {
-      _setError('Ошибка хода в шахте: $e');
-    }
-  }
 
   Future<void> loadRatings({String category = 'score'}) async {
     if (_player == null) return;
@@ -1099,6 +1022,89 @@ class GameProvider extends ChangeNotifier {
   void dispose() {
     websocket.removeMessageListener(_onWebSocketMessage);
     super.dispose();
+  }
+
+  Future<void> loadDrillState(String planetId) async {
+    if (_player == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/planets/$planetId/drill'),
+        headers: {'X-Auth-Token': _player!.authToken},
+      );
+
+      if (response.statusCode == 200) {
+        _drillState = DrillState.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to load drill state: $e');
+    }
+  }
+
+  Future<void> startDrill() async {
+    if (_player == null || _selectedPlanet == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/start'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+
+      if (response.statusCode == 201) {
+        _drillState = DrillState.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
+        notifyListeners();
+      } else {
+        _setError('Не удалось начать бурение: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка бурения: $e');
+    }
+  }
+
+  Future<void> drillMove(String direction, {bool extract = false}) async {
+    if (_player == null || _selectedPlanet == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/move'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+        body: jsonEncode({'direction': direction, 'extract': extract}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final moveResp = DrillMoveResponse.fromJson(data);
+        
+        if (_drillState != null) {
+          _drillState = DrillState(
+            sessionId: _drillState!.sessionId,
+            planetId: _drillState!.planetId,
+            drillHp: moveResp.drillHp,
+            drillMaxHp: moveResp.drillMaxHp,
+            depth: moveResp.depth,
+            drillX: moveResp.drillX,
+            worldWidth: _drillState!.worldWidth,
+            world: _drillState!.world,
+            resources: moveResp.resources,
+            status: moveResp.gameEnded ? 'failed' : 'active',
+            totalEarned: moveResp.totalEarned,
+            createdAt: _drillState!.createdAt,
+            completedAt: moveResp.gameEnded ? DateTime.now().toUtc().toIso8601String() : _drillState!.completedAt,
+          );
+        }
+        notifyListeners();
+      } else {
+        _setError('Не удалось выполнить ход: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка хода: $e');
+    }
   }
 }
 

@@ -91,15 +91,14 @@ func TestComputePlanetFood(t *testing.T) {
 func TestGetRandomEvents(t *testing.T) {
 	events := GetRandomEvents()
 
-	if len(events) != 4 {
-		t.Errorf("Expected 4 random events, got %d", len(events))
+	if len(events) != 3 {
+		t.Errorf("Expected 3 random events, got %d", len(events))
 	}
 
 	expectedTypes := []RandomEventType{
 		RandomEventShortCircuit,
 		RandomEventTheft,
 		RandomEventStorageCollapse,
-		RandomEventMineCollapse,
 	}
 
 	for i, event := range events {
@@ -224,48 +223,6 @@ func TestApplyStorageCollapseNoResources(t *testing.T) {
 	}
 }
 
-func TestApplyMineCollapse(t *testing.T) {
-	p := &Planet{
-		ID:    "test-planet",
-		Name:  "Test Planet",
-		Level: 5,
-	}
-
-	desc, err := applyMineCollapse(p)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if p.Level != 4 {
-		t.Errorf("Expected level to be reduced to 4, got %d", p.Level)
-	}
-
-	if desc == "" {
-		t.Error("Expected non-empty description")
-	}
-}
-
-func TestApplyMineCollapseMinimumLevel(t *testing.T) {
-	p := &Planet{
-		ID:    "test-planet",
-		Name:  "Test Planet",
-		Level: 1,
-	}
-
-	desc, err := applyMineCollapse(p)
-	if err != nil {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-
-	if p.Level != 1 {
-		t.Errorf("Expected level to stay at 1, got %d", p.Level)
-	}
-
-	if desc == "" {
-		t.Error("Expected non-empty description")
-	}
-}
-
 func TestAllRatingCategories(t *testing.T) {
 	categories := AllRatingCategories()
 
@@ -304,7 +261,6 @@ func TestAllStatsKeys(t *testing.T) {
 		StatTotalBuildings,
 		StatTotalResearch,
 		StatTotalExpeditions,
-		StatMiningPlayed,
 	}
 
 	for _, expected := range expectedKeys {
@@ -431,12 +387,7 @@ func TestEventDefResolveCosts(t *testing.T) {
 		t.Error("Storage collapse should have resolve costs")
 	}
 
-	// Mine collapse should have resolve cost
-	mcEvent := events[3]
-	if mcEvent.ResolveCost == nil {
-		t.Error("Mine collapse should have resolve costs")
 	}
-}
 
 func TestBuildingProductionResult(t *testing.T) {
 	prod := building.ProductionResult{

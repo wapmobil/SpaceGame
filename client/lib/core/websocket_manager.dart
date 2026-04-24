@@ -84,14 +84,7 @@ class WebSocketManager extends ChangeNotifier {
     });
   }
 
-  void sendMiningMove({required String direction, bool slide = false}) {
-    send({
-      'type': 'mining_move',
-      'data': {'direction': direction, 'slide': slide},
-    });
-  }
-
-  void sendPing() {
+    void sendPing() {
     send({'type': 'ping', 'data': {}});
   }
 
