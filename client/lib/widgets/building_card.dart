@@ -335,67 +335,52 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                             ),
                           ],
                         ),
-                       if (upgradeBtn != null || (!isBuilding && building.level > 0)) ...[
-                          const SizedBox(height: 6),
-                          Row(
-                             mainAxisSize: MainAxisSize.max,
-                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                             children: [
-                               Row(
-                                 mainAxisSize: MainAxisSize.min,
-                                 children: [
-                                   if (upgradeBtn != null) ...[
-                                     upgradeBtn,
-                                     const SizedBox(width: 8),
-                                     if (_deltas.isNotEmpty)
-                                       Wrap(
-                                         spacing: 4,
-                                         runSpacing: 4,
-                                         children: _deltas.map((d) => _deltaChip(d)).toList(),
-                                       ),
-                                   ],
-                                 ],
-                               ),
-                               if (!isBuilding && building.level > 0 && building.type != 'storage')
-                                 Switch(
-                                  value: building.enabled,
-                                  onChanged: (_) => gameProvider.toggleBuilding(building.type),
-                                  activeThumbColor: AppTheme.accentColor,
-                                  inactiveThumbColor: Colors.grey,
-                                  inactiveTrackColor: Colors.grey[800],
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
-                                ),
-                             ],
-                          ),
-                        ],
                       ],
+                      ),
                     ),
+                  ],
+                 ),
+              // Upgrade button + deltas
+                if (upgradeBtn != null || _deltas.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (upgradeBtn != null) ...[
+                        upgradeBtn,
+                        const SizedBox(width: 8),
+                        if (_deltas.isNotEmpty)
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: _deltas.map((d) => _deltaChip(d)).toList(),
+                          ),
+                      ],
+                    ],
                   ),
                 ],
-              ),
-              // Separator
-              const SizedBox(height: 10),
-              Divider(color: Colors.white.withValues(alpha: 0.08), thickness: 1),
-              const SizedBox(height: 10),
-              // Production lines
-              if (prodLines.isNotEmpty)
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: prodLines,
-                ),
-              // Navigation chips for working buildings
-              if (building.isWorking && widget.onNavigateBuilding != null) ...[
-                const SizedBox(height: 10),
-                Divider(color: Colors.white.withValues(alpha: 0.08), thickness: 1),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: _buildNavigationChips(building.type),
-                ),
-              ],
+               // Toggle switch + production chips + navigation chips
+                if ((!isBuilding && building.level > 0 && building.type != 'storage') || prodLines.isNotEmpty || (building.isWorking && widget.onNavigateBuilding != null)) ...[
+                  const SizedBox(height: 6),
+                  OverflowBar(
+                    spacing: 6,
+                    children: [
+                      if (!isBuilding && building.level > 0 && building.type != 'storage')
+                        Switch(
+                          value: building.enabled,
+                          onChanged: (_) => gameProvider.toggleBuilding(building.type),
+                          activeThumbColor: AppTheme.accentColor,
+                          inactiveThumbColor: Colors.grey,
+                          inactiveTrackColor: Colors.grey[800],
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+                        ),
+                      ...prodLines,
+                      if (building.isWorking && widget.onNavigateBuilding != null)
+                        ..._buildNavigationChips(building.type),
+                    ],
+                  ),
+                ],
               // Progress + remaining time
               if (isBuilding) ...[
                 const SizedBox(height: 12),

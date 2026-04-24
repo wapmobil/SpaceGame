@@ -15,14 +15,24 @@ class PlanetActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ActionChip(
-        avatar: icon == null ? null : Icon(icon!, size: 16),
-        label: label != null ? Text(label!, style: const TextStyle(fontSize: 11)) : const SizedBox.shrink(),
-        onPressed: onTap,
-        backgroundColor: AppTheme.cardColor,
-        side: const BorderSide(color: AppTheme.primaryColor),
+    return ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppTheme.accentColor.withValues(alpha: 0.2),
+        foregroundColor: Colors.white,
+        side: BorderSide(color: AppTheme.accentColor.withValues(alpha: 0.4), width: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 32),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) Icon(icon!, size: 14, color: Colors.white),
+          if (icon != null && label != null) const SizedBox(width: 4),
+          if (label != null) Text(label!, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+        ],
       ),
     );
   }
