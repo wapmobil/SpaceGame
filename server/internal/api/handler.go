@@ -2427,12 +2427,12 @@ func handleMiningMove(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Find the active mining session for this player and planet
-		var sessionID string
+		var sessionID, dbSessionUUID string
 		err = db.QueryRow(`
-			SELECT session_id FROM mining_sessions 
+			SELECT id, session_id FROM mining_sessions 
 			WHERE planet_id = $1 AND player_id = $2 AND status = 'active'
 			ORDER BY created_at DESC LIMIT 1
-		`, planetID, playerID).Scan(&sessionID)
+		`, planetID, playerID).Scan(&dbSessionUUID, &sessionID)
 		if err != nil {
 			http.Error(w, "No active mining session", http.StatusNotFound)
 			return
@@ -2440,8 +2440,87 @@ func handleMiningMove(db *sql.DB) http.HandlerFunc {
 
 		mg, exists := miningGames[sessionID]
 		if !exists {
-			http.Error(w, "Mining game not found", http.StatusNotFound)
-			return
+			// Restore game from database (lost on server restart)
+			var playerHP, playerMaxHP, playerBombs int
+			var moneyCollected float64
+			var status string
+			var playerX, playerY, exitX, exitY, baseLevel int
+			var mazeJSON []byte
+			err = db.QueryRow(`
+				SELECT player_hp, player_max_hp, player_bombs, money_collected,
+				       status, player_x, player_y, exit_x, exit_y, base_level, maze
+				FROM mining_sessions 
+				WHERE id = $1
+			`, dbSessionUUID).Scan(&playerHP, &playerMaxHP, &playerBombs,
+				&moneyCollected, &status, &playerX, &playerY, &exitX, &exitY,
+				&baseLevel, &mazeJSON)
+			if err != nil {
+				http.Error(w, "Failed to load mining game state", http.StatusInternalServerError)
+				return
+			}
+
+			var mazeRune [][]rune
+			var mazeString [][]string
+			if err := json.Unmarshal(mazeJSON, &mazeRune); err != nil {
+				if err := json.Unmarshal(mazeJSON, &mazeString); err != nil {
+					http.Error(w, "Failed to parse maze", http.StatusInternalServerError)
+					return
+				}
+				// Convert string maze to rune maze
+				mazeRune = make([][]rune, len(mazeString))
+				for i, row := range mazeString {
+					mazeRune[i] = make([]rune, len(row))
+					for j, s := range row {
+						if len(s) > 0 {
+							mazeRune[i][j] = rune(s[0])
+						}
+					}
+				}
+			}
+			// Convert rune maze to string maze for LoadGameFromState
+			stringMaze := make([][]string, len(mazeRune))
+			for i, row := range mazeRune {
+				stringMaze[i] = make([]string, len(row))
+				for j, r := range row {
+					stringMaze[i][j] = string(r)
+				}
+			}
+
+			// Load monsters from database
+			var monsters []game.Monster
+			monsterRows, err := db.Query(`
+				SELECT id, entity_type, x, y, hp, damage, reward, alive
+				FROM mining_entities 
+				WHERE session_id = $1 AND entity_type IN ('rat','bat','alien')
+			`, dbSessionUUID)
+			if err == nil {
+				defer monsterRows.Close()
+				for monsterRows.Next() {
+					var m game.Monster
+					var monsterID string
+					var hp, damage, x, y int
+					var reward float64
+					var alive bool
+					if err := monsterRows.Scan(&monsterID, &m.Type, &x, &y, &hp, &damage, &reward, &alive); err == nil {
+						if def, ok := monsterDefinitions[m.Type]; ok {
+							m.Name = def.Name
+							m.Icon = def.Icon
+						}
+						m.ID = monsterID
+						m.X = x
+						m.Y = y
+						m.HP = hp
+						m.MaxHP = hp
+						m.Damage = damage
+						m.Reward = reward
+						m.Alive = alive
+						monsters = append(monsters, m)
+					}
+				}
+			}
+
+			mg = game.LoadGameFromState(planetID, playerID, baseLevel, stringMaze, playerX, playerY, exitX, exitY, playerHP, playerMaxHP, playerBombs, moneyCollected, monsters)
+			miningGames[sessionID] = mg
 		}
 
 		direction, err := game.ParseDirection(req.Direction)
@@ -2467,9 +2546,9 @@ func handleMiningMove(db *sql.DB) http.HandlerFunc {
 			UPDATE mining_sessions 
 			SET maze = $1, player_x = $2, player_y = $3, player_hp = $4, 
 			    money_collected = $5, last_move_time = NOW()
-			WHERE session_id = $6
+			WHERE id = $6
 		`, mazeJSON, result.PlayerX, result.PlayerY, result.PlayerHP,
-			result.MoneyCollected, sessionID)
+			result.MoneyCollected, dbSessionUUID)
 		if err != nil {
 			http.Error(w, "Failed to update mining session", http.StatusInternalServerError)
 			return
@@ -2480,8 +2559,8 @@ func handleMiningMove(db *sql.DB) http.HandlerFunc {
 			_, err = db.Exec(`
 				UPDATE mining_sessions 
 				SET status = $1, completed_at = NOW()
-				WHERE session_id = $2
-			`, result.EndReason, sessionID)
+				WHERE id = $2
+			`, result.EndReason, dbSessionUUID)
 			if err != nil {
 				http.Error(w, "Failed to update mining session status", http.StatusInternalServerError)
 				return
@@ -2492,7 +2571,7 @@ func handleMiningMove(db *sql.DB) http.HandlerFunc {
 		for _, m := range mg.GetSession().Monsters {
 			_, err = db.Exec(`
 				UPDATE mining_entities SET alive = $1 WHERE session_id = $2
-			`, m.Alive, sessionID)
+			`, m.Alive, dbSessionUUID)
 			if err != nil {
 				http.Error(w, "Failed to update mining entity", http.StatusInternalServerError)
 				return
@@ -2569,21 +2648,22 @@ func handleGetMining(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Get active session
-		var sessionID string
+		var sessionID, dbSessionUUID string
 		var playerHP, playerMaxHP, playerBombs int
 		var moneyCollected float64
 		var status string
 		var playerX, playerY, exitX, exitY, baseLevel int
 		var mazeJSON []byte
-		var startTime, completedAt time.Time
+		var startTime time.Time
+		var completedAt *time.Time
 
 		err = db.QueryRow(`
-			SELECT session_id, player_hp, player_max_hp, player_bombs, money_collected,
+			SELECT id, session_id, player_hp, player_max_hp, player_bombs, money_collected,
 			       status, player_x, player_y, exit_x, exit_y, base_level, maze, created_at, completed_at
 			FROM mining_sessions 
 			WHERE planet_id = $1 AND player_id = $2 
 			ORDER BY created_at DESC LIMIT 1
-		`, planetID, playerID).Scan(&sessionID, &playerHP, &playerMaxHP, &playerBombs,
+		`, planetID, playerID).Scan(&dbSessionUUID, &sessionID, &playerHP, &playerMaxHP, &playerBombs,
 			&moneyCollected, &status, &playerX, &playerY, &exitX, &exitY,
 			&baseLevel, &mazeJSON, &startTime, &completedAt)
 
@@ -2621,7 +2701,7 @@ func handleGetMining(db *sql.DB) http.HandlerFunc {
 				SELECT id, entity_type, x, y, hp, damage, reward, alive
 				FROM mining_entities 
 				WHERE session_id = $1 AND entity_type IN ('rat','bat','alien')
-			`, sessionID)
+			`, dbSessionUUID)
 			if err == nil {
 				defer rows.Close()
 				for rows.Next() {
@@ -2669,7 +2749,12 @@ func handleGetMining(db *sql.DB) http.HandlerFunc {
 			Monsters:       monsters,
 			AvailableMoves: availableMoves,
 			StartTime:      startTime.Format(time.RFC3339),
-			CompletedAt:    completedAt.Format(time.RFC3339),
+			CompletedAt: func() string {
+				if completedAt != nil {
+					return completedAt.Format(time.RFC3339)
+				}
+				return ""
+			}(),
 		}
 
 		w.Header().Set("Content-Type", "application/json")

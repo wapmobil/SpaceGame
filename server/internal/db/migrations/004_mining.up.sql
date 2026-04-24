@@ -43,5 +43,4 @@ CREATE INDEX IF NOT EXISTS idx_mining_sessions_planet_id ON mining_sessions(plan
 CREATE INDEX IF NOT EXISTS idx_mining_sessions_status ON mining_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_mining_entities_session_id ON mining_entities(session_id);
 
--- Apply updated_at triggers
-CREATE TRIGGER update_mining_sessions_updated_at BEFORE UPDATE ON mining_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- No trigger needed - last_move_time tracks updates

@@ -812,6 +812,60 @@ func GetMiningCooldown() time.Duration {
 	return 30 * time.Second
 }
 
+// LoadGameFromState creates a MiningGame and restores state from saved data
+func LoadGameFromState(planetID, playerID string, baseLevel int, maze [][]string, playerX, playerY, exitX, exitY, playerHP, playerMaxHP, playerBombs int, moneyCollected float64, monsters []Monster) *MiningGame {
+	config := DefaultMazeConfig(baseLevel)
+	seed := int64(0)
+	for i := 0; i < len(planetID); i++ {
+		seed += int64(planetID[i]) * int64(i+1)
+	}
+	for i := 0; i < len(playerID); i++ {
+		seed += int64(playerID[i]) * int64(i+1)
+	}
+	seed += int64(baseLevel) * 1000000
+	seed = time.Now().UnixNano() + seed
+
+	mg := &MiningGame{
+		config: config,
+		rng:    rand.New(rand.NewSource(seed)),
+		session: &MiningSession{
+			PlanetID:     planetID,
+			PlayerID:     playerID,
+			SessionID:    fmt.Sprintf("mining_%s_%d", planetID, seed),
+			Status:       "active",
+			BaseLevel:    baseLevel,
+			StartTime:    time.Now(),
+			PlayerX:      playerX,
+			PlayerY:      playerY,
+			ExitX:        exitX,
+			ExitY:        exitY,
+			PlayerHP:     playerHP,
+			PlayerMaxHP:  playerMaxHP,
+			PlayerBombs:  playerBombs,
+			MoneyCollected: moneyCollected,
+		},
+	}
+
+	// Restore maze
+	mg.session.Maze = make([][]rune, len(maze))
+	mg.session.DisplayMaze = make([][]rune, len(maze))
+	for i, row := range maze {
+		size := len(row)
+		mg.session.Maze[i] = make([]rune, size)
+		mg.session.DisplayMaze[i] = make([]rune, size)
+		for j, cell := range row {
+			r := rune(cell[0])
+			mg.session.Maze[i][j] = r
+			mg.session.DisplayMaze[i][j] = r
+		}
+	}
+
+	// Restore monsters
+	mg.session.Monsters = monsters
+
+	return mg
+}
+
 // getEnvDebug is a helper to check for dev mode
 func getEnvDebug(key string) (string, bool) {
 	val := ""
