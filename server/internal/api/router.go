@@ -67,8 +67,6 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	// Non-authenticated routes
 	r.Post("/api/register", handleRegister(db))
 	r.Post("/api/login", handleLogin(db))
-	r.Get("/api/planets", handleListPlanets(db))
-	r.Post("/api/planets", handleCreatePlanet(db))
 	r.Get("/ws", handleWebSocket(db))
 	r.Get("/health", handleHealth)
 	r.Get("/ws/health", handleWebSocketHealth)
@@ -105,6 +103,10 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Get("/{id}/farm", handleGetFarm(db))
 		rr.Post("/{id}/farm/action", handleFarmAction(db))
 	})
+
+	// Non-authenticated routes (after /api/planets route to avoid middleware conflict)
+	r.Get("/api/planets", handleListPlanets(db))
+	r.Post("/api/planets", handleCreatePlanet(db))
 
 	// Auth-only routes (auth but no planet ownership check)
 	r.Route("/api", func(rr chi.Router) {
