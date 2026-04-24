@@ -886,8 +886,8 @@ func (c *WSClient) handleDrillCommand(msg WSMessage) {
 	}
 
 	var req struct {
-		Direction string `json:"direction"`
-		Extract   bool   `json:"extract"`
+		Direction string  `json:"direction"`
+		Extract   *bool   `json:"extract,omitempty"`
 	}
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		c.WriteJSON(WSMessage{

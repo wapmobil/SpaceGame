@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 func TestNewDrillGame(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	session := game.GetSession()
@@ -73,7 +77,7 @@ func TestSetCommand_StoresCommand(t *testing.T) {
 	initialDepth := game.GetSession().Depth
 
 	// Set a command
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 
 	// World should NOT have changed (command is only stored, not applied)
 	session := game.GetSession()
@@ -85,34 +89,34 @@ func TestSetCommand_StoresCommand(t *testing.T) {
 	}
 
 	// But pending command should be stored
-	if game.session.PendingCommand.Direction != "left" {
-		t.Errorf("Expected pending direction 'left', got '%s'", game.session.PendingCommand.Direction)
+	if game.session.PendingDirection != "left" {
+		t.Errorf("Expected pending direction 'left', got '%s'", game.session.PendingDirection)
 	}
-	if game.session.PendingCommand.Extract {
+	if game.session.PendingExtract {
 		t.Errorf("Expected pending extract to be false, got true")
 	}
 }
 
 func TestSetCommand_Extract(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
-	game.SetCommand("", true)
+	game.SetCommand("", boolPtr(true))
 
-	if !game.session.PendingCommand.Extract {
+	if !game.session.PendingExtract {
 		t.Error("Expected pending extract to be true")
 	}
-	if game.session.PendingCommand.Direction != "" {
-		t.Errorf("Expected empty pending direction, got '%s'", game.session.PendingCommand.Direction)
+	if game.session.PendingDirection != "" {
+		t.Errorf("Expected empty pending direction, got '%s'", game.session.PendingDirection)
 	}
 }
 
 func TestSetCommand_Combo(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
-	game.SetCommand("right", true)
+	game.SetCommand("right", boolPtr(true))
 
-	if game.session.PendingCommand.Direction != "right" {
-		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingCommand.Direction)
+	if game.session.PendingDirection != "right" {
+		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingDirection)
 	}
-	if !game.session.PendingCommand.Extract {
+	if !game.session.PendingExtract {
 		t.Error("Expected pending extract to be true")
 	}
 }
@@ -121,7 +125,7 @@ func TestApplyCommand_Left(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	initialX := game.GetSession().DrillX
 
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -139,7 +143,7 @@ func TestApplyCommand_Right(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	initialX := game.GetSession().DrillX
 
-	game.SetCommand("right", false)
+	game.SetCommand("right", boolPtr(false))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -154,7 +158,7 @@ func TestApplyCommand_NoDirection(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	initialX := game.GetSession().DrillX
 
-	game.SetCommand("", false)
+	game.SetCommand("", boolPtr(false))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -175,7 +179,7 @@ func TestApplyCommand_Extract(t *testing.T) {
 	// Force a resource at the current position
 	game.session.ExtractedCells = make(map[string]float64)
 
-	game.SetCommand("", true)
+	game.SetCommand("", boolPtr(true))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -191,7 +195,7 @@ func TestApplyCommand_Combo(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	initialX := game.GetSession().DrillX
 
-	game.SetCommand("left", true)
+	game.SetCommand("left", boolPtr(true))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -213,14 +217,14 @@ func TestApplyCommand_Combo(t *testing.T) {
 
 func TestApplyCommand_ResetsPending(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 
 	// First apply
 	game.ApplyCommand()
 
 	// Pending should be reset
-	if game.session.PendingCommand.Direction != "" {
-		t.Errorf("Expected pending direction to be reset, got '%s'", game.session.PendingCommand.Direction)
+	if game.session.PendingDirection != "" {
+		t.Errorf("Expected pending direction to be reset, got '%s'", game.session.PendingDirection)
 	}
 
 	// Second apply should do nothing (no pending command)
@@ -252,7 +256,7 @@ func TestApplyCommand_OnEndedGame(t *testing.T) {
 
 func TestAutoDescentAppliesCommand(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 10) // high HP to survive
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 
 	initialX := game.GetSession().DrillX
 	initialDepth := game.GetSession().Depth
@@ -281,7 +285,7 @@ func TestBroadcastCallback(t *testing.T) {
 		lastResult = result
 	})
 
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 	game.ApplyCommandWithBroadcast()
 
 	if !broadcastCalled {
@@ -362,7 +366,7 @@ func TestGetChunk_VsSessionWorld_AfterMove(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 
 	// Apply a move
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 	game.ApplyCommand()
 
 	session := game.GetSession()
@@ -384,7 +388,7 @@ func TestMoveBoundaries(t *testing.T) {
 	// Move left from position 0 should succeed (no boundary)
 	game := NewDrillGame("planet-1", "player-1", 1)
 	game.session.DrillX = 0
-	game.SetCommand("left", false)
+	game.SetCommand("left", boolPtr(false))
 	game.ApplyCommand()
 	if game.GetSession().DrillX != -1 {
 		t.Errorf("Should move left from position 0, got X=%d", game.GetSession().DrillX)
@@ -393,7 +397,7 @@ func TestMoveBoundaries(t *testing.T) {
 	// Move right from position 4 should succeed (no boundary)
 	game2 := NewDrillGame("planet-2", "player-2", 1)
 	game2.session.DrillX = DefaultWorldWidth - 1
-	game2.SetCommand("right", false)
+	game2.SetCommand("right", boolPtr(false))
 	game2.ApplyCommand()
 	if game2.GetSession().DrillX != DefaultWorldWidth {
 		t.Errorf("Should move right from position %d, got X=%d", DefaultWorldWidth-1, game2.GetSession().DrillX)
@@ -406,7 +410,7 @@ func TestMoveDown_Damage(t *testing.T) {
 
 	// Move down repeatedly
 	for i := 0; i < 10; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		game.ApplyCommand()
 	}
 
@@ -427,7 +431,7 @@ func TestMoveDown_CellDamage(t *testing.T) {
 
 	// Move down 10 cells
 	for i := 0; i < 10; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		game.ApplyCommand()
 	}
 
@@ -616,7 +620,7 @@ func TestDrillGameDepthProgression(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 5)
 
 	for i := 0; i < 20; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		result := game.ApplyCommand()
 		if result.GameEnded {
 			t.Logf("Game ended at depth %d: %s", result.Depth, result.EndReason)
@@ -633,7 +637,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 
 	// Move down 10 times and check world is always 5x5
 	for i := 0; i < 10; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		game.ApplyCommand()
 		session := game.GetSession()
 		if len(session.World) != 5 {
@@ -649,7 +653,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 	// Move left/right and check world is still 5x5
 	game2 := NewDrillGame("planet-2", "player-2", 5)
 	for i := 0; i < 5; i++ {
-		game2.SetCommand("left", false)
+		game2.SetCommand("left", boolPtr(false))
 		game2.ApplyCommand()
 		session := game2.GetSession()
 		if len(session.World) != 5 {
@@ -659,7 +663,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 
 	game3 := NewDrillGame("planet-3", "player-3", 5)
 	for i := 0; i < 5; i++ {
-		game3.SetCommand("right", false)
+		game3.SetCommand("right", boolPtr(false))
 		game3.ApplyCommand()
 		session := game3.GetSession()
 		if len(session.World) != 5 {
@@ -673,7 +677,7 @@ func TestDrillXAlwaysAtCenter(t *testing.T) {
 
 	// Drill X should always be at center (2) after move down
 	for i := 0; i < 10; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		game.ApplyCommand()
 		if game.GetSession().DrillX != 2 {
 			t.Errorf("After %d moves down: expected drill X at center %d, got %d", i+1, 2, game.GetSession().DrillX)
@@ -724,14 +728,14 @@ func TestExtractResources(t *testing.T) {
 
 	// Move down several times
 	for i := 0; i < 5; i++ {
-		game.SetCommand("", false)
+		game.SetCommand("", boolPtr(false))
 		game.ApplyCommand()
 	}
 
 	initialResources := len(game.GetSession().Resources)
 
 	// Try to extract (might find a resource or not)
-	game.SetCommand("", true)
+	game.SetCommand("", boolPtr(true))
 	result := game.ApplyCommand()
 
 	if !result.Success {
@@ -748,17 +752,107 @@ func TestMultipleCommandsBeforeApply(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 
 	// Set multiple commands (only last one should stick)
-	game.SetCommand("left", false)
-	game.SetCommand("right", false)
+	game.SetCommand("left", boolPtr(false))
+	game.SetCommand("right", boolPtr(false))
 
 	// Only the last command should be pending
-	if game.session.PendingCommand.Direction != "right" {
-		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingCommand.Direction)
+	if game.session.PendingDirection != "right" {
+		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingDirection)
 	}
 
 	// Apply should use the last command
 	result := game.ApplyCommand()
 	if result.DrillX != DefaultWorldWidth/2+1 {
 		t.Errorf("Expected drill X %d, got %d", DefaultWorldWidth/2+1, result.DrillX)
+	}
+}
+
+func TestExtractPersistsAcrossTicks(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 10)
+
+	// Set extract on
+	game.SetCommand("", boolPtr(true))
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to be true")
+	}
+
+	// Apply first tick - direction reset, extract should persist
+	game.ApplyCommand()
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to still be true after first tick")
+	}
+
+	// Apply second tick - still extracting
+	game.ApplyCommand()
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to still be true after second tick")
+	}
+
+	// Turn off extract
+	game.SetCommand("", boolPtr(false))
+	if game.session.PendingExtract {
+		t.Error("Expected PendingExtract to be false after turning off")
+	}
+
+	// Apply third tick - no extract
+	game.ApplyCommand()
+}
+
+func TestExtractOnNewCell(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 10)
+
+	// Set extract on
+	game.SetCommand("", boolPtr(true))
+
+	// Apply command - should move down then extract from new cell
+	result := game.ApplyCommand()
+
+	// Depth should have increased (moved down)
+	if game.GetSession().Depth != 1 {
+		t.Errorf("Expected depth 1, got %d", game.GetSession().Depth)
+	}
+
+	// Extract flag should still be true (persists)
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to persist after apply")
+	}
+
+	// Result should have extracted > 0 if there was a resource at new cell
+	// (or 0 if no resource, but no error)
+	if result.Extracted < 0 {
+		t.Errorf("Expected extracted >= 0, got %f", result.Extracted)
+	}
+}
+
+func TestDirectionResetsAfterApply(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	game.SetCommand("left", boolPtr(false))
+	if game.session.PendingDirection != "left" {
+		t.Error("Expected PendingDirection to be 'left'")
+	}
+
+	game.ApplyCommand()
+	if game.session.PendingDirection != "" {
+		t.Errorf("Expected PendingDirection to be reset, got '%s'", game.session.PendingDirection)
+	}
+}
+
+func TestDirectionDoesNotAffectExtract(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 10)
+
+	// Turn on extract
+	game.SetCommand("", boolPtr(true))
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to be true")
+	}
+
+	// Set direction without changing extract (nil = don't change)
+	game.SetCommand("left", nil)
+	if !game.session.PendingExtract {
+		t.Error("Expected PendingExtract to still be true after setting direction")
+	}
+	if game.session.PendingDirection != "left" {
+		t.Error("Expected PendingDirection to be 'left'")
 	}
 }

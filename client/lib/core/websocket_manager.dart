@@ -89,12 +89,15 @@ class WebSocketManager extends ChangeNotifier {
   }
 
   void sendDrillCommand({String? direction, bool? extract}) {
+    Map<String, dynamic> data = {
+      'direction': direction ?? '',
+    };
+    if (extract != null) {
+      data['extract'] = extract;
+    }
     send({
       'type': 'drill_command',
-      'data': {
-        'direction': direction ?? '',
-        'extract': extract ?? false,
-      }
+      'data': data,
     });
   }
 

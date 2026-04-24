@@ -254,7 +254,7 @@ type PlanetResources = game.PlanetResources
 // DrillCommandRequest is the request body for drill commands.
 type DrillCommandRequest struct {
 	Direction string `json:"direction"` // "left", "right", ""
-	Extract   bool   `json:"extract"`   // extract resource at current position
+	Extract   *bool  `json:"extract,omitempty"`   // extract resource at current position
 }
 
 // DrillResourceResponse represents a collected resource.

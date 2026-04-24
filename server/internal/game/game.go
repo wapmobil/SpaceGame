@@ -430,3 +430,8 @@ func (g *Planet) broadcastPlanetUpdate() {
 func (g *Game) RegisterBroadcastHandler(fn func(planetID, playerID string, state map[string]interface{})) {
 	g.broadcastFunc = fn
 }
+
+// SavePlanet saves planet state to the database.
+func (g *Game) SavePlanet(p *Planet) {
+	g.savePlanet(p)
+}

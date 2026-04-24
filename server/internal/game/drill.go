@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,21 +46,20 @@ type ResourceDef struct {
 }
 
 var resourceDefinitions = map[string]*ResourceDef{
-	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 15, DigTime: 3.0, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.08, Damage: 3},
-	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 20, DigTime: 3.5, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.06, Damage: 3},
-	ResourceCopper:   {Type: ResourceCopper, Name: "Медь", Icon: "🟠", Value: 30, DigTime: 4.0, DepthStart: 50, DepthEnd: 100, SpawnChance: 0.07, Damage: 5},
-	ResourceCoal:     {Type: ResourceCoal, Name: "Уголь", Icon: "⬛", Value: 25, DigTime: 3.5, DepthStart: 50, DepthEnd: 150, SpawnChance: 0.08, Damage: 5},
-	ResourceSilver:   {Type: ResourceSilver, Name: "Серебро", Icon: "⚪", Value: 50, DigTime: 5.0, DepthStart: 100, DepthEnd: 200, SpawnChance: 0.05, Damage: 8},
-	ResourceGold:     {Type: ResourceGold, Name: "Золото", Icon: "🟡", Value: 100, DigTime: 6.0, DepthStart: 150, DepthEnd: 300, SpawnChance: 0.04, Damage: 10},
-	ResourcePlatinum: {Type: ResourcePlatinum, Name: "Платина", Icon: "🔘", Value: 150, DigTime: 7.0, DepthStart: 200, DepthEnd: 400, SpawnChance: 0.03, Damage: 12},
-	ResourceDiamond:  {Type: ResourceDiamond, Name: "Алмазы", Icon: "💎", Value: 250, DigTime: 8.0, DepthStart: 300, DepthEnd: 500, SpawnChance: 0.02, Damage: 15},
-	ResourceExotic:   {Type: ResourceExotic, Name: "Экзотика", Icon: "🔮", Value: 500, DigTime: 10.0, DepthStart: 500, DepthEnd: 9999, SpawnChance: 0.01, Damage: 20},
+	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 1, DigTime: 3.0, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.08, Damage: 3},
+	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 2, DigTime: 3.5, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.06, Damage: 3},
+	ResourceCopper:   {Type: ResourceCopper, Name: "Медь", Icon: "🟠", Value: 10, DigTime: 4.0, DepthStart: 50, DepthEnd: 100, SpawnChance: 0.07, Damage: 5},
+	ResourceCoal:     {Type: ResourceCoal, Name: "Уголь", Icon: "⬛", Value: 5, DigTime: 3.5, DepthStart: 50, DepthEnd: 150, SpawnChance: 0.08, Damage: 5},
+	ResourceSilver:   {Type: ResourceSilver, Name: "Серебро", Icon: "⚪", Value: 15, DigTime: 5.0, DepthStart: 100, DepthEnd: 200, SpawnChance: 0.05, Damage: 8},
+	ResourceGold:     {Type: ResourceGold, Name: "Золото", Icon: "🟡", Value: 25, DigTime: 6.0, DepthStart: 150, DepthEnd: 300, SpawnChance: 0.04, Damage: 10},
+	ResourcePlatinum: {Type: ResourcePlatinum, Name: "Платина", Icon: "🔘", Value: 30, DigTime: 7.0, DepthStart: 200, DepthEnd: 400, SpawnChance: 0.03, Damage: 12},
+	ResourceDiamond:  {Type: ResourceDiamond, Name: "Алмазы", Icon: "💎", Value: 60, DigTime: 8.0, DepthStart: 300, DepthEnd: 500, SpawnChance: 0.02, Damage: 15},
+	ResourceExotic:   {Type: ResourceExotic, Name: "Экзотика", Icon: "🔮", Value: 200, DigTime: 10.0, DepthStart: 500, DepthEnd: 9999, SpawnChance: 0.01, Damage: 20},
 }
 
 // DrillCommand represents a player command
 type DrillCommand struct {
 	Direction string // "left", "right", "" (no horizontal move)
-	Extract   bool
 }
 
 // Cell represents a single cell in the drill world
@@ -94,7 +94,8 @@ type DrillSession struct {
 	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
 	LastMoveTime   time.Time         `json:"last_move_time"`
 	ExtractedCells map[string]float64 `json:"-"` // tracks (x,y) -> remaining resource amount
-	PendingCommand DrillCommand      `json:"-"` // last command from client, applied on auto-descent
+	PendingDirection string           `json:"-"` // last direction from client, reset after apply
+	PendingExtract   bool             `json:"-"` // extract flag, persists until explicitly disabled
 }
 
 // DrillResource represents a collected resource in the session
@@ -246,17 +247,19 @@ func (g *DrillGame) SetBroadcastFn(fn func(*MoveResult)) {
 }
 
 // SetCommand memorizes a command from the client without applying it immediately
-func (g *DrillGame) SetCommand(direction string, extract bool) {
-	g.session.PendingCommand = DrillCommand{
-		Direction: direction,
-		Extract:   extract,
+func (g *DrillGame) SetCommand(direction string, extract *bool) {
+	g.session.PendingDirection = direction
+	if extract != nil {
+		g.session.PendingExtract = *extract
 	}
 }
 
 // ApplyCommand applies the pending command and returns the result
 func (g *DrillGame) ApplyCommand() *MoveResult {
-	cmd := g.session.PendingCommand
-	g.session.PendingCommand = DrillCommand{} // reset
+	// Save extract flag before resetting direction
+	extract := g.session.PendingExtract
+	direction := g.session.PendingDirection
+	g.session.PendingDirection = "" // reset direction only
 
 	result := &MoveResult{
 		DrillHP:     g.session.DrillHP,
@@ -276,19 +279,19 @@ func (g *DrillGame) ApplyCommand() *MoveResult {
 	}
 
 	// 1. Horizontal movement
-	if cmd.Direction == "left" {
+	if direction == "left" {
 		g.session.DrillX--
 		result.DrillX = g.session.DrillX
-	} else if cmd.Direction == "right" {
+	} else if direction == "right" {
 		g.session.DrillX++
 		result.DrillX = g.session.DrillX
 	}
 
-	// 2. Extraction (before moving down, extract from current cell)
-	g.processExtraction(result, cmd.Extract)
+	// 2. Always move down on auto-descent
+	g.processDrillDown(result, extract)
 
-	// 3. Always move down on auto-descent
-	g.processDrillDown(result, cmd.Extract)
+	// 3. Extract from the NEW cell (after moving down)
+	g.processExtraction(result, extract)
 
 	// 4. Regenerate world at new position
 	g.regenerateWorld()
@@ -300,6 +303,8 @@ func (g *DrillGame) ApplyCommand() *MoveResult {
 		g.session.Status = "failed"
 		now := time.Now()
 		g.session.CompletedAt = &now
+		g.convertResourcesToMoney()
+		result.TotalEarned = g.session.TotalEarned
 		result.GameEnded = true
 		result.EndReason = "drill_destroyed"
 		return result
@@ -427,6 +432,11 @@ func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *Res
 	if len(candidates) == 0 {
 		return nil
 	}
+
+	// Sort candidates by type for deterministic iteration
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Type < candidates[j].Type
+	})
 
 	// Weight by spawn chance
 	totalChance := 0.0
@@ -627,6 +637,7 @@ func (g *DrillGame) Destroy() {
 	g.session.Status = "failed"
 	now := time.Now()
 	g.session.CompletedAt = &now
+	g.convertResourcesToMoney()
 }
 
 // Complete marks the session as completed and converts resources to money

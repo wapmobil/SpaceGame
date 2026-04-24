@@ -1080,8 +1080,8 @@ class GameProvider extends ChangeNotifier {
 
   void drillCommand({String? direction, bool? extract}) {
     if (_drillState == null || _drillState!.status != 'active') return;
-    _drillPendingDirection = direction;
-    _drillPendingExtracting = extract ?? false;
+    if (direction != null) _drillPendingDirection = direction;
+    if (extract != null) _drillPendingExtracting = extract;
     _drillState = DrillState(
       sessionId: _drillState!.sessionId,
       planetId: _drillState!.planetId,
@@ -1110,7 +1110,6 @@ class GameProvider extends ChangeNotifier {
       final update = DrillUpdate.fromJson(data);
       _drillSessionId = update.sessionId;
       _drillPendingDirection = null;
-      _drillPendingExtracting = false;
       _drillState = DrillState(
         sessionId: update.sessionId,
         planetId: _selectedPlanet?.id ?? '',

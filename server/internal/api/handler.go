@@ -2793,10 +2793,13 @@ func handleCompleteDrill(db *sql.DB) http.HandlerFunc {
 		totalEarned := dg.Complete()
 		sess := dg.GetSession()
 
-		// Add money to player balance
-		_, err = db.Exec(`UPDATE players SET money = money + $1, drill_last_completed = NOW() WHERE id = $2`, totalEarned, playerID)
-		if err != nil {
-			log.Printf("Failed to update player balance: %v", err)
+		// Add money to planet resources
+		if totalEarned > 0 {
+			p := game.Instance().GetPlanet(planetID)
+			if p != nil {
+				p.Resources.Money += totalEarned
+				game.Instance().SavePlanet(p)
+			}
 		}
 
 		// Build response
@@ -2910,6 +2913,15 @@ func handleDestroyDrill(db *sql.DB) http.HandlerFunc {
 		}
 
 		dg.Destroy()
+
+		totalEarned := dg.GetSession().TotalEarned
+		if totalEarned > 0 {
+			p := game.Instance().GetPlanet(planetID)
+			if p != nil {
+				p.Resources.Money += totalEarned
+				game.Instance().SavePlanet(p)
+			}
+		}
 
 		result := dg.GetSession()
 		resourceResp := make([]DrillResourceResponse, len(result.Resources))

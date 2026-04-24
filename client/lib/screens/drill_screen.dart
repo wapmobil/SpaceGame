@@ -215,15 +215,15 @@ class _DrillScreenState extends State<DrillScreen> {
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const SizedBox(height: 4),
-                    _buildResourceRow('🛢️ Нефть', '15\$', '0–50'),
-                    _buildResourceRow('💨 Газ', '20\$', '0–50'),
-                    _buildResourceRow('🟠 Медь', '30\$', '50–100'),
-                    _buildResourceRow('⬛ Уголь', '25\$', '50–150'),
-                    _buildResourceRow('⚪ Серебро', '50\$', '100–200'),
-                    _buildResourceRow('🟡 Золото', '100\$', '150–300'),
-                    _buildResourceRow('🔘 Платина', '150\$', '200–400'),
-                    _buildResourceRow('💎 Алмазы', '250\$', '300–500'),
-                    _buildResourceRow('🔮 Экзотика', '500\$', '500+'),
+                    _buildResourceRow('🛢️ Нефть', '1\$', '0–50'),
+                    _buildResourceRow('💨 Газ', '2\$', '0–50'),
+                    _buildResourceRow('⬛ Уголь', '5\$', '50–150'),
+                    _buildResourceRow('🟠 Медь', '10\$', '50–100'),
+                    _buildResourceRow('⚪ Серебро', '15\$', '100–200'),
+                    _buildResourceRow('🟡 Золото', '25\$', '150–300'),
+                    _buildResourceRow('🔘 Платина', '30\$', '200–400'),
+                    _buildResourceRow('💎 Алмазы', '60\$', '300–500'),
+                    _buildResourceRow('🔮 Экзотика', '200\$', '500+'),
                   ],
                 ),
               ),
@@ -376,7 +376,7 @@ class _DrillScreenState extends State<DrillScreen> {
                 color: Colors.orange.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: const Text('⛏️ Добыча...',
+              child: const Text('🛡️ Добыча...',
                   style: TextStyle(color: Colors.orange, fontSize: 11)),
             ),
           if (provider.drillPendingDirection != null && provider.drillPendingDirection != '')
@@ -477,7 +477,7 @@ class _DrillScreenState extends State<DrillScreen> {
 
     if (isDrillPos) {
       bgColor = Colors.amber;
-      content = '⛏️';
+      content = '🛡️';
     } else if (cell.extracted) {
       bgColor = Colors.grey[900]!;
       content = '';
