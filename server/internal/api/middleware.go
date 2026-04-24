@@ -6,10 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"spacegame/internal/game"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type contextKey string
@@ -60,7 +59,8 @@ func requirePlanetOwnership(db *sql.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			playerID := r.Context().Value(playerIDKey).(string)
-			planetID := chi.URLParam(r, "id")
+
+			planetID := extractPlanetID(r.URL.Path)
 			if planetID == "" {
 				JSON(w, http.StatusBadRequest, map[string]string{"error": "Missing planet id"})
 				return
@@ -81,6 +81,21 @@ func requirePlanetOwnership(db *sql.DB) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// extractPlanetID extracts the planet ID from the URL path.
+// Handles paths like /api/planets/{id} and /api/planets/{id}/buildings etc.
+func extractPlanetID(path string) string {
+	prefix := "/api/planets/"
+	if !strings.HasPrefix(path, prefix) {
+		return ""
+	}
+	rest := path[len(prefix):]
+	parts := strings.SplitN(rest, "/", 2)
+	if len(parts) == 0 || parts[0] == "" {
+		return ""
+	}
+	return parts[0]
 }
 
 // PlanetIDFromContext extracts the planet ID from the request context.
