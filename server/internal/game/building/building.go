@@ -59,50 +59,50 @@ func Cost(bt string, level int) CostMulti {
 		if level <= 2 {
 			return CostMulti{
 				Food: float64(level*level*level*20 + 30),
-				Iron: float64(level*level*5 + 5),
+				Iron: float64(level*level*10 + 5),
 			}
 		}
 		return CostMulti{
 			Food:  float64(level*level*level*20 + 30),
-			Iron:  float64(level*level*5 + 5),
+			Iron:  float64(level*level*20 + 5),
 			Money: float64(level * 20),
 		}
 	case "solar":
 		if level == 0 {
-			return CostMulti{Food: float64(level*level*50 + 15), Iron: float64(level*level*3 + 3)}
-		}
-		if level <= 2 {
 			return CostMulti{
 				Food: float64(level*level*50 + 15),
 				Iron: float64(level*level*3 + 3),
 			}
 		}
+		if level <= 2 {
+			return CostMulti{
+				Food: float64(level*level*50 + 15),
+				Iron: float64(level*level*60 + 3),
+			}
+		}
 		return CostMulti{
 			Food:  float64(level*level*50 + 15),
-			Iron:  float64(level*level*3 + 3),
+			Iron:  float64(level*level*60 + 3),
 			Money: float64(level * 15),
 		}
 	case "storage":
-		if level == 0 {
-			return CostMulti{Food: float64(level*level+1) * 60}
-		}
-		if level <= 2 {
+		if level < 3 {
 			return CostMulti{
 				Food: float64(level*level+1) * 60,
-				Iron: float64(level*level+1) * 4,
+				Iron: float64(level*level+1) * 80,
 			}
 		}
 		return CostMulti{
 			Food:  float64(level*level+1) * 60,
-			Iron:  float64(level*level+1) * 4,
+			Iron:  float64(level*level+1) * 80,
 			Money: float64(level*level+1) * 2,
 		}
 	case "base":
 		if level == 0 {
-			return CostMulti{Food: 20, Iron: 40}
+			return CostMulti{Food: 20, Iron: 100}
 		}
 		if level == 1 {
-			return CostMulti{Food: 200, Iron: 400}
+			return CostMulti{Food: 200, Iron: 500}
 		}
 		if level <= 2 {
 			return CostMulti{
@@ -116,93 +116,39 @@ func Cost(bt string, level int) CostMulti {
 			Money: math.Pow(2, float64(level-1)),
 		}
 	case "factory":
-		if level == 0 {
-			return CostMulti{Food: float64(level*2+1) * 2500}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: float64(level*2+1) * 2500,
-				Iron: float64(level*2+1) * 40,
-			}
-		}
 		return CostMulti{
 			Food:  float64(level*2+1) * 2500,
-			Iron:  float64(level*2+1) * 40,
+			Iron:  float64(level*2+1) * 4000,
 			Money: float64(level*2+1) * 20,
 		}
 	case "energy_storage":
-		if level == 0 {
-			return CostMulti{Food: float64(level*level) * 300}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: float64(level*level) * 300,
-				Iron: float64(level*level) * 20,
-			}
-		}
 		return CostMulti{
-			Food:  float64(level*level) * 300,
-			Iron:  float64(level*level) * 20,
+			Food:  float64(level*level) * 500,
+			Iron:  float64(level*level) * 1200,
 			Money: float64(level*level) * 10,
 		}
 	case "shipyard":
-		if level == 0 {
-			return CostMulti{Food: math.Pow(2, float64(level+5)) * 0.5}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: math.Pow(2, float64(level+5)) * 0.5,
-				Iron: math.Pow(2, float64(level)),
-			}
-		}
 		return CostMulti{
 			Food:  math.Pow(2, float64(level+5)) * 0.5,
-			Iron:  math.Pow(2, float64(level)),
+			Iron:  math.Pow(2, float64(level)) * 20,
 			Money: math.Pow(2, float64(level-1)),
 		}
 	case "comcenter":
-		if level == 0 {
-			return CostMulti{Food: float64(level) * 10000}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: float64(level) * 10000,
-				Iron: float64(level) * 200,
-			}
-		}
 		return CostMulti{
-			Food:  float64(level) * 10000,
-			Iron:  float64(level) * 200,
-			Money: float64(level) * 100,
+			Food:  float64(level+1) * 4000,
+			Iron:  float64(level+1) * 8000,
+			Money: float64(level+1) * 100,
 		}
 	case "composite_drone", "mechanism_factory", "reagent_lab":
-		if level == 0 {
-			return CostMulti{Food: float64(level*level+1) * 60}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: float64(level*level+1) * 60,
-				Iron: float64(level*level+1) * 4,
-			}
-		}
 		return CostMulti{
-			Food:  float64(level*level+1) * 60,
-			Iron:  float64(level*level+1) * 4,
-			Money: float64(level*level+1) * 2,
+			Food:  float64(level*level+1) * 60 + 1000,
+			Iron:  float64(level*level+1) * 80 + 1000,
+			Money: float64(level*level+1) * 2 + 100,
 		}
 	case "dynamo":
-		if level == 0 {
-			return CostMulti{Food: float64(level*level*30 + 10)}
-		}
-		if level <= 2 {
-			return CostMulti{
-				Food: float64(level*level*30 + 10),
-				Iron: float64(level*level*3 + 3),
-			}
-		}
 		return CostMulti{
 			Food:  float64(level*level*30 + 10),
-			Iron:  float64(level*level*3 + 3),
+			Iron:  float64(level*level*30 + 3),
 			Money: float64(level * 10),
 		}
 	case "mine":
@@ -212,17 +158,17 @@ func Cost(bt string, level int) CostMulti {
 		if level <= 2 {
 			return CostMulti{
 				Food: float64(level*level*30 + 10),
-				Iron: float64(level*level*5 + 5),
+				Iron: float64(level*level*50 + 5),
 			}
 		}
 		return CostMulti{
 			Food:  float64(level*level*30 + 10),
-			Iron:  float64(level*level*5 + 5),
+			Iron:  float64(level*level*50 + 5),
 			Money: float64(level * 15),
 		}
 	case "market":
 		if level == 0 {
-			return CostMulti{Food: 120, Iron: 200}
+			return CostMulti{Food: 120, Iron: 200 }
 		}
 		if level <= 2 {
 			return CostMulti{
