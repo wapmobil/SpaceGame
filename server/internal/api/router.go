@@ -114,6 +114,10 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	// Events
 	r.Post("/api/planets/{id}/events/resolve", handleResolveEvent(db))
 
+	// Farm mini-game
+	r.Get("/api/planets/{id}/farm", handleGetFarm(db))
+	r.Post("/api/planets/{id}/farm/action", handleFarmAction(db))
+
 	return r
 }
 

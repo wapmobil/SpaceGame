@@ -830,6 +830,26 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
+		// Build farm state if farm building exists
+		var farmStateResp FarmStateResponse
+		if p.FarmState != nil && p.FarmState.RowCount > 0 {
+			farmStateResp = FarmStateResponse{
+				Rows:     p.FarmState.Rows,
+				LastTick: p.FarmState.LastTick,
+				RowCount: p.FarmState.RowCount,
+			}
+		} else {
+			farmLevel := p.GetBuildingLevel("farm")
+			if farmLevel > 0 {
+				p.FarmState = game.NewFarmState(farmLevel)
+				farmStateResp = FarmStateResponse{
+					Rows:     p.FarmState.Rows,
+					LastTick: p.FarmState.LastTick,
+					RowCount: p.FarmState.RowCount,
+				}
+			}
+		}
+
 		resp := BuildDetailsResponse{
 			Resources: PlanetResources{
 				Food:            details.Resources.Food,
@@ -862,6 +882,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			CanExpedition:      details.CanExpedition,
 						BuildingCosts:      buildingCosts,
 			ResearchUnlocks:    p.Resources.ResearchUnlocks,
+			FarmState:          farmStateResp,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -3034,5 +3055,155 @@ func handleCleanupDrill(db *sql.DB) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "cleaned",
 		})
+	}
+}
+
+// handleGetFarm handles GET /api/planets/{id}/farm
+func handleGetFarm(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
+		}
+
+		if p == nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+
+		farmState, err := game.GetFarmState(p)
+		if err != nil {
+			http.Error(w, "Failed to get farm state", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(farmState)
+	}
+}
+
+// handleFarmAction handles POST /api/planets/{id}/farm/action
+func handleFarmAction(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		var req FarmActionRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.Action == "" {
+			http.Error(w, "Missing action", http.StatusBadRequest)
+			return
+		}
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
+				log.Printf("Error loading planet from DB: %v", err)
+			}
+			p = game.Instance().GetPlanet(planetID)
+		}
+
+		if p == nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+
+		result, err := game.FarmActionInternal(p, req.Action, req.RowIndex, req.PlantType)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if !result.Success {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(result)
+			return
+		}
+
+		// Broadcast farm update
+		wsBroadcast.BroadcastFarmUpdate(ownerID, map[string]interface{}{
+			"planet_id": planetID,
+			"rows":      result.Rows,
+			"last_tick": result.LastTick,
+			"food_gain": result.FoodGain,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
 	}
 }

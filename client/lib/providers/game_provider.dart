@@ -13,9 +13,11 @@ import '../models/market.dart';
 import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
+import '../providers/farm_provider.dart';
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
+  final FarmProvider _farmProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -70,8 +72,9 @@ class GameProvider extends ChangeNotifier {
   // Research paused status
   bool _researchPaused = false;
 
-  GameProvider({required this.websocket, String? baseUrl})
-      : _baseUrl = baseUrl ?? _getBaseUri();
+  GameProvider({required this.websocket, String? baseUrl, FarmProvider? farmProvider})
+      : _baseUrl = baseUrl ?? _getBaseUri(),
+        _farmProvider = farmProvider ?? FarmProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
 
   static String _getBaseUri() {
     if (kIsWeb) {
@@ -92,6 +95,7 @@ class GameProvider extends ChangeNotifier {
   ShipyardInfo? get shipyardInfo => _shipyardInfo;
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
+  FarmProvider get farmProvider => _farmProvider;
     ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
@@ -246,6 +250,13 @@ class GameProvider extends ChangeNotifier {
       case 'drill_update':
         onDrillUpdate(data ?? {});
         break;
+      case 'farm_update':
+        _farmProvider.onFarmUpdate(data ?? {});
+        break;
+      default:
+        if (message['type'] == 'farm_action_result') {
+          _farmProvider.onFarmWSActionResult(data ?? {});
+        }
     }
   }
 
@@ -405,6 +416,7 @@ class GameProvider extends ChangeNotifier {
      loadExpeditions(planet.id);
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
+    _farmProvider.getFarm(planet.id);
         notifyListeners();
   }
 
@@ -515,6 +527,12 @@ class GameProvider extends ChangeNotifier {
     
     // Update research unlocks
     _researchUnlocks = data['research_unlocks'] as String? ?? '';
+
+    // Update farm state
+    final farmStateJson = data['farm_state'] as Map<String, dynamic>?;
+    if (farmStateJson != null && farmStateJson.isNotEmpty) {
+      _farmProvider.onFarmUpdate(farmStateJson);
+    }
 
     notifyListeners();
   }

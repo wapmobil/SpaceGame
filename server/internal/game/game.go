@@ -159,6 +159,11 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 		planet.Resources.ResearchUnlocks = buildings[rand.Intn(len(buildings))]
 	}
 
+	// Load farm state
+	if err := LoadFarmFromDB(planet); err != nil {
+		log.Printf("Error loading farm for planet %s: %v", planet.ID, err)
+	}
+
 	g.AddPlanet(planet)
 	return nil
 }
@@ -252,6 +257,11 @@ func (g *Game) LoadPlanetsFromDB() error {
 		// Populate computed fields for each building
 		for i := range planet.Buildings {
 			planet.PopulateBuildingEntry(i)
+		}
+
+		// Load farm state
+		if err := LoadFarmFromDB(planet); err != nil {
+			log.Printf("Error loading farm for planet %s: %v", id, err)
 		}
 
 		g.AddPlanet(planet)
@@ -360,6 +370,11 @@ func (g *Game) savePlanet(p *Planet) {
 		log.Printf("Error saving research for planet %s: %v", p.ID, err)
 	}
 
+	// Save farm state
+	if p.FarmState != nil && p.FarmState.RowCount > 0 {
+		SaveFarmToDB(p)
+	}
+
 	// Save fleet state
 	if fleetState, _ := g.db.ColumnExists(context.Background(), "planets", "fleet_state"); fleetState {
 		fleetData, err := json.Marshal(p.Fleet.GetShipState())
@@ -403,6 +418,25 @@ func (g *Game) savePlanet(p *Planet) {
 		`, p.EnergyBuffer.Value, p.ID)
 		if err != nil {
 			log.Printf("Error saving energy buffer for planet %s: %v", p.ID, err)
+		}
+	}
+
+	// Save farm state
+	if farmGrid, _ := g.db.ColumnExists(context.Background(), "planets", "farm_grid"); farmGrid {
+		if p.FarmState != nil {
+			farmData, err := json.Marshal(p.FarmState.Rows)
+			if err != nil {
+				log.Printf("Error marshaling farm for planet %s: %v", p.ID, err)
+			} else {
+				_, err = g.db.Exec(`
+					UPDATE planets 
+					SET farm_grid = $1::jsonb, farm_last_tick = $2, updated_at = NOW()
+					WHERE id = $3
+				`, string(farmData), p.FarmState.LastTick, p.ID)
+				if err != nil {
+					log.Printf("Error saving farm for planet %s: %v", p.ID, err)
+				}
+			}
 		}
 	}
 

@@ -101,6 +101,20 @@ class WebSocketManager extends ChangeNotifier {
     });
   }
 
+  void sendFarmAction({required String action, required int rowIndex, String? plantType}) {
+    Map<String, dynamic> data = {
+      'action': action,
+      'row_index': rowIndex,
+    };
+    if (plantType != null) {
+      data['plant_type'] = plantType;
+    }
+    send({
+      'type': 'farm_action',
+      'data': data,
+    });
+  }
+
   void disconnect() {
     _pingTimer?.cancel();
     _channel?.sink.close();

@@ -36,6 +36,14 @@ func (p *Planet) Tick() {
 	// 3.6 Auto-disable base when food is depleted
 	p.autoDisableBase()
 
+	// 3.7 Farm tick (every 100 seconds, only if farm is working)
+	if p.FarmState != nil && p.GetBuildingLevel("farm") > 0 {
+		farmIdx := p.FindBuildingIndex("farm")
+		if farmIdx >= 0 && p.Buildings[farmIdx].IsWorking() {
+			ProcessFarmTick(p, p.LastTick.Unix())
+		}
+	}
+
 	// 4. Advance research progress (pause if base is not operational)
 	if p.HasOperationalBase() {
 		p.Research.Tick()

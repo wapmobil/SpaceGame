@@ -239,6 +239,14 @@ type BuildDetailsResponse struct {
 	CanExpedition      bool                       `json:"can_expedition"`
 	BuildingCosts      map[string]BuildingCostDetail `json:"building_costs"`
 	ResearchUnlocks    string                     `json:"research_unlocks"`
+	FarmState          FarmStateResponse          `json:"farm_state,omitempty"`
+}
+
+// FarmStateResponse represents the farm state in API responses.
+type FarmStateResponse struct {
+	Rows     []game.FarmRow `json:"rows"`
+	LastTick int64          `json:"last_tick"`
+	RowCount int            `json:"row_count"`
 }
 
 // EnergyBalanceDetail represents energy production and consumption.
@@ -358,4 +366,11 @@ type DrillUpdateData struct {
 	EndReason   string                  `json:"end_reason,omitempty"`
 	NewResource *DrillHitResource       `json:"new_resource,omitempty"`
 	Extracted   float64                 `json:"extracted,omitempty"`
+}
+
+// FarmActionRequest is the request body for farm actions.
+type FarmActionRequest struct {
+	Action    string `json:"action"`     // "plant", "weed", "water", "harvest"
+	RowIndex  int    `json:"row_index"`
+	PlantType string `json:"plant_type,omitempty"` // required for "plant"
 }

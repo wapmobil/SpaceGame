@@ -558,6 +558,14 @@ func (bs *WSBroadcastService) BroadcastDrillUpdate(playerID string, data map[str
 	})
 }
 
+// BroadcastFarmUpdate sends a farm update to the owning player.
+func (bs *WSBroadcastService) BroadcastFarmUpdate(playerID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "farm_update",
+		Data: json.RawMessage(toJSON(data)),
+	})
+}
+
 // BroadcastRandomEvent sends a random event notification.
 func (bs *WSBroadcastService) BroadcastRandomEvent(playerID string, event map[string]interface{}) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
@@ -823,7 +831,8 @@ func (c *WSClient) handleMessage(msg WSMessage) {
 		c.handleDeleteMarketOrder(msg)
 	case "drill_command":
 		c.handleDrillCommand(msg)
-	
+	case "farm_action":
+		c.handleFarmAction(msg)
 	default:
 		c.WriteJSON(WSMessage{
 			Type: "ack",
@@ -918,6 +927,85 @@ func (c *WSClient) handleDrillCommand(msg WSMessage) {
 	c.WriteJSON(WSMessage{
 		Type: "drill_command_ack",
 		Data: json.RawMessage(fmt.Sprintf(`{"status":"command_received"}`)),
+	})
+}
+
+// handleFarmAction handles a farm action from the client via WebSocket.
+func (c *WSClient) handleFarmAction(msg WSMessage) {
+	if msg.Data == nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Missing farm action data",
+		})
+		return
+	}
+
+	var req struct {
+		Action    string `json:"action"`
+		RowIndex  int    `json:"row_index"`
+		PlantType string `json:"plant_type,omitempty"`
+	}
+	if err := json.Unmarshal(msg.Data, &req); err != nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Invalid farm action",
+		})
+		return
+	}
+
+	if req.Action == "" {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Missing action",
+		})
+		return
+	}
+
+	p := game.Instance().GetPlanet(c.planetID)
+	if p == nil {
+		if err := game.Instance().LoadPlanetFromDB(c.planetID); err != nil {
+			log.Printf("Error loading planet from DB: %v", err)
+		}
+		p = game.Instance().GetPlanet(c.planetID)
+	}
+
+	if p == nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Planet not found",
+		})
+		return
+	}
+
+	result, err := game.FarmActionInternal(p, req.Action, req.RowIndex, req.PlantType)
+	if err != nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: err.Error(),
+		})
+		return
+	}
+
+	if !result.Success {
+		c.WriteJSON(WSMessage{
+			Type: "farm_action_result",
+			Data: json.RawMessage(fmt.Sprintf(`{"success":false,"error":"%s","rows":%s,"last_tick":%d}`,
+				escapeJSON(result.Error), toJSON(result.Rows), result.LastTick)),
+		})
+		return
+	}
+
+	wsBroadcast.BroadcastFarmUpdate(c.playerID, map[string]interface{}{
+		"planet_id": c.planetID,
+		"rows":      result.Rows,
+		"last_tick": result.LastTick,
+		"food_gain": result.FoodGain,
+	})
+
+	c.WriteJSON(WSMessage{
+		Type: "farm_action_result",
+		Data: json.RawMessage(fmt.Sprintf(`{"success":true,"rows":%s,"last_tick":%d,"food_gain":%.0f}`,
+			toJSON(result.Rows), result.LastTick, result.FoodGain)),
 	})
 }
 

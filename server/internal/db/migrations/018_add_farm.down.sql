@@ -1,0 +1,2 @@
+ALTER TABLE planets DROP COLUMN IF EXISTS farm_grid;
+ALTER TABLE planets DROP COLUMN IF EXISTS farm_last_tick;
