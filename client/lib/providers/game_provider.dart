@@ -37,7 +37,7 @@ class GameProvider extends ChangeNotifier {
   String? _errorMessage;
   int _activeConstructions = 0;
   int _maxConstructions = 1;
-  Map<String, Map<String, double>> _buildingCosts = {};
+  Map<String, Map<String, dynamic>> _buildingCosts = {};
 
   // Energy balance
   double _energyBalanceProduction = 0;
@@ -46,6 +46,7 @@ class GameProvider extends ChangeNotifier {
 
   // Production totals
   double _productionFood = 0;
+  double _productionIron = 0;
   double _productionComposite = 0;
   double _productionMechanisms = 0;
   double _productionReagents = 0;
@@ -101,7 +102,7 @@ class GameProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
-  Map<String, Map<String, double>> get buildingCosts => _buildingCosts;
+  Map<String, Map<String, dynamic>> get buildingCosts => _buildingCosts;
   bool get isLoggedIn => _player != null;
 
   // Energy getters (from planet resources)
@@ -116,6 +117,7 @@ class GameProvider extends ChangeNotifier {
 
   // Production getters
   double get productionFood => _productionFood;
+  double get productionIron => _productionIron;
   double get productionComposite => _productionComposite;
   double get productionMechanisms => _productionMechanisms;
   double get productionReagents => _productionReagents;
@@ -489,6 +491,7 @@ class GameProvider extends ChangeNotifier {
     final production = data['production'] as Map<String, dynamic>?;
     if (production != null) {
       _productionFood = (production['food'] as num?)?.toDouble() ?? 0;
+      _productionIron = (production['iron'] as num?)?.toDouble() ?? 0;
       _productionComposite = (production['composite'] as num?)?.toDouble() ?? 0;
       _productionMechanisms = (production['mechanisms'] as num?)?.toDouble() ?? 0;
       _productionReagents = (production['reagents'] as num?)?.toDouble() ?? 0;
@@ -508,8 +511,12 @@ class GameProvider extends ChangeNotifier {
       costsJson.forEach((key, value) {
         final v = value as Map<String, dynamic>;
         _buildingCosts[key] = {
-          'food': (v['food'] as num?)?.toDouble() ?? 0,
-          'money': (v['money'] as num?)?.toDouble() ?? 0,
+          'food': (v['cost']?['food'] as num?)?.toDouble() ?? 0,
+          'iron': (v['cost']?['iron'] as num?)?.toDouble() ?? 0,
+          'money': (v['cost']?['money'] as num?)?.toDouble() ?? 0,
+          'production': v['production'] as Map<String, dynamic>? ?? {},
+          'deltas': v['deltas'] as Map<String, dynamic>? ?? {},
+          'next_production': v['next_production'] as Map<String, dynamic>? ?? {},
         };
       });
     }
@@ -569,16 +576,20 @@ class GameProvider extends ChangeNotifier {
     if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
 
     final nextCostFood = building.nextCostFood;
+    final nextCostIron = building.nextCostIron;
     final nextCostMoney = building.nextCostMoney;
-    if (nextCostFood <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
+    if (nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
 
     final currentFood = (_selectedPlanet!.resources['food'] ?? 0) as num;
+    final currentIron = (_selectedPlanet!.resources['iron'] ?? 0) as num;
     final currentMoney = (_selectedPlanet!.resources['money'] ?? 0) as num;
     final canAffordFood = currentFood.toDouble() >= nextCostFood;
+    final canAffordIron = currentIron.toDouble() >= nextCostIron;
     final canAffordMoney = currentMoney.toDouble() >= nextCostMoney;
-    if (!canAffordFood || !canAffordMoney) {
+    if (!canAffordFood || !canAffordIron || !canAffordMoney) {
       final missing = <String>[];
       if (!canAffordFood) missing.add('еда');
+      if (!canAffordIron) missing.add('железо');
       if (!canAffordMoney) missing.add('деньги');
       return BuildingUpgradeInfo(canUpgrade: false, reason: 'Не хватает ${missing.join(" и ")}');
     }
@@ -629,10 +640,13 @@ class GameProvider extends ChangeNotifier {
             enabled: enabled,
             buildTime: old.buildTime,
             costFood: old.costFood,
+            costIron: old.costIron,
             costMoney: old.costMoney,
             nextCostFood: old.nextCostFood,
+            nextCostIron: old.nextCostIron,
             nextCostMoney: old.nextCostMoney,
             productionFood: old.productionFood,
+            productionIron: old.productionIron,
             productionComposite: old.productionComposite,
             productionMechanisms: old.productionMechanisms,
             productionReagents: old.productionReagents,

@@ -30,6 +30,8 @@ class ResourcesPanel extends StatelessWidget {
     switch (key) {
       case 'food':
         return gameProvider.productionFood.toStringAsFixed(1);
+      case 'iron':
+        return gameProvider.productionIron.toStringAsFixed(1);
       case 'composite':
         return gameProvider.productionComposite.toStringAsFixed(1);
       case 'mechanisms':

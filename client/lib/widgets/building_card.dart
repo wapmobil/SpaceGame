@@ -89,6 +89,9 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
     if (widget.building.productionFood.abs() > 0.01) {
       lines.add(_prodChip('🍖', widget.building.productionFood));
     }
+    if (widget.building.productionIron.abs() > 0.01) {
+      lines.add(_prodChip('⛏️', widget.building.productionIron));
+    }
     if (widget.building.productionEnergy.abs() > 0.01) {
       lines.add(_prodChip('⚡', widget.building.productionEnergy));
     }
@@ -132,17 +135,19 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
 
   Widget? _buildUpgradeButton() {
     final nextCostFood = widget.building.nextCostFood;
+    final nextCostIron = widget.building.nextCostIron;
     final nextCostMoney = widget.building.nextCostMoney;
-    if (widget.building.level == 0 && nextCostFood <= 0 && nextCostMoney <= 0) return null;
+    if (widget.building.level == 0 && nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return null;
 
-    final maxLevel = nextCostFood <= 0 && nextCostMoney <= 0;
+    final maxLevel = nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0;
     if (maxLevel) return null;
 
     final upgradeInfo = gameProvider.getBuildingUpgradeInfo(widget.building);
     final canUpgrade = upgradeInfo.canUpgrade;
-    final hasResources = nextCostFood <= 0 || nextCostMoney <= 0 ||
+    final hasResources = nextCostFood <= 0 || nextCostIron <= 0 || nextCostMoney <= 0 ||
         (gameProvider.selectedPlanet != null &&
             ((gameProvider.selectedPlanet!.resources['food'] ?? 0) as num).toDouble() >= nextCostFood &&
+            ((gameProvider.selectedPlanet!.resources['iron'] ?? 0) as num).toDouble() >= nextCostIron &&
             ((gameProvider.selectedPlanet!.resources['money'] ?? 0) as num).toDouble() >= nextCostMoney);
 
     final hasAll = canUpgrade && hasResources;
@@ -152,21 +157,27 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
       child: ElevatedButton(
         onPressed: hasAll ? () => gameProvider.buildStructure(widget.building.type) : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: hasAll ? AppTheme.accentColor : Colors.grey[700],
+          backgroundColor: hasAll ? Colors.amber.withValues(alpha: 0.2) : Colors.grey[800],
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           minimumSize: const Size(0, 28),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: hasAll ? Colors.amber.withValues(alpha: 0.4) : Colors.grey[700]!, width: 1)),
           elevation: 0,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('⬆️', style: TextStyle(fontSize: 10)),
-            const SizedBox(width: 3),
+            const Text('▲', style: TextStyle(fontSize: 11, color: Colors.white)),
+            const SizedBox(width: 4),
             Flexible(
               child: Text(
-                'Lv.${widget.building.level + 1} 🍖${nextCostFood.toInt()} 💰${nextCostMoney.toInt()}',
-                style: const TextStyle(fontSize: 9, color: Colors.white),
+                [
+                  'Lv.${widget.building.level + 1}',
+                  if (nextCostFood > 0) '🍖$nextCostFood',
+                  if (nextCostIron > 0) '⛏️$nextCostIron',
+                  if (nextCostMoney > 0) '💰$nextCostMoney',
+                ].join('  '),
+                style: const TextStyle(fontSize: 10, color: Colors.white),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -176,7 +187,50 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
     );
   }
 
-  GameProvider get gameProvider => widget.gameProvider;
+  List<Map<String, dynamic>> get _deltas {
+    if (widget.building.level == 0) return [];
+    final result = <Map<String, dynamic>>[];
+
+    if (widget.building.deltaFood.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaFood > 0 ? '+' : ''}🍖${widget.building.deltaFood.toInt()}', 'value': widget.building.deltaFood});
+    }
+    if (widget.building.deltaIron.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaIron > 0 ? '+' : ''}⛏️${widget.building.deltaIron.toInt()}', 'value': widget.building.deltaIron});
+    }
+    if (widget.building.deltaEnergy.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaEnergy > 0 ? '+' : ''}⚡${widget.building.deltaEnergy.toInt()}', 'value': widget.building.deltaEnergy});
+    }
+    if (widget.building.deltaComposite.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaComposite > 0 ? '+' : ''}🧬${widget.building.deltaComposite.toInt()}', 'value': widget.building.deltaComposite});
+    }
+    if (widget.building.deltaMechanisms.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaMechanisms > 0 ? '+' : ''}⚙️${widget.building.deltaMechanisms.toInt()}', 'value': widget.building.deltaMechanisms});
+    }
+    if (widget.building.deltaReagents.abs() > 0.01) {
+      result.add({'text': '${widget.building.deltaReagents > 0 ? '+' : ''}🧪${widget.building.deltaReagents.toInt()}', 'value': widget.building.deltaReagents});
+    }
+
+    return result;
+  }
+
+  Widget _deltaChip(Map<String, dynamic> d) {
+    final isNegative = d['value'] < 0;
+    final color = isNegative ? Colors.red : Colors.green;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        d['text']!,
+        style: TextStyle(fontSize: 9, color: color),
+      ),
+    );
+  }
+
+   GameProvider get gameProvider => widget.gameProvider;
   Building get building => widget.building;
 
   @override
@@ -278,16 +332,27 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                             ),
                           ],
                         ),
-                        if (upgradeBtn != null || (!isBuilding && building.level > 0)) ...[
+                       if (upgradeBtn != null || (!isBuilding && building.level > 0)) ...[
                           const SizedBox(height: 6),
                           Row(
                              mainAxisSize: MainAxisSize.max,
+                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                              children: [
-                               if (upgradeBtn != null) ...[
-                                 upgradeBtn,
-                                 const SizedBox(width: 8),
-                               ],
-                               const Expanded(child: SizedBox()),
+                               Row(
+                                 mainAxisSize: MainAxisSize.min,
+                                 children: [
+                                   if (upgradeBtn != null) ...[
+                                     upgradeBtn,
+                                     const SizedBox(width: 8),
+                                     if (_deltas.isNotEmpty)
+                                       Wrap(
+                                         spacing: 4,
+                                         runSpacing: 4,
+                                         children: _deltas.map((d) => _deltaChip(d)).toList(),
+                                       ),
+                                   ],
+                                 ],
+                               ),
                                if (!isBuilding && building.level > 0)
                                  Switch(
                                   value: building.enabled,
@@ -298,7 +363,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
                                 ),
-                            ],
+                             ],
                           ),
                         ],
                       ],

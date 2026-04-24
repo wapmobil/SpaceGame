@@ -5,18 +5,20 @@ type ProdInfo = ProductionResult
 
 // ProductionResult holds the resource changes from one tick.
 type ProductionResult struct {
-	Food      float64 `json:"food"`
-	Composite float64 `json:"composite"`
+	Food       float64 `json:"food"`
+	Iron       float64 `json:"iron"`
+	Composite  float64 `json:"composite"`
 	Mechanisms float64 `json:"mechanisms"`
-	Reagents  float64 `json:"reagents"`
-	Energy    float64 `json:"energy"`
-	Money     float64 `json:"money"`
-	AlienTech float64 `json:"alien_tech"`
+	Reagents   float64 `json:"reagents"`
+	Energy     float64 `json:"energy"`
+	Money      float64 `json:"money"`
+	AlienTech  float64 `json:"alien_tech"`
 }
 
 // Add adds another ProductionResult to this one.
 func (p *ProductionResult) Add(o ProductionResult) {
 	p.Food += o.Food
+	p.Iron += o.Iron
 	p.Composite += o.Composite
 	p.Mechanisms += o.Mechanisms
 	p.Reagents += o.Reagents
@@ -27,6 +29,6 @@ func (p *ProductionResult) Add(o ProductionResult) {
 
 // IsZero returns true if all deltas are zero.
 func (p *ProductionResult) IsZero() bool {
-	return p.Food == 0 && p.Composite == 0 && p.Mechanisms == 0 &&
+	return p.Food == 0 && p.Iron == 0 && p.Composite == 0 && p.Mechanisms == 0 &&
 		p.Reagents == 0 && p.Energy == 0 && p.Money == 0 && p.AlienTech == 0
 }

@@ -90,6 +90,7 @@ func (p *Planet) tickResources() {
 	// Apply resource production to resources (energy is handled in tickEnergy)
 	p.Resources.Energy = p.EnergyBuffer.Value
 	p.Resources.Food += totalProduction.Food
+	p.Resources.Iron += totalProduction.Iron
 	p.Resources.Composite += totalProduction.Composite
 	p.Resources.Mechanisms += totalProduction.Mechanisms
 	p.Resources.Reagents += totalProduction.Reagents
@@ -99,12 +100,14 @@ func (p *Planet) tickResources() {
 	// Clamp resources to storage capacity
 	storageCapacity := p.CalculateStorageCapacity()
 	p.Resources.Food = math.Min(p.Resources.Food, storageCapacity)
+	p.Resources.Iron = math.Min(p.Resources.Iron, storageCapacity)
 	p.Resources.Composite = math.Min(p.Resources.Composite, storageCapacity)
 	p.Resources.Mechanisms = math.Min(p.Resources.Mechanisms, storageCapacity)
 	p.Resources.Reagents = math.Min(p.Resources.Reagents, storageCapacity)
 
 	// Clamp resources to non-negative
 	p.Resources.Food = math.Max(0, p.Resources.Food)
+	p.Resources.Iron = math.Max(0, p.Resources.Iron)
 	p.Resources.Composite = math.Max(0, p.Resources.Composite)
 	p.Resources.Mechanisms = math.Max(0, p.Resources.Mechanisms)
 	p.Resources.Reagents = math.Max(0, p.Resources.Reagents)

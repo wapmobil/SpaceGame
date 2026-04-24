@@ -65,12 +65,16 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 	if cost.Food > p.Resources.Food {
 		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "insufficient_food", Extra: fmt.Sprintf("Need %.0f food, have %.0f", cost.Food, p.Resources.Food)}
 	}
+	if cost.Iron > p.Resources.Iron {
+		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "insufficient_iron", Extra: fmt.Sprintf("Need %.0f iron, have %.0f", cost.Iron, p.Resources.Iron)}
+	}
 	if cost.Money > p.Resources.Money {
 		return 0, 0, &PlanetError{PlanetID: p.ID, Reason: "insufficient_money", Extra: fmt.Sprintf("Need %.0f money, have %.0f", cost.Money, p.Resources.Money)}
 	}
 
 	// Deduct resources
 	p.Resources.Food -= cost.Food
+	p.Resources.Iron -= cost.Iron
 	p.Resources.Money -= cost.Money
 
 	// Upgrade or add building
@@ -89,7 +93,7 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
 	}
 
-	return cost.Food, cost.Money, nil
+	return cost.Food, cost.Iron, nil
 }
 
 // AddBuildingDirect sets a building level without any checks (for testing).
@@ -211,9 +215,9 @@ func (p *Planet) PopulateBuildingEntry(idx int) {
 
 	b.BuildTime = p.GetBuildTime(b.Type, level)
 	cost := p.GetBuildingCost(b.Type, level-1)
-	b.Cost = CostInfo{Food: cost.Food, Money: cost.Money}
+	b.Cost = CostInfo{Food: cost.Food, Iron: cost.Iron, Money: cost.Money}
 	nextCost := p.GetBuildingCost(b.Type, level)
-	b.NextCost = CostInfo{Food: nextCost.Food, Money: nextCost.Money}
+	b.NextCost = CostInfo{Food: nextCost.Food, Iron: nextCost.Iron, Money: nextCost.Money}
 
 	if b.Enabled {
 		b.Production = p.getProduction(b.Type, level)
@@ -221,6 +225,11 @@ func (p *Planet) PopulateBuildingEntry(idx int) {
 	} else {
 		b.Production = building.ProductionResult{}
 	}
+
+	nextLevel := level + 1
+	b.NextProduction = building.Production(b.Type, nextLevel)
+	b.NextProduction.Energy = -building.EnergyConsumption(b.Type, nextLevel)
+	b.Deltas = building.NextLevelDeltas(b.Type, level)
 }
 
 // CalculateStorageCapacity returns the total storage capacity.

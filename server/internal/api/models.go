@@ -265,25 +265,37 @@ type MiningStartResponse struct {
 
 // BuildingDetail represents a building with all computed data for the frontend.
 type BuildingDetail struct {
-	Type          string      `json:"type"`
-	Level         int         `json:"level"`
-	BuildProgress float64     `json:"build_progress"`
-	Enabled       bool        `json:"enabled"`
-	BuildTime     float64     `json:"build_time"`
-	Cost          CostDetail  `json:"cost"`
-	NextCost      CostDetail  `json:"next_cost"`
-	Production    ProdDetail  `json:"production"`
+	Type           string      `json:"type"`
+	Level          int         `json:"level"`
+	BuildProgress  float64     `json:"build_progress"`
+	Enabled        bool        `json:"enabled"`
+	BuildTime      float64     `json:"build_time"`
+	Cost           CostDetail  `json:"cost"`
+	NextCost       CostDetail  `json:"next_cost"`
+	Production     ProdDetail  `json:"production"`
+	NextProduction ProdDetail  `json:"next_production"`
+	Deltas         ProdDetail  `json:"deltas"`
+}
+
+// BuildingCostDetail represents cost + production info for unbuilt buildings.
+type BuildingCostDetail struct {
+	Cost           CostDetail `json:"cost"`
+	Production     ProdDetail `json:"production"`
+	NextProduction ProdDetail `json:"next_production"`
+	Deltas         ProdDetail `json:"deltas"`
 }
 
 // CostDetail represents build costs for the API.
 type CostDetail struct {
 	Food  float64 `json:"food"`
+	Iron  float64 `json:"iron"`
 	Money float64 `json:"money"`
 }
 
 // ProdDetail represents per-tick resource production for the API.
 type ProdDetail struct {
 	Food       float64 `json:"food"`
+	Iron       float64 `json:"iron"`
 	Composite  float64 `json:"composite"`
 	Mechanisms float64 `json:"mechanisms"`
 	Reagents   float64 `json:"reagents"`
@@ -313,7 +325,7 @@ type BuildDetailsResponse struct {
 	CanResearch        bool                       `json:"can_research"`
 	CanExpedition      bool                       `json:"can_expedition"`
 	CanMining          bool                       `json:"can_mining"`
-	BuildingCosts      map[string]CostDetail      `json:"building_costs"`
+	BuildingCosts      map[string]BuildingCostDetail `json:"building_costs"`
 	ResearchUnlocks    string                     `json:"research_unlocks"`
 }
 

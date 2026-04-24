@@ -327,6 +327,7 @@ func (g *Game) shouldSave(planetID string) bool {
 // dbPlanetResources is the resource struct for database storage (no energy fields).
 type dbPlanetResources struct {
 	Food            float64 `json:"food"`
+	Iron            float64 `json:"iron"`
 	Composite       float64 `json:"composite"`
 	Mechanisms      float64 `json:"mechanisms"`
 	Reagents        float64 `json:"reagents"`
@@ -344,6 +345,7 @@ func (g *Game) savePlanet(p *Planet) {
 
 	dbResources := dbPlanetResources{
 		Food:            p.Resources.Food,
+		Iron:            p.Resources.Iron,
 		Composite:       p.Resources.Composite,
 		Mechanisms:      p.Resources.Mechanisms,
 		Reagents:        p.Resources.Reagents,

@@ -11,6 +11,7 @@ class Constants {
 
   static const resourceNames = {
     'food': 'Еда',
+    'iron': 'Железо',
     'composite': 'Композит',
     'mechanisms': 'Механизмы',
     'reagents': 'Реагенты',
@@ -21,6 +22,7 @@ class Constants {
 
   static const resourceIcons = {
     'food': '🍖',
+    'iron': '⛏️',
     'composite': '🧬',
     'mechanisms': '⚙️',
     'reagents': '🧪',
@@ -31,6 +33,7 @@ class Constants {
 
   static const resourceColors = {
     'food': 0xFFff9800,
+    'iron': 0xFFa1887f,
     'composite': 0xFF8bc34a,
     'mechanisms': 0xFF607d8b,
     'reagents': 0xFF9c27b0,
@@ -39,7 +42,7 @@ class Constants {
     'alien_tech': 0xFF00bcd4,
   };
 
-  static const buildingTypes = {
+ static const buildingTypes = {
     'base': {'name': 'Центр исследований', 'icon': '🏠', 'description': 'Штаб-квартира'},
     'farm': {'name': 'Ферма', 'icon': '🌾', 'description': 'Производит еду'},
     'composite_drone': {'name': 'Дрон-композит', 'icon': '🤖', 'description': 'Производит композит'},
@@ -48,10 +51,11 @@ class Constants {
     'solar': {'name': 'Солнечная панель', 'icon': '☀️', 'description': 'Производит энергию'},
     'energy_storage': {'name': 'Аккумулятор', 'icon': '🔋', 'description': 'Накапливает энергию'},
     'storage': {'name': 'Склад', 'icon': '📦', 'description': 'Увеличивает вместимость хранилища'},
+    'mine': {'name': 'Шахта', 'icon': '⛏️', 'description': 'Добывает железо'},
     'factory': {'name': 'Фабрика', 'icon': '🏗️', 'description': 'Расширенное производство'},
     'shipyard': {'name': 'Верфь', 'icon': '🚀', 'description': 'Строит корабли'},
     'comcenter': {'name': 'Центр связи', 'icon': '📡', 'description': 'Связь'},
-    'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребждает еду'},
+    'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребщает еду'},
   };
 
   static const researchRequirements = {

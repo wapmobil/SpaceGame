@@ -15,6 +15,7 @@ import (
 
 	"spacegame/internal/auth"
 	"spacegame/internal/game"
+	"spacegame/internal/game/building"
 	"spacegame/internal/game/expedition"
 	"spacegame/internal/game/research"
 	"spacegame/internal/game/ship"
@@ -335,6 +336,7 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 
 		buildings := make([]BuildingDetail, len(details.Buildings))
 		for i, b := range details.Buildings {
+			deltas := building.NextLevelDeltas(b.Type, b.Level)
 			buildings[i] = BuildingDetail{
 				Type:          b.Type,
 				Level:         b.Level,
@@ -343,20 +345,43 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 				BuildTime:     b.BuildTime,
 				Cost: CostDetail{
 					Food:  b.Cost.Food,
+					Iron:  b.Cost.Iron,
 					Money: b.Cost.Money,
 				},
 				NextCost: CostDetail{
 					Food:  b.NextCost.Food,
+					Iron:  b.NextCost.Iron,
 					Money: b.NextCost.Money,
 				},
 				Production: ProdDetail{
 					Food:       b.Production.Food,
+					Iron:       b.Production.Iron,
 					Composite:  b.Production.Composite,
 					Mechanisms: b.Production.Mechanisms,
 					Reagents:   b.Production.Reagents,
 					Energy:     b.Production.Energy,
 					Money:      b.Production.Money,
 					AlienTech:  b.Production.AlienTech,
+				},
+				NextProduction: ProdDetail{
+					Food:       b.Production.Food + deltas.Food,
+					Iron:       b.Production.Iron + deltas.Iron,
+					Composite:  b.Production.Composite + deltas.Composite,
+					Mechanisms: b.Production.Mechanisms + deltas.Mechanisms,
+					Reagents:   b.Production.Reagents + deltas.Reagents,
+					Energy:     b.Production.Energy + deltas.Energy,
+					Money:      b.Production.Money + deltas.Money,
+					AlienTech:  b.Production.AlienTech + deltas.AlienTech,
+				},
+				Deltas: ProdDetail{
+					Food:       deltas.Food,
+					Iron:       deltas.Iron,
+					Composite:  deltas.Composite,
+					Mechanisms: deltas.Mechanisms,
+					Reagents:   deltas.Reagents,
+					Energy:     deltas.Energy,
+					Money:      deltas.Money,
+					AlienTech:  deltas.AlienTech,
 				},
 			}
 		}
@@ -418,7 +443,7 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 			"farm": true, "solar": true, "storage": true, "base": true,
 			"factory": true, "energy_storage": true, "shipyard": true,
 			"comcenter": true, "composite_drone": true, "mechanism_factory": true,
-			"reagent_lab": true, "dynamo": true,
+			"reagent_lab": true, "dynamo": true, "mine": true,
 		}
 		if !validBuildings[req.Type] {
 			http.Error(w, "Unknown building type", http.StatusBadRequest)
@@ -687,6 +712,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 
 		buildings := make([]BuildingDetail, len(details.Buildings))
 		for i, b := range details.Buildings {
+			deltas := building.NextLevelDeltas(b.Type, b.Level)
 			buildings[i] = BuildingDetail{
 				Type:          b.Type,
 				Level:         b.Level,
@@ -695,14 +721,17 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 				BuildTime:     b.BuildTime,
 				Cost: CostDetail{
 					Food:  b.Cost.Food,
+					Iron:  b.Cost.Iron,
 					Money: b.Cost.Money,
 				},
 				NextCost: CostDetail{
 					Food:  b.NextCost.Food,
+					Iron:  b.NextCost.Iron,
 					Money: b.NextCost.Money,
 				},
 				Production: ProdDetail{
 					Food:       b.Production.Food,
+					Iron:       b.Production.Iron,
 					Composite:  b.Production.Composite,
 					Mechanisms: b.Production.Mechanisms,
 					Reagents:   b.Production.Reagents,
@@ -710,11 +739,32 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 					Money:      b.Production.Money,
 					AlienTech:  b.Production.AlienTech,
 				},
+				NextProduction: ProdDetail{
+					Food:       b.Production.Food + deltas.Food,
+					Iron:       b.Production.Iron + deltas.Iron,
+					Composite:  b.Production.Composite + deltas.Composite,
+					Mechanisms: b.Production.Mechanisms + deltas.Mechanisms,
+					Reagents:   b.Production.Reagents + deltas.Reagents,
+					Energy:     b.Production.Energy + deltas.Energy,
+					Money:      b.Production.Money + deltas.Money,
+					AlienTech:  b.Production.AlienTech + deltas.AlienTech,
+				},
+				Deltas: ProdDetail{
+					Food:       deltas.Food,
+					Iron:       deltas.Iron,
+					Composite:  deltas.Composite,
+					Mechanisms: deltas.Mechanisms,
+					Reagents:   deltas.Reagents,
+					Energy:     deltas.Energy,
+					Money:      deltas.Money,
+					AlienTech:  deltas.AlienTech,
+				},
 			}
 		}
 
 		production := ProdDetail{
 			Food:       details.ResourceProduction.Food,
+			Iron:       details.ResourceProduction.Iron,
 			Composite:  details.ResourceProduction.Composite,
 			Mechanisms: details.ResourceProduction.Mechanisms,
 			Reagents:   details.ResourceProduction.Reagents,
@@ -725,7 +775,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Calculate costs for buildings not yet built
-		buildingCosts := make(map[string]CostDetail)
+		buildingCosts := make(map[string]BuildingCostDetail)
 		existingTypes := make(map[string]bool)
 		for _, b := range buildings {
 			existingTypes[b.Type] = true
@@ -733,9 +783,47 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 		for _, bt := range game.BuildingsOrder {
 			if !existingTypes[bt] && game.IsBuildingUnlocked(bt, p.Research.GetCompleted(), p.Resources.ResearchUnlocks) {
 				cost := p.GetBuildingCost(bt, 0)
-				buildingCosts[bt] = CostDetail{
-					Food:  cost.Food,
-					Money: cost.Money,
+				p1 := building.Production(bt, 1)
+				e1 := -building.EnergyConsumption(bt, 1)
+				deltas := building.NextLevelDeltas(bt, 0)
+				nextP := building.Production(bt, 2)
+				nextE := -building.EnergyConsumption(bt, 2)
+				buildingCosts[bt] = BuildingCostDetail{
+					Cost: CostDetail{
+						Food:  cost.Food,
+						Iron:  cost.Iron,
+						Money: cost.Money,
+					},
+					Production: ProdDetail{
+						Food:       p1.Food,
+						Iron:       p1.Iron,
+						Composite:  p1.Composite,
+						Mechanisms: p1.Mechanisms,
+						Reagents:   p1.Reagents,
+						Energy:     e1,
+						Money:      p1.Money,
+						AlienTech:  p1.AlienTech,
+					},
+					NextProduction: ProdDetail{
+						Food:       nextP.Food,
+						Iron:       nextP.Iron,
+						Composite:  nextP.Composite,
+						Mechanisms: nextP.Mechanisms,
+						Reagents:   nextP.Reagents,
+						Energy:     nextE,
+						Money:      nextP.Money,
+						AlienTech:  nextP.AlienTech,
+					},
+					Deltas: ProdDetail{
+						Food:       deltas.Food,
+						Iron:       deltas.Iron,
+						Composite:  deltas.Composite,
+						Mechanisms: deltas.Mechanisms,
+						Reagents:   deltas.Reagents,
+						Energy:     deltas.Energy,
+						Money:      deltas.Money,
+						AlienTech:  deltas.AlienTech,
+					},
 				}
 			}
 		}
@@ -743,6 +831,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 		resp := BuildDetailsResponse{
 			Resources: PlanetResources{
 				Food:            details.Resources.Food,
+				Iron:            details.Resources.Iron,
 				Composite:       details.Resources.Composite,
 				Mechanisms:      details.Resources.Mechanisms,
 				Reagents:        details.Resources.Reagents,

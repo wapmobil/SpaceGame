@@ -458,11 +458,11 @@ func TestBuildingProductionResult(t *testing.T) {
 func TestResourceNames(t *testing.T) {
 	resources := AllResources()
 
-	if len(resources) != 7 {
-		t.Errorf("Expected 7 resource types, got %d", len(resources))
+	if len(resources) != 8 {
+		t.Errorf("Expected 8 resource types, got %d", len(resources))
 	}
 
-	expectedNames := []ResourceName{Food, Composite, Mechanisms, Reagents, Energy, Money, AlienTech}
+	expectedNames := []ResourceName{Food, Iron, Composite, Mechanisms, Reagents, Energy, Money, AlienTech}
 	for i, res := range resources {
 		if res.Name != expectedNames[i] {
 			t.Errorf("Resource %d: expected %s, got %s", i, expectedNames[i], res.Name)

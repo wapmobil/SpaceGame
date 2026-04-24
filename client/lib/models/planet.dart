@@ -75,6 +75,7 @@ class Planet {
 
   static const Map<String, dynamic> defaultResources = {
     'food': 0,
+    'iron': 0,
     'composite': 0,
     'mechanisms': 0,
     'reagents': 0,

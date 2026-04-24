@@ -10,6 +10,7 @@ type ResourceName string
 
 const (
 	Food        ResourceName = "food"
+	Iron        ResourceName = "iron"
 	Composite   ResourceName = "composite"
 	Mechanisms  ResourceName = "mechanisms"
 	Reagents    ResourceName = "reagents"
@@ -29,6 +30,7 @@ type ResourceInfo struct {
 func AllResources() []ResourceInfo {
 	return []ResourceInfo{
 		{Food, "food", "🍍"},
+		{Iron, "iron", "⛏️"},
 		{Composite, "composite", "🧱"},
 		{Mechanisms, "mechanisms", "⚙️"},
 		{Reagents, "reagents", "🛢"},
@@ -89,6 +91,7 @@ func StorageResourceEmojis() map[StorageResourceType]string {
 // PlanetResources holds the current resource amounts.
 type PlanetResources struct {
 	Food            float64 `json:"food"`
+	Iron            float64 `json:"iron"`
 	Composite       float64 `json:"composite"`
 	Mechanisms      float64 `json:"mechanisms"`
 	Reagents        float64 `json:"reagents"`

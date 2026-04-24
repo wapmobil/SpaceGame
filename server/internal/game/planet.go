@@ -42,7 +42,8 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Level:            1,
 		Buildings:        make([]BuildingEntry, 0),
 		Resources: PlanetResources{
-			Food:      100,
+			Food:      80,
+			Iron:      5,
 			Composite: 0,
 			Mechanisms: 0,
 			Reagents:  0,
