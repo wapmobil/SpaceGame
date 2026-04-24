@@ -2537,35 +2537,52 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 		dg := game.NewDrillGame(planetID, playerID, baseLevel)
 		session := dg.GetSession()
 
-		// Build response
-		displayWorld := dg.GetDisplayWorld()
-		worldResp := make([][]DrillCellResponse, len(displayWorld))
-		for i, row := range displayWorld {
-			worldResp[i] = make([]DrillCellResponse, len(row))
-			for j, cell := range row {
-				worldResp[i][j] = DrillCellResponse{
-					X:              cell.X,
-					Y:              cell.Y,
-					CellType:       cell.CellType,
-					ResourceType:   cell.ResourceType,
-					ResourceAmount: cell.ResourceAmount,
-					ResourceValue:  cell.ResourceValue,
-					Extracted:      cell.Extracted,
-				}
+		// Wire up broadcast callback for WebSocket updates
+		dg.SetBroadcastFn(func(result *game.MoveResult) {
+			updateData := map[string]interface{}{
+				"session_id": session.SessionID,
+				"drill_hp":   result.DrillHP,
+				"drill_max_hp": result.DrillMaxHP,
+				"depth":      result.Depth,
+				"drill_x":    result.DrillX,
+				"resources":  result.Resources,
+				"total_earned": result.TotalEarned,
+				"status":     session.Status,
+				"game_ended": result.GameEnded,
 			}
-		}
+			if result.GameEnded {
+				updateData["end_reason"] = result.EndReason
+			}
+			// Build world for broadcast
+			if result.World != nil {
+				worldResp := make([][]DrillCellResponse, len(result.World))
+				for i, row := range result.World {
+					worldResp[i] = make([]DrillCellResponse, len(row))
+					for j, cell := range row {
+						worldResp[i][j] = DrillCellResponse{
+							X:              cell.X,
+							Y:              cell.Y,
+							CellType:       cell.CellType,
+							ResourceType:   cell.ResourceType,
+							ResourceAmount: cell.ResourceAmount,
+							ResourceValue:  cell.ResourceValue,
+							Extracted:      cell.Extracted,
+						}
+					}
+				}
+				updateData["world"] = worldResp
+			}
+			wsBroadcast.BroadcastDrillUpdate(playerID, updateData)
+		})
 
 		response := DrillStartResponse{
 			SessionID:  session.SessionID,
-			PlanetID:   planetID,
+			Seed:       dg.GetSeed(),
 			DrillHP:    session.DrillHP,
 			DrillMaxHP: session.DrillMaxHP,
 			Depth:      session.Depth,
 			DrillX:     session.DrillX,
-			WorldWidth: session.WorldWidth,
-			World:      worldResp,
 			Status:     session.Status,
-			CreatedAt:  session.CreatedAt.Format(time.RFC3339),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -2574,8 +2591,8 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-// handleDrillMove handles POST /api/planets/{id}/drill/move
-func handleDrillMove(db *sql.DB) http.HandlerFunc {
+// handleDrillCommand handles POST /api/planets/{id}/drill
+func handleDrillCommand(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -2613,90 +2630,29 @@ func handleDrillMove(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		var req DrillMoveRequest
+		var req DrillCommandRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		direction, err := game.ParseDrillDirection(req.Direction)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid direction: %s", req.Direction), http.StatusBadRequest)
-			return
-		}
-
-		// Find the active drill session in memory
+		// Find the active drill session
 		dg := game.FindActiveSession(planetID, playerID)
 		if dg == nil {
 			http.Error(w, "No active drill session", http.StatusNotFound)
 			return
 		}
 
-		// Process move
-		result := dg.Move(direction, req.Extract)
-
-		// Build response
-		var newResourceResp *DrillHitResource
-		if result.NewResource != nil {
-			newResourceResp = &DrillHitResource{
-				Type:   result.NewResource.Type,
-				Name:   result.NewResource.Name,
-				Icon:   result.NewResource.Icon,
-				Amount: result.NewResource.Amount,
-				Value:  result.NewResource.Value,
-			}
-		}
-
-		resourceResp := make([]DrillResourceResponse, len(result.Resources))
-		for i, res := range result.Resources {
-			resourceResp[i] = DrillResourceResponse{
-				Type:   res.Type,
-				Name:   res.Name,
-				Icon:   res.Icon,
-				Amount: res.Amount,
-				Value:  res.Value,
-			}
-		}
-
-		worldResp := make([][]DrillCellResponse, len(dg.GetSession().World))
-		for i, row := range dg.GetSession().World {
-			worldResp[i] = make([]DrillCellResponse, len(row))
-			for j, cell := range row {
-				worldResp[i][j] = DrillCellResponse{
-					X:              cell.X,
-					Y:              cell.Y,
-					CellType:       cell.CellType,
-					ResourceType:   cell.ResourceType,
-					ResourceAmount: cell.ResourceAmount,
-					ResourceValue:  cell.ResourceValue,
-					Extracted:      cell.Extracted,
-				}
-			}
-		}
-
-		response := DrillMoveResponse{
-			Success:     result.Success,
-			Message:     result.Message,
-			DrillHP:     result.DrillHP,
-			DrillMaxHP:  result.DrillMaxHP,
-			Depth:       result.Depth,
-			DrillX:      result.DrillX,
-			World:       worldResp,
-			Resources:   resourceResp,
-			TotalEarned: result.TotalEarned,
-			GameEnded:   result.GameEnded,
-			EndReason:   result.EndReason,
-			NewResource: newResourceResp,
-			Extracted:   result.Extracted,
-		}
+		// Set the command (applied on next auto-descent tick)
+		dg.SetCommand(req.Direction, req.Extract)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(w).Encode(DrillCommandResponse{Status: "command_received"})
 	}
 }
 
-// handleGetDrill handles GET /api/planets/{id}/drill
-func handleGetDrill(db *sql.DB) http.HandlerFunc {
+// handleDrillChunk handles GET /api/planets/{id}/drill/chunk
+func handleDrillChunk(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -2722,6 +2678,7 @@ func handleGetDrill(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		// Verify planet ownership
 		var ownerID string
 		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
 		if err != nil {
@@ -2733,30 +2690,34 @@ func handleGetDrill(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Get session from memory
+		// Find the session
 		dg := game.FindActiveSession(planetID, playerID)
 		if dg == nil {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"status": "no_session",
-			})
+			http.Error(w, "No active drill session", http.StatusNotFound)
 			return
 		}
 
-		sess := dg.GetSession()
-		resourceResp := make([]DrillResourceResponse, len(sess.Resources))
-		for i, res := range sess.Resources {
-			resourceResp[i] = DrillResourceResponse{
-				Type:   res.Type,
-				Name:   res.Name,
-				Icon:   res.Icon,
-				Amount: res.Amount,
-				Value:  res.Value,
-			}
+		// Parse chunk parameters
+		xStr := r.URL.Query().Get("x")
+		yStr := r.URL.Query().Get("y")
+		wStr := r.URL.Query().Get("w")
+		hStr := r.URL.Query().Get("h")
+
+		var centerX, centerY, width, height int
+		fmt.Sscanf(xStr, "%d", &centerX)
+		fmt.Sscanf(yStr, "%d", &centerY)
+		fmt.Sscanf(wStr, "%d", &width)
+		fmt.Sscanf(hStr, "%d", &height)
+
+		if width <= 0 || height <= 0 {
+			width = 5
+			height = 5
 		}
 
-		worldResp := make([][]DrillCellResponse, len(sess.World))
-		for i, row := range sess.World {
+		chunk := dg.GetChunk(centerX, centerY, width, height)
+
+		worldResp := make([][]DrillCellResponse, len(chunk))
+		for i, row := range chunk {
 			worldResp[i] = make([]DrillCellResponse, len(row))
 			for j, cell := range row {
 				worldResp[i][j] = DrillCellResponse{
@@ -2771,25 +2732,10 @@ func handleGetDrill(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		response := DrillStateResponse{
-			SessionID:   sess.SessionID,
-			PlanetID:    planetID,
-			DrillHP:     sess.DrillHP,
-			DrillMaxHP:  sess.DrillMaxHP,
-			Depth:       sess.Depth,
-			DrillX:      sess.DrillX,
-			WorldWidth:  sess.WorldWidth,
-			World:       worldResp,
-			Resources:   resourceResp,
-			Status:      sess.Status,
-			TotalEarned: sess.TotalEarned,
-			CreatedAt:   sess.CreatedAt.Format(time.RFC3339),
-			CompletedAt: func() string {
-				if sess.CompletedAt != nil {
-					return sess.CompletedAt.Format(time.RFC3339)
-				}
-				return ""
-			}(),
+		response := DrillChunkResponse{
+			SessionID: dg.GetSession().SessionID,
+			Seed:      dg.GetSeed(),
+			World:     worldResp,
 		}
 
 		w.Header().Set("Content-Type", "application/json")

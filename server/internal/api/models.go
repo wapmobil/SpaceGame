@@ -251,10 +251,10 @@ type EnergyBalanceDetail struct {
 // PlanetResources is an alias for the game package's PlanetResources.
 type PlanetResources = game.PlanetResources
 
-// DrillMoveRequest is the request body for drill movement.
-type DrillMoveRequest struct {
-	Direction string `json:"direction"` // "left", "right", "down"
-	Extract   bool   `json:"extract"`   // whether to extract resources
+// DrillCommandRequest is the request body for drill commands.
+type DrillCommandRequest struct {
+	Direction string `json:"direction"` // "left", "right", ""
+	Extract   bool   `json:"extract"`   // extract resource at current position
 }
 
 // DrillResourceResponse represents a collected resource.
@@ -292,23 +292,6 @@ type DrillMoveResponse struct {
 	Extracted     float64                 `json:"extracted,omitempty"`
 }
 
-// DrillStateResponse represents the current state of a drill session.
-type DrillStateResponse struct {
-	SessionID     string                  `json:"session_id"`
-	PlanetID      string                  `json:"planet_id"`
-	DrillHP       int                     `json:"drill_hp"`
-	DrillMaxHP    int                     `json:"drill_max_hp"`
-	Depth         int                     `json:"depth"`
-	DrillX        int                     `json:"drill_x"`
-	WorldWidth    int                     `json:"world_width"`
-	World         [][]DrillCellResponse   `json:"world"`
-	Resources     []DrillResourceResponse `json:"resources"`
-	Status        string                  `json:"status"`
-	TotalEarned   float64                 `json:"total_earned"`
-	CreatedAt     string                  `json:"created_at"`
-	CompletedAt   string                  `json:"completed_at,omitempty"`
-}
-
 // DrillCellResponse represents a cell in the drill world.
 type DrillCellResponse struct {
 	X              int     `json:"x"`
@@ -322,16 +305,13 @@ type DrillCellResponse struct {
 
 // DrillStartResponse is the response for starting a drill session.
 type DrillStartResponse struct {
-	SessionID  string                  `json:"session_id"`
-	PlanetID   string                  `json:"planet_id"`
-	DrillHP    int                     `json:"drill_hp"`
-	DrillMaxHP int                     `json:"drill_max_hp"`
-	Depth      int                     `json:"depth"`
-	DrillX     int                     `json:"drill_x"`
-	WorldWidth int                     `json:"world_width"`
-	World      [][]DrillCellResponse   `json:"world"`
-	Status     string                  `json:"status"`
-	CreatedAt  string                  `json:"created_at"`
+	SessionID  string `json:"session_id"`
+	Seed       int64  `json:"seed"`
+	DrillHP    int    `json:"drill_hp"`
+	DrillMaxHP int    `json:"drill_max_hp"`
+	Depth      int    `json:"depth"`
+	DrillX     int    `json:"drill_x"`
+	Status     string `json:"status"`
 }
 
 // DrillCompleteResponse is the response for completing a drill session.
@@ -349,4 +329,33 @@ type DrillCompleteResponse struct {
 	TotalEarned float64                 `json:"total_earned"`
 	CreatedAt   string                  `json:"created_at"`
 	CompletedAt string                  `json:"completed_at"`
+}
+
+// DrillCommandResponse is the response for a drill command.
+type DrillCommandResponse struct {
+	Status string `json:"status"`
+}
+
+// DrillChunkResponse is the response for a drill chunk request.
+type DrillChunkResponse struct {
+	SessionID string              `json:"session_id"`
+	Seed      int64               `json:"seed"`
+	World     [][]DrillCellResponse `json:"world"`
+}
+
+// DrillUpdateData represents data sent via WebSocket drill_update.
+type DrillUpdateData struct {
+	SessionID   string                  `json:"session_id"`
+	DrillHP     int                     `json:"drill_hp"`
+	DrillMaxHP  int                     `json:"drill_max_hp"`
+	Depth       int                     `json:"depth"`
+	DrillX      int                     `json:"drill_x"`
+	World       [][]DrillCellResponse   `json:"world"`
+	Resources   []DrillResourceResponse `json:"resources"`
+	TotalEarned float64                 `json:"total_earned"`
+	Status      string                  `json:"status"`
+	GameEnded   bool                    `json:"game_ended"`
+	EndReason   string                  `json:"end_reason,omitempty"`
+	NewResource *DrillHitResource       `json:"new_resource,omitempty"`
+	Extracted   float64                 `json:"extracted,omitempty"`
 }

@@ -29,6 +29,10 @@ class GameProvider extends ChangeNotifier {
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
   DrillState? _drillState;
+  String? _drillSessionId;
+  int? _drillSeed;
+  String? _drillPendingDirection;
+  bool _drillPendingExtracting = false;
   List<RatingEntry> _ratings = [];
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _events = [];
@@ -92,6 +96,8 @@ class GameProvider extends ChangeNotifier {
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
   DrillState? get drillState => _drillState;
+  String? get drillPendingDirection => _drillPendingDirection;
+  bool get drillPendingExtracting => _drillPendingExtracting;
 
   void clearDrillState() {
     _drillState = null;
@@ -236,6 +242,9 @@ class GameProvider extends ChangeNotifier {
         break;
             case 'notification':
         _handleNotification(data);
+        break;
+      case 'drill_update':
+        onDrillUpdate(data ?? {});
         break;
     }
   }
@@ -1029,25 +1038,7 @@ class GameProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  Future<void> loadDrillState(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/drill'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        _drillState = DrillState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load drill state: $e');
-    }
-  }
-
-  Future<void> startDrill() async {
+ Future<void> startDrill() async {
     if (_player == null || _selectedPlanet == null) return;
     try {
       final response = await http.post(
@@ -1059,8 +1050,25 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 201) {
-        _drillState = DrillState.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final startResp = DrillStartResponse.fromJson(data);
+        _drillSessionId = startResp.sessionId;
+        _drillSeed = startResp.seed;
+        _drillState = DrillState(
+          sessionId: startResp.sessionId,
+          planetId: _selectedPlanet!.id,
+          drillHp: startResp.drillHp,
+          drillMaxHp: startResp.drillMaxHp,
+          depth: startResp.depth,
+          drillX: startResp.drillX,
+          worldWidth: 5,
+          world: [],
+          resources: [],
+          status: startResp.status,
+          totalEarned: 0,
+          createdAt: DateTime.now().toUtc().toIso8601String(),
+          seed: startResp.seed,
+        );
         notifyListeners();
       } else {
         _setError('Не удалось начать бурение: ${response.body}');
@@ -1070,45 +1078,60 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> drillMove(String direction, {bool extract = false}) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/move'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'direction': direction, 'extract': extract}),
-      );
+  void drillCommand({String? direction, bool? extract}) {
+    if (_drillState == null || _drillState!.status != 'active') return;
+    _drillPendingDirection = direction;
+    _drillPendingExtracting = extract ?? false;
+    _drillState = DrillState(
+      sessionId: _drillState!.sessionId,
+      planetId: _drillState!.planetId,
+      drillHp: _drillState!.drillHp,
+      drillMaxHp: _drillState!.drillMaxHp,
+      depth: _drillState!.depth,
+      drillX: _drillState!.drillX,
+      worldWidth: _drillState!.worldWidth,
+      world: _drillState!.world,
+      resources: _drillState!.resources,
+      status: _drillState!.status,
+      totalEarned: _drillState!.totalEarned,
+      createdAt: _drillState!.createdAt,
+      completedAt: _drillState!.completedAt,
+      seed: _drillState!.seed,
+      pendingDirection: _drillPendingDirection,
+      pendingExtracting: _drillPendingExtracting,
+    );
+    notifyListeners();
+    websocket.sendDrillCommand(direction: direction, extract: extract);
+  }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final moveResp = DrillMoveResponse.fromJson(data);
-        
-        if (_drillState != null) {
-          _drillState = DrillState(
-            sessionId: _drillState!.sessionId,
-            planetId: _drillState!.planetId,
-            drillHp: moveResp.drillHp,
-            drillMaxHp: moveResp.drillMaxHp,
-            depth: moveResp.depth,
-            drillX: moveResp.drillX,
-            worldWidth: moveResp.world.isNotEmpty ? moveResp.world[0].length : _drillState!.worldWidth,
-            world: moveResp.world.isNotEmpty ? moveResp.world : _drillState!.world,
-            resources: moveResp.resources,
-            status: moveResp.gameEnded ? 'failed' : 'active',
-            totalEarned: moveResp.totalEarned,
-            createdAt: _drillState!.createdAt,
-            completedAt: moveResp.gameEnded ? DateTime.now().toUtc().toIso8601String() : _drillState!.completedAt,
-          );
-        }
-        notifyListeners();
-      } else {
-        _setError('Не удалось выполнить ход: ${response.body}');
-      }
+  void onDrillUpdate(Map<String, dynamic> data) {
+    if (_player == null) return;
+    try {
+      final update = DrillUpdate.fromJson(data);
+      _drillSessionId = update.sessionId;
+      _drillPendingDirection = null;
+      _drillPendingExtracting = false;
+      _drillState = DrillState(
+        sessionId: update.sessionId,
+        planetId: _selectedPlanet?.id ?? '',
+        drillHp: update.drillHp,
+        drillMaxHp: update.drillMaxHp,
+        depth: update.depth,
+        drillX: update.drillX,
+        worldWidth: update.world.isNotEmpty ? update.world[0].length : 5,
+        world: update.world,
+        resources: update.resources,
+        status: update.gameEnded ? 'failed' : update.status,
+        totalEarned: update.totalEarned,
+        createdAt: _drillState?.createdAt ?? DateTime.now().toUtc().toIso8601String(),
+        completedAt: update.gameEnded ? DateTime.now().toUtc().toIso8601String() : _drillState?.completedAt,
+        seed: _drillSeed,
+        pendingDirection: null,
+        pendingExtracting: false,
+      );
+      notifyListeners();
     } catch (e) {
-      _setError('Ошибка хода: $e');
+      debugPrint('Failed to process drill update: $e');
     }
   }
 
@@ -1124,7 +1147,32 @@ class GameProvider extends ChangeNotifier {
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _drillState = DrillState.fromJson(data);
+        List<List<DrillCell>> world = [];
+        if (data['world'] != null) {
+          world = (data['world'] as List).map((row) {
+            return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
+          }).toList();
+        }
+        List<DrillResource> resources = [];
+        if (data['resources'] != null) {
+          resources = (data['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
+        }
+        _drillState = DrillState(
+          sessionId: _drillState!.sessionId,
+          planetId: _drillState!.planetId,
+          drillHp: data['drill_hp'] as int? ?? 0,
+          drillMaxHp: data['drill_max_hp'] as int? ?? 0,
+          depth: data['depth'] as int? ?? 0,
+          drillX: data['drill_x'] as int? ?? 0,
+          worldWidth: world.isNotEmpty ? world[0].length : _drillState!.worldWidth,
+          world: world,
+          resources: resources,
+          status: 'completed',
+          totalEarned: (data['total_earned'] as num?)?.toDouble() ?? 0,
+          createdAt: _drillState!.createdAt,
+          completedAt: DateTime.now().toUtc().toIso8601String(),
+          seed: _drillSeed,
+        );
         notifyListeners();
       } else {
         _setError('Не удалось завершить бурение: ${response.body}');
@@ -1170,6 +1218,7 @@ class GameProvider extends ChangeNotifier {
           totalEarned: (data['total_earned'] as num?)?.toDouble() ?? 0,
           createdAt: _drillState!.createdAt,
           completedAt: DateTime.now().toUtc().toIso8601String(),
+          seed: _drillSeed,
         );
         notifyListeners();
       }

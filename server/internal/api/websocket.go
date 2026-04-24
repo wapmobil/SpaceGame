@@ -544,6 +544,14 @@ func (bs *WSBroadcastService) BroadcastBuildingUpdate(playerID, planetID, buildi
 	})
 }
 
+// BroadcastDrillUpdate sends a drill mini-game update to the owning player.
+func (bs *WSBroadcastService) BroadcastDrillUpdate(playerID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "drill_update",
+		Data: json.RawMessage(toJSON(data)),
+	})
+}
+
 // BroadcastRandomEvent sends a random event notification.
 func (bs *WSBroadcastService) BroadcastRandomEvent(playerID string, event map[string]interface{}) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
@@ -807,6 +815,8 @@ func (c *WSClient) handleMessage(msg WSMessage) {
 		c.handleCreateMarketOrder(msg)
 	case "delete_market_order":
 		c.handleDeleteMarketOrder(msg)
+	case "drill_command":
+		c.handleDrillCommand(msg)
 	
 	default:
 		c.WriteJSON(WSMessage{
@@ -863,6 +873,46 @@ func (c *WSClient) handleDeleteMarketOrder(msg WSMessage) {
 		data, _ := json.Marshal(msg.Data)
 		log.Printf("Player %s delete market order: %s", c.playerID, string(data))
 	}
+}
+
+// handleDrillCommand handles a drill command from the client.
+func (c *WSClient) handleDrillCommand(msg WSMessage) {
+	if msg.Data == nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Missing drill command data",
+		})
+		return
+	}
+
+	var req struct {
+		Direction string `json:"direction"`
+		Extract   bool   `json:"extract"`
+	}
+	if err := json.Unmarshal(msg.Data, &req); err != nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "Invalid drill command",
+		})
+		return
+	}
+
+	// Find active drill session for this player
+	dg := game.FindActiveSession(c.planetID, c.playerID)
+	if dg == nil {
+		c.WriteJSON(WSMessage{
+			Type:  "error",
+			Error: "No active drill session",
+		})
+		return
+	}
+
+	dg.SetCommand(req.Direction, req.Extract)
+
+	c.WriteJSON(WSMessage{
+		Type: "drill_command_ack",
+		Data: json.RawMessage(fmt.Sprintf(`{"status":"command_received"}`)),
+	})
 }
 
 // extractPlayerIDFromToken extracts player ID from auth token by querying the database.

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
@@ -20,105 +19,52 @@ class DrillScreen extends StatefulWidget {
 
 class _DrillScreenState extends State<DrillScreen> {
   bool _extracting = false;
-  Timer? _extractTimer;
-  Timer? _autoTickTimer;
   String _lastMessage = '';
-  bool _horizontalCooldown = false;
   bool _resultShown = false;
 
   @override
   void initState() {
     super.initState();
-    _loadDrillState();
   }
 
   @override
   void dispose() {
-    _extractTimer?.cancel();
-    _autoTickTimer?.cancel();
     _resultShown = false;
     super.dispose();
-  }
-
-  void _startAutoTick() {
-    _autoTickTimer?.cancel();
-    _autoTickTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final state = context.read<GameProvider>().drillState;
-      if (state == null || !state.isActive) {
-        timer.cancel();
-        return;
-      }
-      if (mounted) {
-        setState(() {
-          _horizontalCooldown = false;
-        });
-      }
-      context.read<GameProvider>().loadDrillState(widget.planetId);
-    });
-  }
-
-  void _stopAutoTick() {
-    _autoTickTimer?.cancel();
-    _autoTickTimer = null;
-  }
-
-  Future<void> _loadDrillState() async {
-    await context.read<GameProvider>().loadDrillState(widget.planetId);
-    final state = context.read<GameProvider>().drillState;
-    if (state?.isActive == true) {
-      _startAutoTick();
-    }
   }
 
   void _startExtracting() {
     setState(() {
       _extracting = true;
     });
-    _doExtract();
+    context.read<GameProvider>().drillCommand(extract: true);
   }
 
   void _stopExtracting() {
     setState(() {
       _extracting = false;
     });
+    context.read<GameProvider>().drillCommand(extract: false);
   }
 
-  Future<void> _doExtract() async {
-    if (_extracting && context.read<GameProvider>().drillState?.isActive == true) {
-      await context.read<GameProvider>().drillMove('down', extract: true);
-    }
-  }
-
-  Future<void> _move(String direction) async {
+  void _move(String direction) {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
-    if (direction == 'left' || direction == 'right') {
-      if (_horizontalCooldown) return;
-      setState(() {
-        _horizontalCooldown = true;
-      });
-    }
-    await context.read<GameProvider>().drillMove(direction);
+    context.read<GameProvider>().drillCommand(direction: direction);
     if (mounted) setState(() {});
   }
 
   Future<void> _completeDrill() async {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
     await context.read<GameProvider>().completeDrill();
-    _stopAutoTick();
   }
 
   Future<void> _cancelDrill() async {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
-    _stopAutoTick();
     await context.read<GameProvider>().destroyDrill();
   }
 
   Future<void> _startDrill() async {
     await context.read<GameProvider>().startDrill();
-    final state = context.read<GameProvider>().drillState;
-    if (state?.isActive == true) {
-      _startAutoTick();
-    }
     if (mounted) setState(() {});
   }
 
@@ -171,13 +117,11 @@ class _DrillScreenState extends State<DrillScreen> {
     final state = context.watch<GameProvider>().drillState;
 
     if (state == null || state.status == 'no_session') {
-      _stopAutoTick();
       _resultShown = false;
       return _buildStartScreen();
     }
 
     if (state.isGameEnded && !_resultShown) {
-      _stopAutoTick();
       _resultShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showResult();
@@ -189,12 +133,6 @@ class _DrillScreenState extends State<DrillScreen> {
     return _buildGameScreen(state);
   }
 
-  Widget _buildLoading() {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
-  }
-
   Widget _buildStartScreen() {
     return Scaffold(
       appBar: AppBar(
@@ -204,34 +142,144 @@ class _DrillScreenState extends State<DrillScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.dns, size: 80, color: Colors.grey),
-            const SizedBox(height: 24),
-            const Text(
-              'Шахта готова к бурению',
-              style: TextStyle(fontSize: 24),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Бур будет погружаться глубоко под поверхность,\nсобирая ценные ресурсы',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: _startDrill,
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Начать бурение'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                textStyle: const TextStyle(fontSize: 18),
+      body: SingleChildScrollView(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.dns, size: 80, color: Colors.grey),
+              const SizedBox(height: 24),
+              const Text(
+                'Шахта готова к бурению',
+                style: TextStyle(fontSize: 24),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              const Text(
+                'Бур будет погружаться глубоко под поверхность,\nсобирая ценные ресурсы',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _startDrill,
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Начать бурение'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  textStyle: const TextStyle(fontSize: 18),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Управление',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInstructionRow(Icons.arrow_back, 'Влево'),
+                    _buildInstructionRow(Icons.arrow_forward, 'Вправо'),
+                    _buildInstructionRow(Icons.build, 'Добыча (удерживать)'),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Бур спускается автоматически каждые 1 сек.\nНаправления и добыча применяются при спуске.',
+                      style: TextStyle(fontSize: 12, color: Colors.white70),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Урон по буру',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildDamageRow('Грязь', '2', Colors.brown),
+                    _buildDamageRow('Камень', '5', Colors.grey),
+                    _buildDamageRow('Металл', '10', Colors.grey),
+                    _buildDamageRow('Мифрил', '15', Colors.purple),
+                    const SizedBox(height: 6),
+                    const Text(
+                      '⚠ Ресурс без добычи: +5\n⚠ Добыча без ресурса: +3',
+                      style: TextStyle(fontSize: 11, color: Colors.orange),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Ресурсы',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildResourceRow('🛢️ Нефть', '15\$', '0–50'),
+                    _buildResourceRow('💨 Газ', '20\$', '0–50'),
+                    _buildResourceRow('🟠 Медь', '30\$', '50–100'),
+                    _buildResourceRow('⬛ Уголь', '25\$', '50–150'),
+                    _buildResourceRow('⚪ Серебро', '50\$', '100–200'),
+                    _buildResourceRow('🟡 Золото', '100\$', '150–300'),
+                    _buildResourceRow('🔘 Платина', '150\$', '200–400'),
+                    _buildResourceRow('💎 Алмазы', '250\$', '300–500'),
+                    _buildResourceRow('🔮 Экзотика', '500\$', '500+'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildInstructionRow(IconData icon, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.white70),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDamageRow(String name, String damage, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(name, style: const TextStyle(fontSize: 12, color: Colors.white70)),
+          const Spacer(),
+          Text('$damage урона', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResourceRow(String icon, String value, String depth) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 13)),
+          const SizedBox(width: 6),
+          Text(value, style: const TextStyle(fontSize: 12, color: Colors.amber)),
+          const Spacer(),
+          Text(depth, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+        ],
       ),
     );
   }
@@ -269,6 +317,7 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Widget _buildHUD(DrillState state) {
+    final provider = context.read<GameProvider>();
     return Container(
       padding: const EdgeInsets.all(8),
       color: Colors.black87,
@@ -319,7 +368,7 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
             ],
           ),
-          if (_extracting)
+          if (provider.drillPendingExtracting || state.pendingExtracting)
             Container(
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -329,6 +378,17 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
               child: const Text('⛏️ Добыча...',
                   style: TextStyle(color: Colors.orange, fontSize: 11)),
+            ),
+          if (provider.drillPendingDirection != null && provider.drillPendingDirection != '')
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('→ ${provider.drillPendingDirection}',
+                  style: const TextStyle(color: Colors.blue, fontSize: 11)),
             ),
           if (state.resources.isNotEmpty)
             Container(
@@ -489,7 +549,7 @@ class _DrillScreenState extends State<DrillScreen> {
                 icon: Icons.arrow_back,
                 label: '←',
                 onPressed: () => _move('left'),
-                enabled: state.isActive && !_horizontalCooldown,
+                enabled: state.isActive,
               ),
               const SizedBox(width: 16),
               _buildExtractButton(state),
@@ -498,16 +558,10 @@ class _DrillScreenState extends State<DrillScreen> {
                 icon: Icons.arrow_forward,
                 label: '→',
                 onPressed: () => _move('right'),
-                enabled: state.isActive && !_horizontalCooldown,
+                enabled: state.isActive,
               ),
             ],
           ),
-          if (_horizontalCooldown)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text('ожидание...',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 10)),
-            ),
         ],
       ),
     );

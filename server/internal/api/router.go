@@ -99,8 +99,8 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 
 	// Drill mini-game
 	r.Post("/api/planets/{id}/drill/start", handleStartDrill(db))
-	r.Post("/api/planets/{id}/drill/move", handleDrillMove(db))
-	r.Get("/api/planets/{id}/drill", handleGetDrill(db))
+	r.Post("/api/planets/{id}/drill", handleDrillCommand(db))
+	r.Get("/api/planets/{id}/drill/chunk", handleDrillChunk(db))
 	r.Post("/api/planets/{id}/drill/complete", handleCompleteDrill(db))
 	r.Post("/api/planets/{id}/drill/destroy", handleDestroyDrill(db))
 	r.Post("/api/planets/{id}/drill/cleanup", handleCleanupDrill(db))

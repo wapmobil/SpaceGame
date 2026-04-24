@@ -128,6 +128,9 @@ class DrillState {
   final double totalEarned;
   final String createdAt;
   final String? completedAt;
+  final int? seed;
+  final String? pendingDirection;
+  final bool pendingExtracting;
 
   DrillState({
     required this.sessionId,
@@ -143,6 +146,9 @@ class DrillState {
     required this.totalEarned,
     required this.createdAt,
     this.completedAt,
+    this.seed,
+    this.pendingDirection,
+    this.pendingExtracting = false,
   });
 
   factory DrillState.fromJson(Map<String, dynamic> json) {
@@ -165,13 +171,16 @@ class DrillState {
       drillMaxHp: json['drill_max_hp'] as int? ?? 0,
       depth: json['depth'] as int? ?? 0,
       drillX: json['drill_x'] as int? ?? 0,
-      worldWidth: json['world_width'] as int? ?? 20,
+      worldWidth: json['world_width'] as int? ?? 5,
       world: world,
       resources: resources,
       status: json['status'] as String? ?? 'no_session',
       totalEarned: (json['total_earned'] as num?)?.toDouble() ?? 0,
       createdAt: json['created_at'] as String? ?? '',
       completedAt: json['completed_at'] as String?,
+      seed: json['seed'] as int?,
+      pendingDirection: json['pending_direction'] as String?,
+      pendingExtracting: json['pending_extracting'] as bool? ?? false,
     );
   }
 
@@ -190,6 +199,9 @@ class DrillState {
       'total_earned': totalEarned,
       'created_at': createdAt,
       'completed_at': completedAt,
+      'seed': seed,
+      'pending_direction': pendingDirection,
+      'pending_extracting': pendingExtracting,
     };
   }
 
@@ -200,43 +212,62 @@ class DrillState {
   double get hpPercent => drillMaxHp > 0 ? drillHp / drillMaxHp : 0;
 }
 
-class DrillMoveResponse {
-  final bool success;
-  final String? message;
+class DrillStartResponse {
+  final String sessionId;
+  final int seed;
   final int drillHp;
   final int drillMaxHp;
   final int depth;
   final int drillX;
-  final List<List<DrillCell>> world;
-  final List<DrillResource> resources;
-  final double totalEarned;
-  final bool gameEnded;
-  final String? endReason;
-  final DrillHitResource? newResource;
-  final double extracted;
+  final String status;
 
-  DrillMoveResponse({
-    required this.success,
-    this.message,
+  DrillStartResponse({
+    required this.sessionId,
+    required this.seed,
     required this.drillHp,
     required this.drillMaxHp,
     required this.depth,
     required this.drillX,
-    required this.world,
-    required this.resources,
-    required this.totalEarned,
-    required this.gameEnded,
-    this.endReason,
-    this.newResource,
-    required this.extracted,
+    required this.status,
   });
 
-  factory DrillMoveResponse.fromJson(Map<String, dynamic> json) {
-    List<DrillResource> resources = [];
-    if (json['resources'] != null) {
-      resources = (json['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
-    }
+  factory DrillStartResponse.fromJson(Map<String, dynamic> json) {
+    return DrillStartResponse(
+      sessionId: json['session_id'] as String? ?? '',
+      seed: json['seed'] as int? ?? 0,
+      drillHp: json['drill_hp'] as int? ?? 0,
+      drillMaxHp: json['drill_max_hp'] as int? ?? 0,
+      depth: json['depth'] as int? ?? 0,
+      drillX: json['drill_x'] as int? ?? 0,
+      status: json['status'] as String? ?? 'active',
+    );
+  }
+}
 
+class DrillCommandResponse {
+  final String status;
+
+  DrillCommandResponse({required this.status});
+
+  factory DrillCommandResponse.fromJson(Map<String, dynamic> json) {
+    return DrillCommandResponse(
+      status: json['status'] as String? ?? '',
+    );
+  }
+}
+
+class DrillChunkResponse {
+  final String sessionId;
+  final int seed;
+  final List<List<DrillCell>> world;
+
+  DrillChunkResponse({
+    required this.sessionId,
+    required this.seed,
+    required this.world,
+  });
+
+  factory DrillChunkResponse.fromJson(Map<String, dynamic> json) {
     List<List<DrillCell>> world = [];
     if (json['world'] != null) {
       world = (json['world'] as List).map((row) {
@@ -244,9 +275,65 @@ class DrillMoveResponse {
       }).toList();
     }
 
-    return DrillMoveResponse(
-      success: json['success'] as bool? ?? false,
-      message: json['message'] as String?,
+    return DrillChunkResponse(
+      sessionId: json['session_id'] as String? ?? '',
+      seed: json['seed'] as int? ?? 0,
+      world: world,
+    );
+  }
+}
+
+class DrillUpdate {
+  final String sessionId;
+  final int drillHp;
+  final int drillMaxHp;
+  final int depth;
+  final int drillX;
+  final List<List<DrillCell>> world;
+  final List<DrillResource> resources;
+  final double totalEarned;
+  final String status;
+  final bool gameEnded;
+  final String? endReason;
+  final DrillHitResource? newResource;
+  final double extracted;
+
+  DrillUpdate({
+    required this.sessionId,
+    required this.drillHp,
+    required this.drillMaxHp,
+    required this.depth,
+    required this.drillX,
+    required this.world,
+    required this.resources,
+    required this.totalEarned,
+    required this.status,
+    required this.gameEnded,
+    this.endReason,
+    this.newResource,
+    this.extracted = 0,
+  });
+
+  factory DrillUpdate.fromJson(Map<String, dynamic> json) {
+    List<List<DrillCell>> world = [];
+    if (json['world'] != null) {
+      world = (json['world'] as List).map((row) {
+        return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
+      }).toList();
+    }
+
+    List<DrillResource> resources = [];
+    if (json['resources'] != null) {
+      resources = (json['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
+    }
+
+    DrillHitResource? newResource;
+    if (json['new_resource'] != null) {
+      newResource = DrillHitResource.fromJson(json['new_resource'] as Map<String, dynamic>);
+    }
+
+    return DrillUpdate(
+      sessionId: json['session_id'] as String? ?? '',
       drillHp: json['drill_hp'] as int? ?? 0,
       drillMaxHp: json['drill_max_hp'] as int? ?? 0,
       depth: json['depth'] as int? ?? 0,
@@ -254,30 +341,11 @@ class DrillMoveResponse {
       world: world,
       resources: resources,
       totalEarned: (json['total_earned'] as num?)?.toDouble() ?? 0,
+      status: json['status'] as String? ?? 'active',
       gameEnded: json['game_ended'] as bool? ?? false,
       endReason: json['end_reason'] as String?,
-      newResource: json['new_resource'] != null 
-          ? DrillHitResource.fromJson(json['new_resource'] as Map<String, dynamic>) 
-          : null,
+      newResource: newResource,
       extracted: (json['extracted'] as num?)?.toDouble() ?? 0,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'success': success,
-      'message': message,
-      'drill_hp': drillHp,
-      'drill_max_hp': drillMaxHp,
-      'depth': depth,
-      'drill_x': drillX,
-      'world': world.map((row) => row.map((cell) => cell.toJson()).toList()).toList(),
-      'resources': resources.map((r) => r.toJson()).toList(),
-      'total_earned': totalEarned,
-      'game_ended': gameEnded,
-      'end_reason': endReason,
-      'new_resource': newResource?.toJson(),
-      'extracted': extracted,
-    };
   }
 }

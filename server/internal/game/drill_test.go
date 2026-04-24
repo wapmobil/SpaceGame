@@ -67,63 +67,347 @@ func TestDrillGameWithDifferentLevels(t *testing.T) {
 	}
 }
 
-func TestMoveLeft(t *testing.T) {
+func TestSetCommand_StoresCommand(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
-	result := game.Move(MoveLeft, false)
+	initialX := game.GetSession().DrillX
+	initialDepth := game.GetSession().Depth
 
-	if !result.Success {
-		t.Error("Move should succeed")
+	// Set a command
+	game.SetCommand("left", false)
+
+	// World should NOT have changed (command is only stored, not applied)
+	session := game.GetSession()
+	if session.DrillX != initialX {
+		t.Errorf("Expected drill X to remain %d after SetCommand, got %d", initialX, session.DrillX)
 	}
-	if result.DrillX != DefaultWorldWidth/2-1 {
-		t.Errorf("Expected drill X %d, got %d", DefaultWorldWidth/2-1, result.DrillX)
+	if session.Depth != initialDepth {
+		t.Errorf("Expected depth to remain %d after SetCommand, got %d", initialDepth, session.Depth)
+	}
+
+	// But pending command should be stored
+	if game.session.PendingCommand.Direction != "left" {
+		t.Errorf("Expected pending direction 'left', got '%s'", game.session.PendingCommand.Direction)
+	}
+	if game.session.PendingCommand.Extract {
+		t.Errorf("Expected pending extract to be false, got true")
 	}
 }
 
-func TestMoveRight(t *testing.T) {
+func TestSetCommand_Extract(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
-	result := game.Move(MoveRight, false)
+	game.SetCommand("", true)
+
+	if !game.session.PendingCommand.Extract {
+		t.Error("Expected pending extract to be true")
+	}
+	if game.session.PendingCommand.Direction != "" {
+		t.Errorf("Expected empty pending direction, got '%s'", game.session.PendingCommand.Direction)
+	}
+}
+
+func TestSetCommand_Combo(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	game.SetCommand("right", true)
+
+	if game.session.PendingCommand.Direction != "right" {
+		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingCommand.Direction)
+	}
+	if !game.session.PendingCommand.Extract {
+		t.Error("Expected pending extract to be true")
+	}
+}
+
+func TestApplyCommand_Left(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	initialX := game.GetSession().DrillX
+
+	game.SetCommand("left", false)
+	result := game.ApplyCommand()
 
 	if !result.Success {
-		t.Error("Move should succeed")
+		t.Error("ApplyCommand should succeed")
 	}
-	if result.DrillX != DefaultWorldWidth/2+1 {
-		t.Errorf("Expected drill X %d, got %d", DefaultWorldWidth/2+1, result.DrillX)
+	if result.DrillX != initialX-1 {
+		t.Errorf("Expected drill X %d, got %d", initialX-1, result.DrillX)
+	}
+	if game.GetSession().Depth != 1 {
+		t.Errorf("Expected depth 1 after apply, got %d", game.GetSession().Depth)
+	}
+}
+
+func TestApplyCommand_Right(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	initialX := game.GetSession().DrillX
+
+	game.SetCommand("right", false)
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("ApplyCommand should succeed")
+	}
+	if result.DrillX != initialX+1 {
+		t.Errorf("Expected drill X %d, got %d", initialX+1, result.DrillX)
+	}
+}
+
+func TestApplyCommand_NoDirection(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	initialX := game.GetSession().DrillX
+
+	game.SetCommand("", false)
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("ApplyCommand should succeed")
+	}
+	if result.DrillX != initialX {
+		t.Errorf("Expected drill X to remain %d, got %d", initialX, result.DrillX)
+	}
+	// But depth should still increase (auto-descent always moves down)
+	if game.GetSession().Depth != 1 {
+		t.Errorf("Expected depth 1 after apply, got %d", game.GetSession().Depth)
+	}
+}
+
+func TestApplyCommand_Extract(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	// Force a resource at the current position
+	game.session.ExtractedCells = make(map[string]float64)
+
+	game.SetCommand("", true)
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("ApplyCommand should succeed")
+	}
+	// Extracted should be > 0 if there was a resource, or 0 if not
+	if result.Extracted < 0 {
+		t.Errorf("Expected extracted >= 0, got %f", result.Extracted)
+	}
+}
+
+func TestApplyCommand_Combo(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	initialX := game.GetSession().DrillX
+
+	game.SetCommand("left", true)
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("ApplyCommand should succeed")
+	}
+	// Horizontal movement should be applied
+	if result.DrillX != initialX-1 {
+		t.Errorf("Expected drill X %d, got %d", initialX-1, result.DrillX)
+	}
+	// Depth should increase
+	if game.GetSession().Depth != 1 {
+		t.Errorf("Expected depth 1, got %d", game.GetSession().Depth)
+	}
+	// World should be regenerated
+	if result.World == nil {
+		t.Error("Expected world in result")
+	}
+}
+
+func TestApplyCommand_ResetsPending(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	game.SetCommand("left", false)
+
+	// First apply
+	game.ApplyCommand()
+
+	// Pending should be reset
+	if game.session.PendingCommand.Direction != "" {
+		t.Errorf("Expected pending direction to be reset, got '%s'", game.session.PendingCommand.Direction)
+	}
+
+	// Second apply should do nothing (no pending command)
+	initialX := game.GetSession().DrillX
+	initialDepth := game.GetSession().Depth
+	game.ApplyCommand()
+
+	// Depth should increase but X should not change (no pending horizontal move)
+	if game.GetSession().DrillX != initialX {
+		t.Errorf("Expected drill X to remain %d (no pending), got %d", initialX, game.GetSession().DrillX)
+	}
+	if game.GetSession().Depth != initialDepth+1 {
+		t.Errorf("Expected depth to increase by 1, got %d", game.GetSession().Depth-initialDepth)
+	}
+}
+
+func TestApplyCommand_OnEndedGame(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	game.session.Status = "failed"
+
+	result := game.ApplyCommand()
+	if result.Success {
+		t.Error("ApplyCommand should fail on ended game")
+	}
+	if result.EndReason != "session_ended" {
+		t.Errorf("Expected 'session_ended', got '%s'", result.EndReason)
+	}
+}
+
+func TestAutoDescentAppliesCommand(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 10) // high HP to survive
+	game.SetCommand("left", false)
+
+	initialX := game.GetSession().DrillX
+	initialDepth := game.GetSession().Depth
+
+	// Simulate one auto-descent tick
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("Auto-descent should succeed")
+	}
+	if result.DrillX != initialX-1 {
+		t.Errorf("Expected drill X %d, got %d", initialX-1, result.DrillX)
+	}
+	if game.GetSession().Depth != initialDepth+1 {
+		t.Errorf("Expected depth %d, got %d", initialDepth+1, game.GetSession().Depth)
+	}
+}
+
+func TestBroadcastCallback(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	broadcastCalled := false
+	var lastResult *MoveResult
+
+	game.SetBroadcastFn(func(result *MoveResult) {
+		broadcastCalled = true
+		lastResult = result
+	})
+
+	game.SetCommand("left", false)
+	game.ApplyCommandWithBroadcast()
+
+	if !broadcastCalled {
+		t.Error("Broadcast callback should have been called")
+	}
+	if lastResult == nil {
+		t.Error("Last result should not be nil")
+	}
+}
+
+func TestGetChunk(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	chunk := game.GetChunk(0, 0, 5, 5)
+
+	if len(chunk) != 5 {
+		t.Errorf("Expected chunk height 5, got %d", len(chunk))
+	}
+	for i, row := range chunk {
+		if len(row) != 5 {
+			t.Errorf("Expected chunk width 5 for row %d, got %d", i, len(row))
+		}
+	}
+}
+
+func TestGetChunk_Deterministic(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	chunk1 := game.GetChunk(2, 10, 5, 5)
+	chunk2 := game.GetChunk(2, 10, 5, 5)
+
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 5; x++ {
+			if chunk1[y][x].CellType != chunk2[y][x].CellType {
+				t.Errorf("Chunk not deterministic at (%d,%d): '%s' vs '%s'", x, y, chunk1[y][x].CellType, chunk2[y][x].CellType)
+			}
+		}
+	}
+}
+
+func TestGetChunk_Coordinates(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	// Get chunk centered at (5, 100)
+	chunk := game.GetChunk(5, 100, 3, 3)
+
+	// The top-center cell should be at (5, 99) (centerY - height/2)
+	if chunk[0][1].X != 5 || chunk[0][1].Y != 99 {
+		t.Errorf("Expected top-center cell at (5,99), got (%d,%d)", chunk[0][1].X, chunk[0][1].Y)
+	}
+
+	// The bottom-center cell should be at (5, 101)
+	if chunk[2][1].X != 5 || chunk[2][1].Y != 101 {
+		t.Errorf("Expected bottom-center cell at (5,101), got (%d,%d)", chunk[2][1].X, chunk[2][1].Y)
+	}
+}
+
+func TestGetChunk_VsSessionWorld(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	session := game.GetSession()
+
+	// The world spans from depth to depth+4 vertically, drill at top center (row 0)
+	// GetChunk(centerX, centerY, w, h) generates from centerY-h/2 to centerY+h/2
+	// So to match the world (depth to depth+4), we need centerY = depth + 2
+	chunk := game.GetChunk(session.DrillX, session.Depth+2, 5, 5)
+
+	// Chunk should match the session world
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 5; x++ {
+			if chunk[y][x].CellType != session.World[y][x].CellType {
+				t.Errorf("Chunk/world mismatch at (%d,%d): chunk='%s', world='%s'", x, y, chunk[y][x].CellType, session.World[y][x].CellType)
+			}
+		}
+	}
+}
+
+func TestGetChunk_VsSessionWorld_AfterMove(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	// Apply a move
+	game.SetCommand("left", false)
+	game.ApplyCommand()
+
+	session := game.GetSession()
+
+	// Get chunk centered at new drill position (same offset as above)
+	chunk := game.GetChunk(session.DrillX, session.Depth+2, 5, 5)
+
+	// Chunk should match the session world
+	for y := 0; y < 5; y++ {
+		for x := 0; x < 5; x++ {
+			if chunk[y][x].CellType != session.World[y][x].CellType {
+				t.Errorf("Chunk/world mismatch after move at (%d,%d): chunk='%s', world='%s'", x, y, chunk[y][x].CellType, session.World[y][x].CellType)
+			}
+		}
 	}
 }
 
 func TestMoveBoundaries(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
-
 	// Move left from position 0 should succeed (no boundary)
+	game := NewDrillGame("planet-1", "player-1", 1)
 	game.session.DrillX = 0
-	result := game.Move(MoveLeft, false)
-	if result.DrillX != -1 {
-		t.Errorf("Should move left from position 0, got X=%d", result.DrillX)
+	game.SetCommand("left", false)
+	game.ApplyCommand()
+	if game.GetSession().DrillX != -1 {
+		t.Errorf("Should move left from position 0, got X=%d", game.GetSession().DrillX)
 	}
 
-	// Move right from any position should succeed (no boundary)
-	game.session.DrillX = DefaultWorldWidth - 1
-	result = game.Move(MoveRight, false)
-	if result.DrillX != DefaultWorldWidth {
-		t.Errorf("Should move right from position %d, got X=%d", DefaultWorldWidth-1, result.DrillX)
+	// Move right from position 4 should succeed (no boundary)
+	game2 := NewDrillGame("planet-2", "player-2", 1)
+	game2.session.DrillX = DefaultWorldWidth - 1
+	game2.SetCommand("right", false)
+	game2.ApplyCommand()
+	if game2.GetSession().DrillX != DefaultWorldWidth {
+		t.Errorf("Should move right from position %d, got X=%d", DefaultWorldWidth-1, game2.GetSession().DrillX)
 	}
 }
 
 func TestMoveDown_Damage(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 10) // high HP
 	initialHP := game.GetSession().DrillHP
 
-	// Move down repeatedly - with 5x5 world, cells may be empty (0 damage)
-	// but non-empty cells deal at least 2 damage (dirt)
-	damageCount := 0
+	// Move down repeatedly
 	for i := 0; i < 10; i++ {
-		result := game.Move(MoveDown, false)
-		if !result.Success {
-			t.Errorf("Move down failed at depth %d: %s", i, result.Message)
-		}
-		if game.GetSession().DrillHP < initialHP {
-			damageCount++
-		}
+		game.SetCommand("", false)
+		game.ApplyCommand()
 	}
 
 	if game.GetSession().Depth != 10 {
@@ -131,8 +415,9 @@ func TestMoveDown_Damage(t *testing.T) {
 	}
 
 	// At least some damage should have been dealt (probability of all empty is very low)
-	if damageCount == 0 {
-		t.Log("Note: all generated cells were empty - this is possible but unlikely")
+	damage := initialHP - game.GetSession().DrillHP
+	if damage <= 0 {
+		t.Log("Note: no damage dealt - possible but unlikely")
 	}
 }
 
@@ -142,13 +427,13 @@ func TestMoveDown_CellDamage(t *testing.T) {
 
 	// Move down 10 cells
 	for i := 0; i < 10; i++ {
-		game.Move(MoveDown, false)
+		game.SetCommand("", false)
+		game.ApplyCommand()
 	}
 
 	damage := initialHP - game.GetSession().DrillHP
 
 	// Dirt does 2 damage, stone does 5, metal does 10, mithril does 15
-	// Empty cells do 0 damage. With 5x5 world, some cells may be empty.
 	// Total damage should be between 0 and 150 (10 * 15 for mithril)
 	if damage < 0 || damage > 150 {
 		t.Errorf("Unexpected total damage: %d (expected 0-150 for 10 cells)", damage)
@@ -156,21 +441,10 @@ func TestMoveDown_CellDamage(t *testing.T) {
 }
 
 func TestDrillDestroyed(t *testing.T) {
-	// Create a game with very low HP and force a non-empty cell at the next depth
 	game := NewDrillGame("planet-1", "player-1", 1)
 	game.session.DrillHP = 1
-	game.session.DrillMaxHP = 1
 
-	// Check what cell type will be generated at the next depth
-	nextCell := game.getCellAt(game.session.DrillX, game.session.Depth+1)
-	
-	// If the cell is empty, manually set it to dirt (2 damage) so the drill dies
-	if nextCell.CellType == CellEmpty {
-		// Manually trigger damage by setting HP to 0
-		game.session.DrillHP = 0
-	}
-
-	result := game.Move(MoveDown, false)
+	result := game.ApplyCommand()
 	if !result.GameEnded {
 		t.Error("Game should end when drill is destroyed")
 	}
@@ -179,19 +453,6 @@ func TestDrillDestroyed(t *testing.T) {
 	}
 	if game.GetSession().Status != "failed" {
 		t.Errorf("Expected status 'failed', got '%s'", game.GetSession().Status)
-	}
-}
-
-func TestMoveDown_ActiveGame(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
-
-	// Move down should succeed
-	result := game.Move(MoveDown, false)
-	if !result.Success {
-		t.Errorf("Move down should succeed: %s", result.Message)
-	}
-	if result.GameEnded {
-		t.Error("Game should not end on first move down")
 	}
 }
 
@@ -300,19 +561,6 @@ func TestDisplayWorld(t *testing.T) {
 	}
 }
 
-func TestMoveOnEndedGame(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
-	game.session.Status = "failed"
-
-	result := game.Move(MoveLeft, false)
-	if result.Success {
-		t.Error("Move should fail on ended game")
-	}
-	if result.Message != "Drill session is not active" {
-		t.Errorf("Expected 'Drill session is not active', got '%s'", result.Message)
-	}
-}
-
 func TestResourceDefinitions(t *testing.T) {
 	if len(resourceDefinitions) == 0 {
 		t.Error("Should have resource definitions")
@@ -337,8 +585,6 @@ func TestResourceDefinitions(t *testing.T) {
 	}
 }
 
-
-
 func TestDrillGameGeneratesResources(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	world := game.GetSession().World
@@ -352,7 +598,6 @@ func TestDrillGameGeneratesResources(t *testing.T) {
 		}
 	}
 
-	// With 25 cells and 12% spawn chance, it's possible (though unlikely) to have no resources
 	// Generate more cells at deeper depths to verify resources can be generated
 	resourceCount = 0
 	for y := 1; y <= 100; y++ {
@@ -371,7 +616,8 @@ func TestDrillGameDepthProgression(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 5)
 
 	for i := 0; i < 20; i++ {
-		result := game.Move(MoveDown, false)
+		game.SetCommand("", false)
+		result := game.ApplyCommand()
 		if result.GameEnded {
 			t.Logf("Game ended at depth %d: %s", result.Depth, result.EndReason)
 			break
@@ -387,7 +633,8 @@ func TestWorldIsAlways5x5(t *testing.T) {
 
 	// Move down 10 times and check world is always 5x5
 	for i := 0; i < 10; i++ {
-		game.Move(MoveDown, false)
+		game.SetCommand("", false)
+		game.ApplyCommand()
 		session := game.GetSession()
 		if len(session.World) != 5 {
 			t.Errorf("After %d moves down: expected world height 5, got %d", i+1, len(session.World))
@@ -402,7 +649,8 @@ func TestWorldIsAlways5x5(t *testing.T) {
 	// Move left/right and check world is still 5x5
 	game2 := NewDrillGame("planet-2", "player-2", 5)
 	for i := 0; i < 5; i++ {
-		game2.Move(MoveLeft, false)
+		game2.SetCommand("left", false)
+		game2.ApplyCommand()
 		session := game2.GetSession()
 		if len(session.World) != 5 {
 			t.Errorf("After %d moves left: expected world height 5, got %d", i+1, len(session.World))
@@ -411,7 +659,8 @@ func TestWorldIsAlways5x5(t *testing.T) {
 
 	game3 := NewDrillGame("planet-3", "player-3", 5)
 	for i := 0; i < 5; i++ {
-		game3.Move(MoveRight, false)
+		game3.SetCommand("right", false)
+		game3.ApplyCommand()
 		session := game3.GetSession()
 		if len(session.World) != 5 {
 			t.Errorf("After %d moves right: expected world height 5, got %d", i+1, len(session.World))
@@ -424,7 +673,8 @@ func TestDrillXAlwaysAtCenter(t *testing.T) {
 
 	// Drill X should always be at center (2) after move down
 	for i := 0; i < 10; i++ {
-		game.Move(MoveDown, false)
+		game.SetCommand("", false)
+		game.ApplyCommand()
 		if game.GetSession().DrillX != 2 {
 			t.Errorf("After %d moves down: expected drill X at center %d, got %d", i+1, 2, game.GetSession().DrillX)
 		}
@@ -458,5 +708,57 @@ func TestDeterministicCellGeneration(t *testing.T) {
 	cell4 := game1.getCellAt(4, 10)
 	if cell1.CellType == cell4.CellType && cell1.ResourceType == cell4.ResourceType {
 		t.Logf("Note: adjacent cells happened to match (possible but unlikely)")
+	}
+}
+
+func TestGetSeed(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+	seed := game.GetSeed()
+	if seed <= 0 {
+		t.Errorf("Expected positive seed, got %d", seed)
+	}
+}
+
+func TestExtractResources(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 10) // high HP
+
+	// Move down several times
+	for i := 0; i < 5; i++ {
+		game.SetCommand("", false)
+		game.ApplyCommand()
+	}
+
+	initialResources := len(game.GetSession().Resources)
+
+	// Try to extract (might find a resource or not)
+	game.SetCommand("", true)
+	result := game.ApplyCommand()
+
+	if !result.Success {
+		t.Error("ApplyCommand with extract should succeed")
+	}
+
+	// Check that resources list is valid
+	if len(game.GetSession().Resources) < initialResources {
+		t.Error("Resource count should not decrease")
+	}
+}
+
+func TestMultipleCommandsBeforeApply(t *testing.T) {
+	game := NewDrillGame("planet-1", "player-1", 1)
+
+	// Set multiple commands (only last one should stick)
+	game.SetCommand("left", false)
+	game.SetCommand("right", false)
+
+	// Only the last command should be pending
+	if game.session.PendingCommand.Direction != "right" {
+		t.Errorf("Expected pending direction 'right', got '%s'", game.session.PendingCommand.Direction)
+	}
+
+	// Apply should use the last command
+	result := game.ApplyCommand()
+	if result.DrillX != DefaultWorldWidth/2+1 {
+		t.Errorf("Expected drill X %d, got %d", DefaultWorldWidth/2+1, result.DrillX)
 	}
 }

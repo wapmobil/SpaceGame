@@ -56,6 +56,12 @@ var resourceDefinitions = map[string]*ResourceDef{
 	ResourceExotic:   {Type: ResourceExotic, Name: "Экзотика", Icon: "🔮", Value: 500, DigTime: 10.0, DepthStart: 500, DepthEnd: 9999, SpawnChance: 0.01, Damage: 20},
 }
 
+// DrillCommand represents a player command
+type DrillCommand struct {
+	Direction string // "left", "right", "" (no horizontal move)
+	Extract   bool
+}
+
 // Cell represents a single cell in the drill world
 type Cell struct {
 	X              int     `json:"x"`
@@ -88,6 +94,7 @@ type DrillSession struct {
 	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
 	LastMoveTime   time.Time         `json:"last_move_time"`
 	ExtractedCells map[string]float64 `json:"-"` // tracks (x,y) -> remaining resource amount
+	PendingCommand DrillCommand      `json:"-"` // last command from client, applied on auto-descent
 }
 
 // DrillResource represents a collected resource in the session
@@ -101,18 +108,19 @@ type DrillResource struct {
 
 // MoveResult represents the result of a drill move action
 type MoveResult struct {
-	Success     bool         `json:"success"`
-	Message     string       `json:"message,omitempty"`
-	DrillHP     int          `json:"drill_hp"`
-	DrillMaxHP  int          `json:"drill_max_hp"`
-	Depth       int          `json:"depth"`
-	DrillX      int          `json:"drill_x"`
-	Resources   []DrillResource `json:"resources"`
-	TotalEarned float64      `json:"total_earned"`
-	GameEnded   bool         `json:"game_ended"`
-	EndReason   string       `json:"end_reason,omitempty"`
-	NewResource *ResourceHit `json:"new_resource,omitempty"`
-	Extracted   float64      `json:"extracted,omitempty"`
+	Success       bool            `json:"success"`
+	Message       string          `json:"message,omitempty"`
+	DrillHP       int             `json:"drill_hp"`
+	DrillMaxHP    int             `json:"drill_max_hp"`
+	Depth         int             `json:"depth"`
+	DrillX        int             `json:"drill_x"`
+	Resources     []DrillResource `json:"resources"`
+	TotalEarned   float64         `json:"total_earned"`
+	GameEnded     bool            `json:"game_ended"`
+	EndReason     string          `json:"end_reason,omitempty"`
+	NewResource   *ResourceHit    `json:"new_resource,omitempty"`
+	Extracted     float64         `json:"extracted,omitempty"`
+	World         [][]Cell        `json:"world,omitempty"`
 }
 
 // ResourceHit represents hitting a new resource
@@ -142,17 +150,18 @@ type DrillConfig struct {
 
 // DrillGame is the main engine for the drill mini-game
 type DrillGame struct {
-	config    DrillConfig
-	session   DrillSession
-	rng       *rand.Rand
-	baseLevel int
+	config      DrillConfig
+	session     DrillSession
+	rng         *rand.Rand
+	baseLevel   int
+	broadcastFn func(*MoveResult)
 }
 
 // activeSessions stores all active drill sessions in memory
 var activeSessions = make(map[string]*DrillGame)
 
 // autoDescentInterval is how often the drill descends automatically
-const autoDescentInterval = 600 * time.Millisecond
+const autoDescentInterval = 1 * time.Second
 
 // ActiveSessions returns all active drill sessions
 func ActiveSessions() map[string]*DrillGame {
@@ -181,20 +190,20 @@ const (
 func NewDrillGame(planetID, playerID string, baseLevel int) *DrillGame {
 	maxHP := 80 + baseLevel*40
 	session := DrillSession{
-		ID:           uuid.New().String(),
-		SessionID:    fmt.Sprintf("drill-%d", time.Now().UnixNano()),
-		PlanetID:     planetID,
-		PlayerID:     playerID,
-		DrillHP:      maxHP,
-		DrillMaxHP:   maxHP,
-		Depth:        0,
-		DrillX:       DefaultWorldWidth / 2,
-		WorldWidth:   DefaultWorldWidth,
-		Resources:    []DrillResource{},
-		Status:       "active",
-		TotalEarned:  0,
-		ViewHeight:   DefaultViewHeight,
-		CreatedAt:    time.Now(),
+		ID:             uuid.New().String(),
+		SessionID:      fmt.Sprintf("drill-%d", time.Now().UnixNano()),
+		PlanetID:       planetID,
+		PlayerID:       playerID,
+		DrillHP:        maxHP,
+		DrillMaxHP:     maxHP,
+		Depth:          0,
+		DrillX:         DefaultWorldWidth / 2,
+		WorldWidth:     DefaultWorldWidth,
+		Resources:      []DrillResource{},
+		Status:         "active",
+		TotalEarned:    0,
+		ViewHeight:     DefaultViewHeight,
+		CreatedAt:      time.Now(),
 		ExtractedCells: make(map[string]float64),
 	}
 
@@ -227,8 +236,86 @@ func (g *DrillGame) autoDescentTicker() {
 		if g.session.Status != "active" {
 			return
 		}
-		g.Move(MoveDown, false)
+		g.ApplyCommandWithBroadcast()
 	}
+}
+
+// SetBroadcastFn sets the callback for broadcasting drill updates
+func (g *DrillGame) SetBroadcastFn(fn func(*MoveResult)) {
+	g.broadcastFn = fn
+}
+
+// SetCommand memorizes a command from the client without applying it immediately
+func (g *DrillGame) SetCommand(direction string, extract bool) {
+	g.session.PendingCommand = DrillCommand{
+		Direction: direction,
+		Extract:   extract,
+	}
+}
+
+// ApplyCommand applies the pending command and returns the result
+func (g *DrillGame) ApplyCommand() *MoveResult {
+	cmd := g.session.PendingCommand
+	g.session.PendingCommand = DrillCommand{} // reset
+
+	result := &MoveResult{
+		DrillHP:     g.session.DrillHP,
+		DrillMaxHP:  g.session.DrillMaxHP,
+		Depth:       g.session.Depth,
+		DrillX:      g.session.DrillX,
+		Resources:   g.session.Resources,
+		TotalEarned: g.session.TotalEarned,
+	}
+
+	if g.session.Status != "active" {
+		result.Success = false
+		result.Message = "Drill session is not active"
+		result.GameEnded = true
+		result.EndReason = "session_ended"
+		return result
+	}
+
+	// 1. Horizontal movement
+	if cmd.Direction == "left" {
+		g.session.DrillX--
+		result.DrillX = g.session.DrillX
+	} else if cmd.Direction == "right" {
+		g.session.DrillX++
+		result.DrillX = g.session.DrillX
+	}
+
+	// 2. Extraction (before moving down, extract from current cell)
+	g.processExtraction(result, cmd.Extract)
+
+	// 3. Always move down on auto-descent
+	g.processDrillDown(result, cmd.Extract)
+
+	// 4. Regenerate world at new position
+	g.regenerateWorld()
+	result.World = g.session.World
+
+	// 5. Check if drill is destroyed
+	if g.session.DrillHP <= 0 {
+		g.session.DrillHP = 0
+		g.session.Status = "failed"
+		now := time.Now()
+		g.session.CompletedAt = &now
+		result.GameEnded = true
+		result.EndReason = "drill_destroyed"
+		return result
+	}
+
+	result.Success = true
+	return result
+}
+
+// ApplyCommandWithBroadcast applies the pending command and broadcasts via callback
+func (g *DrillGame) ApplyCommandWithBroadcast() *MoveResult {
+	result := g.ApplyCommand()
+	if g.broadcastFn != nil {
+		g.broadcastFn(result)
+	}
+	return result
 }
 
 // generateInitialWorld creates the initial 5x5 world centered at depth 0
@@ -251,6 +338,20 @@ func (g *DrillGame) buildWorldAt(depth, drillX int) [][]Cell {
 		}
 	}
 	return world
+}
+
+// GetChunk generates a chunk of the world centered at given coordinates
+func (g *DrillGame) GetChunk(centerX, centerY, width, height int) [][]Cell {
+	chunk := make([][]Cell, height)
+	for dy := 0; dy < height; dy++ {
+		chunk[dy] = make([]Cell, width)
+		for dx := 0; dx < width; dx++ {
+			x := centerX - width/2 + dx
+			y := centerY - height/2 + dy
+			chunk[dy][dx] = g.getCellWithState(x, y)
+		}
+	}
+	return chunk
 }
 
 // getCellWithState returns a cell with tracked extraction state
@@ -345,75 +446,13 @@ func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *Res
 	return candidates[0]
 }
 
-// Move processes a drill move action
-func (g *DrillGame) Move(direction MoveDirection, extract bool) *MoveResult {
-	if g.session.Status != "active" {
-		return &MoveResult{
-			Success:   false,
-			Message:   "Drill session is not active",
-			GameEnded: true,
-			EndReason: "session_ended",
-		}
-	}
-
-	result := &MoveResult{
-		DrillHP:     g.session.DrillHP,
-		DrillMaxHP:  g.session.DrillMaxHP,
-		Depth:       g.session.Depth,
-		DrillX:      g.session.DrillX,
-		Resources:   g.session.Resources,
-		TotalEarned: g.session.TotalEarned,
-	}
-
-	// Handle extract-only (no movement)
-	if extract && direction == MoveDown {
-		g.processExtraction(result)
-		g.regenerateWorld()
-		g.session.LastMoveTime = time.Now()
-		return result
-	}
-
-	// Handle horizontal movement
-	if direction == MoveLeft {
-		g.session.DrillX--
-		result.DrillX = g.session.DrillX
-		result.Success = true
-		g.regenerateWorld()
-	} else if direction == MoveRight {
-		g.session.DrillX++
-		result.DrillX = g.session.DrillX
-		result.Success = true
-		g.regenerateWorld()
-	} else if direction == MoveDown {
-		result.Success = true
-		g.processDrillDown(result)
-		result.DrillX = g.session.DrillX
-	} else {
-		result.Success = true
-	}
-
-	// Check if drill is destroyed
-	if g.session.DrillHP <= 0 {
-		g.session.DrillHP = 0
-		g.session.Status = "failed"
-		now := time.Now()
-		g.session.CompletedAt = &now
-		result.GameEnded = true
-		result.EndReason = "drill_destroyed"
-		return result
-	}
-
-	g.session.LastMoveTime = time.Now()
-	return result
-}
-
 // regenerateWorld rebuilds the 5x5 world centered on current drill position
 func (g *DrillGame) regenerateWorld() {
 	g.session.World = g.buildWorldAt(g.session.Depth, g.session.DrillX)
 }
 
-// processDrillDown moves the drill downward without extraction
-func (g *DrillGame) processDrillDown(result *MoveResult) {
+// processDrillDown moves the drill downward and handles resource damage
+func (g *DrillGame) processDrillDown(result *MoveResult, extract bool) {
 	newDepth := g.session.Depth + 1
 
 	// Check cell at new depth, same X
@@ -422,6 +461,11 @@ func (g *DrillGame) processDrillDown(result *MoveResult) {
 	// Apply damage from cell type
 	damage := g.getCellDamage(newCell.CellType)
 	g.session.DrillHP -= damage
+
+	// Extra damage: resource cell but extraction not active
+	if newCell.ResourceType != "" && newCell.ResourceAmount > 0 && !extract {
+		g.session.DrillHP -= 5
+	}
 
 	// Notify about resource at new depth (but don't extract)
 	if newCell.ResourceType != "" && newCell.ResourceAmount > 0 {
@@ -438,15 +482,18 @@ func (g *DrillGame) processDrillDown(result *MoveResult) {
 	}
 
 	g.session.Depth = newDepth
-	g.regenerateWorld()
 }
 
 // processExtraction handles resource extraction from current cell
-func (g *DrillGame) processExtraction(result *MoveResult) {
+func (g *DrillGame) processExtraction(result *MoveResult, extract bool) {
 	cellKey := fmt.Sprintf("%d,%d", g.session.DrillX, g.session.Depth)
 	currentCell := g.getCellWithState(g.session.DrillX, g.session.Depth)
 
 	if currentCell.ResourceType == "" || currentCell.Extracted {
+		// Extra damage: extraction active but no resource on cell
+		if extract {
+			g.session.DrillHP -= 3
+		}
 		return
 	}
 
@@ -559,6 +606,11 @@ func ParseDrillDirection(s string) (MoveDirection, error) {
 	default:
 		return MoveDown, fmt.Errorf("invalid direction: %s", s)
 	}
+}
+
+// GetSeed returns the session seed
+func (g *DrillGame) GetSeed() int64 {
+	return g.config.Seed
 }
 
 // GetDrillCooldown returns the cooldown between drill sessions

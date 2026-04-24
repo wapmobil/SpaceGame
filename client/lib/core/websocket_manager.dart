@@ -88,6 +88,16 @@ class WebSocketManager extends ChangeNotifier {
     send({'type': 'ping', 'data': {}});
   }
 
+  void sendDrillCommand({String? direction, bool? extract}) {
+    send({
+      'type': 'drill_command',
+      'data': {
+        'direction': direction ?? '',
+        'extract': extract ?? false,
+      }
+    });
+  }
+
   void disconnect() {
     _pingTimer?.cancel();
     _channel?.sink.close();
