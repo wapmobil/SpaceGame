@@ -375,19 +375,15 @@ func (g *DrillGame) Move(direction MoveDirection, extract bool) *MoveResult {
 
 	// Handle horizontal movement
 	if direction == MoveLeft {
-		if g.session.DrillX > 0 {
-			g.session.DrillX--
-			result.DrillX = g.session.DrillX
-			result.Success = true
-			g.regenerateWorld()
-		}
+		g.session.DrillX--
+		result.DrillX = g.session.DrillX
+		result.Success = true
+		g.regenerateWorld()
 	} else if direction == MoveRight {
-		if g.session.DrillX < g.config.WorldWidth-1 {
-			g.session.DrillX++
-			result.DrillX = g.session.DrillX
-			result.Success = true
-			g.regenerateWorld()
-		}
+		g.session.DrillX++
+		result.DrillX = g.session.DrillX
+		result.Success = true
+		g.regenerateWorld()
 	} else if direction == MoveDown {
 		result.Success = true
 		g.processDrillDown(result)
@@ -529,12 +525,8 @@ func (g *DrillGame) GetDisplayWorld() [][]Cell {
 // GetAvailableDirections returns the available movement directions
 func (g *DrillGame) GetAvailableDirections() []MoveDirection {
 	var dirs []MoveDirection
-	if g.session.DrillX > 0 {
-		dirs = append(dirs, MoveLeft)
-	}
-	if g.session.DrillX < g.config.WorldWidth-1 {
-		dirs = append(dirs, MoveRight)
-	}
+	dirs = append(dirs, MoveLeft)
+	dirs = append(dirs, MoveRight)
 	if g.session.Status == "active" {
 		dirs = append(dirs, MoveDown)
 	}

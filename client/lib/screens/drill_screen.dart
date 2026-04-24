@@ -383,19 +383,19 @@ class _DrillScreenState extends State<DrillScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cellSize = (constraints.maxWidth / worldWidth).clamp(8.0, 30.0);
+        final cellSize = (constraints.maxWidth / worldWidth).clamp(16.0, 60.0);
+        final totalWidth = cellSize * worldWidth;
         final totalHeight = cellSize * viewHeight;
 
         return SingleChildScrollView(
           child: Center(
             child: SizedBox(
-              width: constraints.maxWidth,
+              width: totalWidth,
               height: totalHeight,
               child: Column(
                 children: List.generate(viewHeight, (rowIdx) {
                   return Row(
-                    children: List.generate(worldWidth, (colIdx) {
-                      if (colIdx >= world[rowIdx].length) return const SizedBox.shrink();
+                    children: List.generate(world[rowIdx].length, (colIdx) {
                       final cell = world[rowIdx][colIdx];
                       return _buildCell(cell, cellSize, rowIdx, colIdx, state);
                     }),

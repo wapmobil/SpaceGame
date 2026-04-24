@@ -94,18 +94,18 @@ func TestMoveRight(t *testing.T) {
 func TestMoveBoundaries(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 
-	// Try to move left from position 0
+	// Move left from position 0 should succeed (no boundary)
 	game.session.DrillX = 0
 	result := game.Move(MoveLeft, false)
-	if result.DrillX != 0 {
-		t.Errorf("Should not move left from boundary, got X=%d", result.DrillX)
+	if result.DrillX != -1 {
+		t.Errorf("Should move left from position 0, got X=%d", result.DrillX)
 	}
 
-	// Try to move right from max position
+	// Move right from any position should succeed (no boundary)
 	game.session.DrillX = DefaultWorldWidth - 1
 	result = game.Move(MoveRight, false)
-	if result.DrillX != DefaultWorldWidth-1 {
-		t.Errorf("Should not move right from boundary, got X=%d", result.DrillX)
+	if result.DrillX != DefaultWorldWidth {
+		t.Errorf("Should move right from position %d, got X=%d", DefaultWorldWidth-1, result.DrillX)
 	}
 }
 
@@ -203,18 +203,24 @@ func TestAvailableDirections(t *testing.T) {
 		t.Errorf("Expected 3 directions, got %d", len(dirs))
 	}
 
-	// Move to left boundary
+	// At any position, all directions should be available (no boundaries)
 	game.session.DrillX = 0
 	dirs = game.GetAvailableDirections()
-	if len(dirs) != 2 { // right, down
-		t.Errorf("Expected 2 directions at left boundary, got %d", len(dirs))
+	if len(dirs) != 3 {
+		t.Errorf("Expected 3 directions at X=0, got %d", len(dirs))
 	}
 
-	// Move to right boundary
 	game.session.DrillX = DefaultWorldWidth - 1
 	dirs = game.GetAvailableDirections()
-	if len(dirs) != 2 { // left, down
-		t.Errorf("Expected 2 directions at right boundary, got %d", len(dirs))
+	if len(dirs) != 3 {
+		t.Errorf("Expected 3 directions at X=%d, got %d", DefaultWorldWidth-1, len(dirs))
+	}
+
+	// After game ends, only left and right should be available
+	game.session.Status = "failed"
+	dirs = game.GetAvailableDirections()
+	if len(dirs) != 2 { // left, right (no down)
+		t.Errorf("Expected 2 directions after game end, got %d", len(dirs))
 	}
 }
 
