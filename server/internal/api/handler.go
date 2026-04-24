@@ -3012,6 +3012,17 @@ func handleCleanupDrill(db *sql.DB) http.HandlerFunc {
 		if dg != nil {
 			sess := dg.GetSession()
 			if sess.Status == "failed" || sess.Status == "completed" {
+				var totalEarned float64
+				for _, r := range sess.Resources {
+					totalEarned += r.Value
+				}
+				if totalEarned > 0 {
+					p := game.Instance().GetPlanet(planetID)
+					if p != nil {
+						p.Resources.Money += totalEarned
+						game.Instance().SavePlanet(p)
+					}
+				}
 				delete(game.ActiveSessions(), sess.SessionID)
 			}
 		}
