@@ -1,7 +1,6 @@
 package game
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"time"
@@ -11,24 +10,24 @@ import (
 
 // Cell types for the drill world
 const (
-	CellEmpty = "empty"
-	CellDirt  = "dirt"
-	CellStone = "stone"
-	CellMetal = "metal"
+	CellEmpty   = "empty"
+	CellDirt    = "dirt"
+	CellStone   = "stone"
+	CellMetal   = "metal"
 	CellMithril = "mithril"
 )
 
 // Resource types that can be found underground
 const (
-	ResourceOil     = "oil"
-	ResourceGas     = "gas"
-	ResourceCopper  = "copper"
-	ResourceCoal    = "coal"
-	ResourceSilver  = "silver"
-	ResourceGold    = "gold"
+	ResourceOil      = "oil"
+	ResourceGas      = "gas"
+	ResourceCopper   = "copper"
+	ResourceCoal     = "coal"
+	ResourceSilver   = "silver"
+	ResourceGold     = "gold"
 	ResourcePlatinum = "platinum"
-	ResourceDiamond = "diamond"
-	ResourceExotic  = "exotic"
+	ResourceDiamond  = "diamond"
+	ResourceExotic   = "exotic"
 )
 
 // Resource definition
@@ -58,60 +57,61 @@ var resourceDefinitions = map[string]*ResourceDef{
 
 // Cell represents a single cell in the drill world
 type Cell struct {
-	X            int     `json:"x"`
-	Y            int     `json:"y"`
-	CellType     string  `json:"cell_type"`
-	ResourceType string  `json:"resource_type,omitempty"`
+	X              int     `json:"x"`
+	Y              int     `json:"y"`
+	CellType       string  `json:"cell_type"`
+	ResourceType   string  `json:"resource_type,omitempty"`
 	ResourceAmount float64 `json:"resource_amount,omitempty"`
-	ResourceValue float64 `json:"resource_value,omitempty"`
-	Extracted    bool    `json:"extracted"`
+	ResourceValue  float64 `json:"resource_value,omitempty"`
+	Extracted      bool    `json:"extracted"`
 }
 
 // DrillSession represents the current state of a drill session
 type DrillSession struct {
-	ID             string    `json:"id"`
-	SessionID      string    `json:"session_id"`
-	PlanetID       string    `json:"planet_id"`
-	PlayerID       string    `json:"player_id"`
-	DrillHP        int       `json:"drill_hp"`
-	DrillMaxHP     int       `json:"drill_max_hp"`
-	Depth          int       `json:"depth"`
-	DrillX         int       `json:"drill_x"`
-	WorldWidth     int       `json:"world_width"`
-	Resources      []DrillResource `json:"resources"`
-	Status         string    `json:"status"`
-	TotalEarned    float64   `json:"total_earned"`
-	World          [][]Cell  `json:"world"`
-	ViewTop        int       `json:"-"`
-	ViewHeight     int       `json:"-"`
-	CreatedAt      time.Time `json:"created_at"`
-	CompletedAt    *time.Time `json:"completed_at,omitempty"`
-	LastMoveTime   time.Time `json:"last_move_time"`
+	ID             string            `json:"id"`
+	SessionID      string            `json:"session_id"`
+	PlanetID       string            `json:"planet_id"`
+	PlayerID       string            `json:"player_id"`
+	DrillHP        int               `json:"drill_hp"`
+	DrillMaxHP     int               `json:"drill_max_hp"`
+	Depth          int               `json:"depth"`
+	DrillX         int               `json:"drill_x"`
+	WorldWidth     int               `json:"world_width"`
+	Resources      []DrillResource   `json:"resources"`
+	Status         string            `json:"status"`
+	TotalEarned    float64           `json:"total_earned"`
+	World          [][]Cell          `json:"world"`
+	ViewTop        int               `json:"-"`
+	ViewHeight     int               `json:"-"`
+	CreatedAt      time.Time         `json:"created_at"`
+	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
+	LastMoveTime   time.Time         `json:"last_move_time"`
+	ExtractedCells map[string]bool   `json:"-"` // tracks (x,y) -> extracted for persistence
 }
 
 // DrillResource represents a collected resource in the session
 type DrillResource struct {
-	Type     string  `json:"type"`
-	Name     string  `json:"name"`
-	Icon     string  `json:"icon"`
-	Amount   float64 `json:"amount"`
-	Value    float64 `json:"value"`
+	Type    string  `json:"type"`
+	Name    string  `json:"name"`
+	Icon    string  `json:"icon"`
+	Amount  float64 `json:"amount"`
+	Value   float64 `json:"value"`
 }
 
 // MoveResult represents the result of a drill move action
 type MoveResult struct {
-	Success      bool       `json:"success"`
-	Message      string     `json:"message,omitempty"`
-	DrillHP      int        `json:"drill_hp"`
-	DrillMaxHP   int        `json:"drill_max_hp"`
-	Depth        int        `json:"depth"`
-	DrillX       int        `json:"drill_x"`
-	Resources    []DrillResource `json:"resources"`
-	TotalEarned  float64    `json:"total_earned"`
-	GameEnded    bool       `json:"game_ended"`
-	EndReason    string     `json:"end_reason,omitempty"`
-	NewResource  *ResourceHit `json:"new_resource,omitempty"`
-	Extracted    float64    `json:"extracted,omitempty"`
+	Success     bool         `json:"success"`
+	Message     string       `json:"message,omitempty"`
+	DrillHP     int          `json:"drill_hp"`
+	DrillMaxHP  int          `json:"drill_max_hp"`
+	Depth       int          `json:"depth"`
+	DrillX      int          `json:"drill_x"`
+	Resources   []DrillResource `json:"resources"`
+	TotalEarned float64      `json:"total_earned"`
+	GameEnded   bool         `json:"game_ended"`
+	EndReason   string       `json:"end_reason,omitempty"`
+	NewResource *ResourceHit `json:"new_resource,omitempty"`
+	Extracted   float64      `json:"extracted,omitempty"`
 }
 
 // ResourceHit represents hitting a new resource
@@ -141,16 +141,35 @@ type DrillConfig struct {
 
 // DrillGame is the main engine for the drill mini-game
 type DrillGame struct {
-	config   DrillConfig
-	session  DrillSession
-	rng      *rand.Rand
+	config    DrillConfig
+	session   DrillSession
+	rng       *rand.Rand
 	baseLevel int
+}
+
+// activeSessions stores all active drill sessions in memory
+var activeSessions = make(map[string]*DrillGame)
+
+// ActiveSessions returns all active drill sessions
+func ActiveSessions() map[string]*DrillGame {
+	return activeSessions
+}
+
+// FindActiveSession finds an active drill session by planet and player ID
+func FindActiveSession(planetID, playerID string) *DrillGame {
+	for _, dg := range activeSessions {
+		s := dg.GetSession()
+		if s.PlanetID == planetID && s.PlayerID == playerID && s.Status == "active" {
+			return dg
+		}
+	}
+	return nil
 }
 
 // Default drill configuration
 const (
-	DefaultWorldWidth = 20
-	DefaultViewHeight = 15
+	DefaultWorldWidth = 5
+	DefaultViewHeight = 5
 	DefaultSeed       = 42
 )
 
@@ -158,20 +177,21 @@ const (
 func NewDrillGame(planetID, playerID string, baseLevel int) *DrillGame {
 	maxHP := 80 + baseLevel*40
 	session := DrillSession{
-		ID:         uuid.New().String(),
-		SessionID:  fmt.Sprintf("drill-%d", time.Now().UnixNano()),
-		PlanetID:   planetID,
-		PlayerID:   playerID,
-		DrillHP:    maxHP,
-		DrillMaxHP: maxHP,
-		Depth:      0,
-		DrillX:     DefaultWorldWidth / 2,
-		WorldWidth: DefaultWorldWidth,
-		Resources:  []DrillResource{},
-		Status:     "active",
-		TotalEarned: 0,
-		ViewHeight: DefaultViewHeight,
-		CreatedAt:  time.Now(),
+		ID:           uuid.New().String(),
+		SessionID:    fmt.Sprintf("drill-%d", time.Now().UnixNano()),
+		PlanetID:     planetID,
+		PlayerID:     playerID,
+		DrillHP:      maxHP,
+		DrillMaxHP:   maxHP,
+		Depth:        0,
+		DrillX:       DefaultWorldWidth / 2,
+		WorldWidth:   DefaultWorldWidth,
+		Resources:    []DrillResource{},
+		Status:       "active",
+		TotalEarned:  0,
+		ViewHeight:   DefaultViewHeight,
+		CreatedAt:    time.Now(),
+		ExtractedCells: make(map[string]bool),
 	}
 
 	config := DrillConfig{
@@ -187,56 +207,77 @@ func NewDrillGame(planetID, playerID string, baseLevel int) *DrillGame {
 		baseLevel: baseLevel,
 	}
 
-	game.generateWorld()
+	game.generateInitialWorld()
+	activeSessions[session.SessionID] = game
 	return game
 }
 
-// generateWorld generates the drill world
-func (g *DrillGame) generateWorld() {
-	worldHeight := 800 // max depth
-	world := make([][]Cell, worldHeight)
+// generateInitialWorld creates the initial 5x5 world centered at depth 0
+func (g *DrillGame) generateInitialWorld() {
+	g.session.World = g.buildWorldAt(g.session.Depth, g.session.DrillX)
+}
 
-	for y := 0; y < worldHeight; y++ {
-		world[y] = make([]Cell, g.config.WorldWidth)
-		for x := 0; x < g.config.WorldWidth; x++ {
-			cell := Cell{X: x, Y: y, CellType: CellEmpty}
-
-			depthFactor := float64(y) / 800.0
-
-			// Determine cell type based on depth
-			r := g.rng.Float64()
-			if r < 0.3+depthFactor*0.2 {
-				cell.CellType = CellDirt
-				if cell.CellType == CellDirt {
-					cell.ResourceType = ""
-				}
-			} else if r < 0.55+depthFactor*0.15 {
-				cell.CellType = CellStone
-			} else if r < 0.7+depthFactor*0.1 {
-				cell.CellType = CellMetal
-			} else if depthFactor > 0.6 && r < 0.75+depthFactor*0.05 {
-				cell.CellType = CellMithril
+// buildWorldAt builds a 5x5 world centered at the given (drillX, depth)
+func (g *DrillGame) buildWorldAt(depth, drillX int) [][]Cell {
+	world := make([][]Cell, DefaultWorldWidth)
+	for dy := -2; dy <= 2; dy++ {
+		rowIdx := dy + 2
+		world[rowIdx] = make([]Cell, DefaultWorldWidth)
+		for dx := -2; dx <= 2; dx++ {
+			colIdx := dx + 2
+			x := drillX + dx
+			y := depth + dy
+			cell := g.getCellAt(x, y)
+			// Check if this cell was already extracted
+			cellKey := fmt.Sprintf("%d,%d", x, y)
+			if g.session.ExtractedCells[cellKey] {
+				cell.Extracted = true
+				cell.ResourceAmount = 0
 			}
+			world[rowIdx][colIdx] = cell
+		}
+	}
+	return world
+}
 
-			// Try to spawn a resource
-			if cell.CellType != CellEmpty && g.rng.Float64() < 0.12 {
-				resource := g.selectResource(depthFactor)
-				if resource != nil {
-					cell.ResourceType = resource.Type
-					cell.ResourceAmount = float64(g.rng.Intn(5)+3)
-					cell.ResourceValue = resource.Value * cell.ResourceAmount
-				}
-			}
+// getCellAt deterministically generates a cell based on seed and coordinates
+func (g *DrillGame) getCellAt(x, y int) Cell {
+	cell := Cell{X: x, Y: y, CellType: CellEmpty}
 
-			world[y][x] = cell
+	// Create a deterministic RNG based on coordinates and seed
+	coordSeed := g.config.Seed + int64(x)*1000003 + int64(y)*1000033
+	r := rand.New(rand.NewSource(coordSeed))
+
+	depthFactor := float64(y) / 800.0
+
+	// Determine cell type based on depth
+	rVal := r.Float64()
+	if rVal < 0.3+depthFactor*0.2 {
+		cell.CellType = CellDirt
+	} else if rVal < 0.55+depthFactor*0.15 {
+		cell.CellType = CellStone
+	} else if rVal < 0.7+depthFactor*0.1 {
+		cell.CellType = CellMetal
+	} else if depthFactor > 0.6 && rVal < 0.75+depthFactor*0.05 {
+		cell.CellType = CellMithril
+	}
+
+	// Try to spawn a resource
+	if cell.CellType != CellEmpty && r.Float64() < 0.12 {
+		resource := g.selectResourceForDepth(depthFactor, coordSeed)
+		if resource != nil {
+			cell.ResourceType = resource.Type
+			cell.ResourceAmount = float64(rand.New(rand.NewSource(coordSeed+1)).Intn(5)+3)
+			cell.ResourceValue = resource.Value * cell.ResourceAmount
 		}
 	}
 
-	g.session.World = world
+	return cell
 }
 
-// selectResource picks a random resource based on depth
-func (g *DrillGame) selectResource(depthFactor float64) *ResourceDef {
+// selectResourceForDepth picks a random resource based on depth using a deterministic seed
+func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *ResourceDef {
+	r := rand.New(rand.NewSource(seed + 999999))
 	var candidates []*ResourceDef
 	for _, def := range resourceDefinitions {
 		factor := float64(def.DepthStart) / 800.0
@@ -256,11 +297,11 @@ func (g *DrillGame) selectResource(depthFactor float64) *ResourceDef {
 		totalChance += c.SpawnChance
 	}
 
-	r := g.rng.Float64() * totalChance
+	rVal := r.Float64() * totalChance
 	accumulated := 0.0
 	for _, c := range candidates {
 		accumulated += c.SpawnChance
-		if r <= accumulated {
+		if rVal <= accumulated {
 			return c
 		}
 	}
@@ -294,12 +335,14 @@ func (g *DrillGame) Move(direction MoveDirection, extract bool) *MoveResult {
 			g.session.DrillX--
 			result.DrillX = g.session.DrillX
 			result.Success = true
+			g.regenerateWorld()
 		}
 	} else if direction == MoveRight {
 		if g.session.DrillX < g.config.WorldWidth-1 {
 			g.session.DrillX++
 			result.DrillX = g.session.DrillX
 			result.Success = true
+			g.regenerateWorld()
 		}
 	} else if direction == MoveDown {
 		result.Success = true
@@ -322,59 +365,50 @@ func (g *DrillGame) Move(direction MoveDirection, extract bool) *MoveResult {
 		g.session.CompletedAt = &now
 		result.GameEnded = true
 		result.EndReason = "drill_destroyed"
-		g.saveSession()
+		delete(activeSessions, g.session.SessionID)
 		return result
 	}
 
 	g.session.LastMoveTime = time.Now()
-	g.saveSession()
 	return result
+}
+
+// regenerateWorld rebuilds the 5x5 world centered on current drill position
+func (g *DrillGame) regenerateWorld() {
+	g.session.World = g.buildWorldAt(g.session.Depth, g.session.DrillX)
 }
 
 // processDrillDown moves the drill downward
 func (g *DrillGame) processDrillDown(result *MoveResult) {
-	world := g.session.World
 	newDepth := g.session.Depth + 1
 
-	if newDepth >= len(world) {
-		// Reached the bottom
-		g.session.Status = "completed"
-		now := time.Now()
-		g.session.CompletedAt = &now
-		result.GameEnded = true
-		result.EndReason = "reached_bottom"
-		g.convertResourcesToMoney()
-		g.saveSession()
-		return
-	}
-
-	// Get cell at new depth, same X
-	cell := world[newDepth][g.session.DrillX]
+	// Check cell at new depth, same X
+	newCell := g.getCellAt(g.session.DrillX, newDepth)
 
 	// Apply damage from cell type
-	damage := g.getCellDamage(cell.CellType)
+	damage := g.getCellDamage(newCell.CellType)
 	g.session.DrillHP -= damage
 
 	// Check if there's a resource at this position
-	if cell.ResourceType != "" && !cell.Extracted {
-		def, ok := resourceDefinitions[cell.ResourceType]
+	if newCell.ResourceType != "" && !g.session.ExtractedCells[fmt.Sprintf("%d,%d", g.session.DrillX, newDepth)] {
+		def, ok := resourceDefinitions[newCell.ResourceType]
 		if ok {
 			result.NewResource = &ResourceHit{
 				Type:   def.Type,
 				Name:   def.Name,
 				Icon:   def.Icon,
-				Amount: cell.ResourceAmount,
-				Value:  cell.ResourceValue,
+				Amount: newCell.ResourceAmount,
+				Value:  newCell.ResourceValue,
 			}
 			// Mark resource as passively extracted (small amount)
-			extracted := cell.ResourceAmount * 0.1
-			cell.ResourceAmount -= extracted
-			if cell.ResourceAmount <= 0 {
-				cell.ResourceAmount = 0
-				cell.Extracted = true
+			extracted := newCell.ResourceAmount * 0.1
+			remaining := newCell.ResourceAmount - extracted
+			if remaining <= 0 {
+				g.session.ExtractedCells[fmt.Sprintf("%d,%d", g.session.DrillX, newDepth)] = true
+				remaining = 0
 			}
-			// Update world
-			world[newDepth][g.session.DrillX] = cell
+			// Update the cell in world
+			g.updateCellInWorld(g.session.DrillX, newDepth, newCell.ResourceType, remaining, newCell.ResourceValue)
 
 			// Add to collected resources
 			g.addResource(def, extracted, def.Value*extracted)
@@ -383,14 +417,37 @@ func (g *DrillGame) processDrillDown(result *MoveResult) {
 	}
 
 	g.session.Depth = newDepth
+	g.regenerateWorld()
+}
+
+// updateCellInWorld updates a cell's resource data in the current world
+func (g *DrillGame) updateCellInWorld(x, y int, resourceType string, amount float64, value float64) {
+	for dy := -2; dy <= 2; dy++ {
+		for dx := -2; dx <= 2; dx++ {
+			worldX := g.session.DrillX + dx
+			worldY := g.session.Depth + dy
+			if worldX == x && worldY == y {
+				rowIdx := dy + 2
+				colIdx := dx + 2
+				if rowIdx >= 0 && rowIdx < len(g.session.World) && colIdx >= 0 && colIdx < len(g.session.World[rowIdx]) {
+					g.session.World[rowIdx][colIdx].ResourceType = resourceType
+					g.session.World[rowIdx][colIdx].ResourceAmount = amount
+					g.session.World[rowIdx][colIdx].ResourceValue = value
+					if amount <= 0 {
+						g.session.World[rowIdx][colIdx].Extracted = true
+					}
+					return
+				}
+			}
+		}
+	}
 }
 
 // processExtraction handles resource extraction when holding extract button
 func (g *DrillGame) processExtraction(result *MoveResult) {
-	world := g.session.World
-	currentCell := world[g.session.Depth][g.session.DrillX]
+	currentCell := g.getCellAt(g.session.DrillX, g.session.Depth)
 
-	if currentCell.ResourceType != "" && !currentCell.Extracted {
+	if currentCell.ResourceType != "" && !g.session.ExtractedCells[fmt.Sprintf("%d,%d", g.session.DrillX, g.session.Depth)] {
 		def, ok := resourceDefinitions[currentCell.ResourceType]
 		if ok {
 			// Extract amount per move
@@ -399,13 +456,14 @@ func (g *DrillGame) processExtraction(result *MoveResult) {
 			currentCell.ResourceAmount -= extracted
 			if currentCell.ResourceAmount <= 0 {
 				currentCell.ResourceAmount = 0
-				currentCell.Extracted = true
+				g.session.ExtractedCells[fmt.Sprintf("%d,%d", g.session.DrillX, g.session.Depth)] = true
 			}
-			// Update world
-			world[g.session.Depth][g.session.DrillX] = currentCell
 
 			g.addResource(def, extracted, def.Value*extracted)
 			result.Extracted = extracted
+
+			// Update world
+			g.updateCellInWorld(g.session.DrillX, g.session.Depth, currentCell.ResourceType, currentCell.ResourceAmount, currentCell.ResourceValue)
 
 			// Check if fully extracted
 			if currentCell.ResourceAmount <= 0 {
@@ -467,23 +525,7 @@ func (g *DrillGame) GetSession() DrillSession {
 
 // GetDisplayWorld returns the visible portion of the world for rendering
 func (g *DrillGame) GetDisplayWorld() [][]Cell {
-	world := g.session.World
-	viewTop := g.session.Depth - g.config.ViewHeight/2
-	if viewTop < 0 {
-		viewTop = 0
-	}
-	viewBottom := viewTop + g.config.ViewHeight
-	if viewBottom > len(world) {
-		viewBottom = len(world)
-	}
-
-	display := make([][]Cell, viewBottom-viewTop)
-	for i := viewTop; i < viewBottom; i++ {
-		display[i-viewTop] = make([]Cell, len(world[i]))
-		copy(display[i-viewTop], world[i])
-	}
-
-	return display
+	return g.session.World
 }
 
 // GetAvailableDirections returns the available movement directions
@@ -534,60 +576,16 @@ func GetDrillCooldown() time.Duration {
 	return 30 * time.Second
 }
 
-// saveSession saves the current session state to JSONB in the world data
-func (g *DrillGame) saveSession() {
-	// World is already stored in the session struct
-	// The actual DB save is handled by the API handler
-}
-
-// LoadGameFromState creates a DrillGame from existing state
-func LoadGameFromState(planetID, playerID string, baseLevel int, world [][]Cell, drillHP, drillMaxHP, depth, drillX int, resources []DrillResource, totalEarned float64, status string) *DrillGame {
-	if status == "" {
-		status = "active"
+// Complete marks the session as completed and converts resources to money
+func (g *DrillGame) Complete() float64 {
+	if g.session.Status != "active" {
+		return 0
 	}
-	session := DrillSession{
-		ID:         uuid.New().String(),
-		SessionID:  fmt.Sprintf("drill-%d", time.Now().UnixNano()),
-		PlanetID:   planetID,
-		PlayerID:   playerID,
-		DrillHP:    drillHP,
-		DrillMaxHP: drillMaxHP,
-		Depth:      depth,
-		DrillX:     drillX,
-		WorldWidth: DefaultWorldWidth,
-		Resources:  resources,
-		Status:     status,
-		TotalEarned: totalEarned,
-		ViewHeight: DefaultViewHeight,
-		CreatedAt:  time.Now(),
-		World:      world,
-	}
-
-	config := DrillConfig{
-		WorldWidth: DefaultWorldWidth,
-		ViewHeight: DefaultViewHeight,
-		Seed:       time.Now().UnixNano(),
-	}
-
-	return &DrillGame{
-		config:    config,
-		session:   session,
-		rng:       rand.New(rand.NewSource(config.Seed)),
-		baseLevel: baseLevel,
-	}
-}
-
-// GetResourcesAsJSON returns the collected resources as JSON
-func (g *DrillGame) GetResourcesAsJSON() string {
-	data, _ := json.Marshal(g.session.Resources)
-	return string(data)
-}
-
-// ParseResourcesFromJSON parses collected resources from JSON
-func ParseResourcesFromJSON(jsonStr string) ([]DrillResource, error) {
-	var resources []DrillResource
-	if err := json.Unmarshal([]byte(jsonStr), &resources); err != nil {
-		return nil, err
-	}
-	return resources, nil
+	g.session.Status = "completed"
+	now := time.Now()
+	g.session.CompletedAt = &now
+	g.convertResourcesToMoney()
+	totalEarned := g.session.TotalEarned
+	delete(activeSessions, g.session.SessionID)
+	return totalEarned
 }

@@ -2503,19 +2503,12 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Check for existing active drill session
-		var activeCount int
-		err = db.QueryRow(`
-			SELECT COUNT(*) FROM drill_sessions 
-			WHERE player_id = $1 AND status = 'active'
-		`, playerID).Scan(&activeCount)
-		if err != nil {
-			http.Error(w, "Failed to check active sessions", http.StatusInternalServerError)
-			return
-		}
-		if activeCount > 0 {
-			http.Error(w, "Already have an active drill session", http.StatusConflict)
-			return
+		// Check for existing active drill session in memory
+		for _, dg := range game.ActiveSessions() {
+			if dg.GetSession().PlayerID == playerID && dg.GetSession().Status == "active" {
+				http.Error(w, "Already have an active drill session", http.StatusConflict)
+				return
+			}
 		}
 
 		// Get base level from planet
@@ -2526,15 +2519,11 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Check cooldown
-		var lastCompleted time.Time
-		err = db.QueryRow(`
-			SELECT completed_at FROM drill_sessions 
-			WHERE player_id = $1 AND status = 'completed' 
-			ORDER BY completed_at DESC LIMIT 1
-		`, playerID).Scan(&lastCompleted)
-		if err == nil && time.Since(lastCompleted) < game.GetDrillCooldown() {
-			remaining := game.GetDrillCooldown() - time.Since(lastCompleted)
+		// Check cooldown from players table
+		var lastCompleted *time.Time
+		err = db.QueryRow("SELECT drill_last_completed FROM players WHERE id = $1", playerID).Scan(&lastCompleted)
+		if err == nil && lastCompleted != nil && time.Since(*lastCompleted) < game.GetDrillCooldown() {
+			remaining := game.GetDrillCooldown() - time.Since(*lastCompleted)
 			http.Error(w, fmt.Sprintf("Drill cooldown active. Try again in %v", remaining.Round(time.Second)), http.StatusConflict)
 			return
 		}
@@ -2542,40 +2531,6 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 		// Create drill game
 		dg := game.NewDrillGame(planetID, playerID, baseLevel)
 		session := dg.GetSession()
-
-		// Save session to database
-		_, _ = json.Marshal(session.World)
-		resourcesJSON := dg.GetResourcesAsJSON()
-
-		_, err = db.Exec(`
-			INSERT INTO drill_sessions 
-			(id, planet_id, player_id, session_id, drill_hp, drill_max_hp, depth, drill_x, world_width, 
-			 resources, status, total_earned, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-		`, session.ID, planetID, playerID, session.SessionID, session.DrillHP, session.DrillMaxHP,
-			session.Depth, session.DrillX, session.WorldWidth, resourcesJSON, session.Status, session.TotalEarned)
-		if err != nil {
-			log.Printf("Drill start INSERT error: %v", err)
-			http.Error(w, "Failed to save drill session: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		// Save world cells to database
-		for y := 0; y < len(session.World); y++ {
-			for x := 0; x < len(session.World[y]); x++ {
-				cell := session.World[y][x]
-				_, err = db.Exec(`
-					INSERT INTO drill_world 
-					(session_id, x, y, cell_type, resource_type, resource_amount, resource_value, extracted)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-				`, session.ID, cell.X, cell.Y, cell.CellType, cell.ResourceType,
-					cell.ResourceAmount, cell.ResourceValue, cell.Extracted)
-				if err != nil {
-					log.Printf("Warning: failed to save drill world cell: %v", err)
-					break
-				}
-			}
-		}
 
 		// Build response
 		displayWorld := dg.GetDisplayWorld()
@@ -2665,104 +2620,15 @@ func handleDrillMove(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Find the active drill session
-		var sessionUUID string
-		err = db.QueryRow(`
-			SELECT id FROM drill_sessions 
-			WHERE planet_id = $1 AND player_id = $2 AND status = 'active'
-			ORDER BY created_at DESC LIMIT 1
-		`, planetID, playerID).Scan(&sessionUUID)
-		if err != nil {
+		// Find the active drill session in memory
+		dg := game.FindActiveSession(planetID, playerID)
+		if dg == nil {
 			http.Error(w, "No active drill session", http.StatusNotFound)
 			return
 		}
 
-		// Load session from database
-		var playerHP, playerMaxHP, depth, drillX int
-		var resourcesJSON string
-		var status string
-		var totalEarned float64
-		var worldJSON []byte
-
-		err = db.QueryRow(`
-			SELECT drill_hp, drill_max_hp, depth, drill_x, resources, status, total_earned,
-			       (SELECT json_agg(json_build_object(
-			           'x', x, 'y', y, 'cell_type', cell_type, 
-			           'resource_type', resource_type, 
-			           'resource_amount', resource_amount, 
-			           'resource_value', resource_value,
-			           'extracted', extracted
-			       )) FROM (SELECT x, y, cell_type, resource_type, resource_amount, resource_value, extracted FROM drill_world WHERE session_id = $1 ORDER BY y, x) t)
-			FROM drill_sessions 
-			WHERE id = $2
-		`, sessionUUID, sessionUUID).Scan(&playerHP, &playerMaxHP, &depth, &drillX,
-			&resourcesJSON, &status, &totalEarned, &worldJSON)
-
-		if err != nil {
-			http.Error(w, "Failed to load drill session", http.StatusInternalServerError)
-			return
-		}
-
-		// Parse world from JSON
-		var world [][]game.Cell
-		if err := json.Unmarshal(worldJSON, &world); err != nil {
-			http.Error(w, "Failed to parse world data", http.StatusInternalServerError)
-			return
-		}
-
-		// Parse resources
-		resources, err := game.ParseResourcesFromJSON(resourcesJSON)
-		if err != nil {
-			http.Error(w, "Failed to parse resources", http.StatusInternalServerError)
-			return
-		}
-
-		// Create drill game from state
-		dg := game.LoadGameFromState(planetID, playerID, 1, world, playerHP, playerMaxHP, depth, drillX, resources, totalEarned, status)
-
 		// Process move
 		result := dg.Move(direction, req.Extract)
-
-		// Update session in database
-		sess := dg.GetSession()
-		worldJSON, _ = json.Marshal(sess.World)
-		resourcesJSON = dg.GetResourcesAsJSON()
-
-		_, err = db.Exec(`
-			UPDATE drill_sessions 
-			SET drill_hp = $1, depth = $2, drill_x = $3, 
-			    resources = $4, total_earned = $5, status = $6,
-			    last_move_time = NOW()
-			WHERE id = $7
-		`, sess.DrillHP, sess.Depth, sess.DrillX,
-			resourcesJSON, sess.TotalEarned, sess.Status, sessionUUID)
-		if err != nil {
-			http.Error(w, "Failed to update drill session", http.StatusInternalServerError)
-			return
-		}
-
-		// Update world cells
-		_, err = db.Exec(`DELETE FROM drill_world WHERE session_id = $1`, sessionUUID)
-		if err != nil {
-			log.Printf("Warning: failed to delete old drill world: %v", err)
-		}
-
-		for y := 0; y < len(sess.World); y++ {
-			for x := 0; x < len(sess.World[y]); x++ {
-				cell := sess.World[y][x]
-				_, err = db.Exec(`
-					INSERT INTO drill_world 
-					(session_id, x, y, cell_type, resource_type, resource_amount, resource_value, extracted)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-					ON CONFLICT DO NOTHING
-				`, sessionUUID, cell.X, cell.Y, cell.CellType, cell.ResourceType,
-					cell.ResourceAmount, cell.ResourceValue, cell.Extracted)
-				if err != nil {
-					log.Printf("Warning: failed to save drill world cell: %v", err)
-					break
-				}
-			}
-		}
 
 		// Build response
 		var newResourceResp *DrillHitResource
@@ -2845,46 +2711,19 @@ func handleGetDrill(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Get active session
-		var sessionUUID string
-		var playerHP, playerMaxHP, depth, drillX int
-		var worldWidth int
-		var status string
-		var resourcesJSON string
-		var totalEarned float64
-		var createdAt time.Time
-		var completedAt *time.Time
-
-		err = db.QueryRow(`
-			SELECT id, drill_hp, drill_max_hp, depth, drill_x, world_width, 
-			       resources, status, total_earned, created_at, completed_at
-			FROM drill_sessions 
-			WHERE planet_id = $1 AND player_id = $2 
-			ORDER BY created_at DESC LIMIT 1
-		`, planetID, playerID).Scan(&sessionUUID, &playerHP, &playerMaxHP, &depth, &drillX,
-			&worldWidth, &resourcesJSON, &status, &totalEarned, &createdAt, &completedAt)
-
-		if err == sql.ErrNoRows {
+		// Get active session from memory
+		dg := game.FindActiveSession(planetID, playerID)
+		if dg == nil {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "no_session",
 			})
 			return
 		}
-		if err != nil {
-			http.Error(w, "Failed to get drill session", http.StatusInternalServerError)
-			return
-		}
 
-		// Parse resources
-		resources, err := game.ParseResourcesFromJSON(resourcesJSON)
-		if err != nil {
-			http.Error(w, "Failed to parse resources", http.StatusInternalServerError)
-			return
-		}
-
-		resourceResp := make([]DrillResourceResponse, len(resources))
-		for i, res := range resources {
+		sess := dg.GetSession()
+		resourceResp := make([]DrillResourceResponse, len(sess.Resources))
+		for i, res := range sess.Resources {
 			resourceResp[i] = DrillResourceResponse{
 				Type:   res.Type,
 				Name:   res.Name,
@@ -2895,23 +2734,128 @@ func handleGetDrill(db *sql.DB) http.HandlerFunc {
 		}
 
 		response := DrillStateResponse{
-			SessionID:  sessionUUID,
-			PlanetID:   planetID,
-			DrillHP:    playerHP,
-			DrillMaxHP: playerMaxHP,
-			Depth:      depth,
-			DrillX:     drillX,
-			WorldWidth: worldWidth,
-			Resources:  resourceResp,
-			Status:     status,
-			TotalEarned: totalEarned,
-			CreatedAt:  createdAt.Format(time.RFC3339),
+			SessionID:   sess.SessionID,
+			PlanetID:    planetID,
+			DrillHP:     sess.DrillHP,
+			DrillMaxHP:  sess.DrillMaxHP,
+			Depth:       sess.Depth,
+			DrillX:      sess.DrillX,
+			WorldWidth:  sess.WorldWidth,
+			Resources:   resourceResp,
+			Status:      sess.Status,
+			TotalEarned: sess.TotalEarned,
+			CreatedAt:   sess.CreatedAt.Format(time.RFC3339),
 			CompletedAt: func() string {
-				if completedAt != nil {
-					return completedAt.Format(time.RFC3339)
+				if sess.CompletedAt != nil {
+					return sess.CompletedAt.Format(time.RFC3339)
 				}
 				return ""
 			}(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+// handleCompleteDrill handles POST /api/planets/{id}/drill/complete
+func handleCompleteDrill(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		authToken := r.Header.Get("X-Auth-Token")
+		if authToken == "" {
+			http.Error(w, "Missing auth token", http.StatusUnauthorized)
+			return
+		}
+
+		var playerID string
+		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
+		if err != nil {
+			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
+			return
+		}
+
+		planetID := chiURLParam(r, "id")
+		if planetID == "" {
+			http.Error(w, "Missing planet id", http.StatusBadRequest)
+			return
+		}
+
+		// Verify planet ownership
+		var ownerID string
+		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
+		if err != nil {
+			http.Error(w, "Planet not found", http.StatusNotFound)
+			return
+		}
+		if ownerID != playerID {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
+		// Get active session from memory
+		dg := game.FindActiveSession(planetID, playerID)
+		if dg == nil {
+			http.Error(w, "No active drill session", http.StatusNotFound)
+			return
+		}
+
+		// Complete the session and get total earned
+		totalEarned := dg.Complete()
+		sess := dg.GetSession()
+
+		// Add money to player balance
+		_, err = db.Exec(`UPDATE players SET money = money + $1, drill_last_completed = NOW() WHERE id = $2`, totalEarned, playerID)
+		if err != nil {
+			log.Printf("Failed to update player balance: %v", err)
+		}
+
+		// Build response
+		worldResp := make([][]DrillCellResponse, len(sess.World))
+		for i, row := range sess.World {
+			worldResp[i] = make([]DrillCellResponse, len(row))
+			for j, cell := range row {
+				worldResp[i][j] = DrillCellResponse{
+					X:              cell.X,
+					Y:              cell.Y,
+					CellType:       cell.CellType,
+					ResourceType:   cell.ResourceType,
+					ResourceAmount: cell.ResourceAmount,
+					ResourceValue:  cell.ResourceValue,
+					Extracted:      cell.Extracted,
+				}
+			}
+		}
+
+		resourceResp := make([]DrillResourceResponse, len(sess.Resources))
+		for i, res := range sess.Resources {
+			resourceResp[i] = DrillResourceResponse{
+				Type:   res.Type,
+				Name:   res.Name,
+				Icon:   res.Icon,
+				Amount: res.Amount,
+				Value:  res.Value,
+			}
+		}
+
+		response := DrillCompleteResponse{
+			SessionID:   sess.SessionID,
+			PlanetID:    planetID,
+			DrillHP:     sess.DrillHP,
+			DrillMaxHP:  sess.DrillMaxHP,
+			Depth:       sess.Depth,
+			DrillX:      sess.DrillX,
+			WorldWidth:  sess.WorldWidth,
+			World:       worldResp,
+			Resources:   resourceResp,
+			Status:      sess.Status,
+			TotalEarned: totalEarned,
+			CreatedAt:   sess.CreatedAt.Format(time.RFC3339),
+			CompletedAt: time.Now().Format(time.RFC3339),
 		}
 
 		w.Header().Set("Content-Type", "application/json")

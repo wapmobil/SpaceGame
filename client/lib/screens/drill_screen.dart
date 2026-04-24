@@ -64,6 +64,12 @@ class _DrillScreenState extends State<DrillScreen> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _completeDrill() async {
+    if (context.read<GameProvider>().drillState?.isActive != true) return;
+    await context.read<GameProvider>().completeDrill();
+    if (mounted) setState(() {});
+  }
+
   Future<void> _startDrill() async {
     await context.read<GameProvider>().startDrill();
     if (mounted) setState(() {});
@@ -193,6 +199,12 @@ class _DrillScreenState extends State<DrillScreen> {
           onPressed: widget.onBack,
         ),
         actions: [
+          if (state.isActive)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: _completeDrill,
+              tooltip: 'Завершить',
+            ),
           if (state.isGameEnded)
             IconButton(
               icon: const Icon(Icons.refresh),

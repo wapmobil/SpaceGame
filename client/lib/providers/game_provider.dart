@@ -1106,6 +1106,28 @@ class GameProvider extends ChangeNotifier {
       _setError('Ошибка хода: $e');
     }
   }
+
+  Future<void> completeDrill() async {
+    if (_player == null || _selectedPlanet == null || _drillState == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/complete'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        _drillState = DrillState.fromJson(data);
+        notifyListeners();
+      } else {
+        _setError('Не удалось завершить бурение: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка завершения: $e');
+    }
+  }
 }
 
 class ShipyardInfo {

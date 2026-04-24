@@ -332,3 +332,20 @@ type DrillStartResponse struct {
 	Status     string                  `json:"status"`
 	CreatedAt  string                  `json:"created_at"`
 }
+
+// DrillCompleteResponse is the response for completing a drill session.
+type DrillCompleteResponse struct {
+	SessionID   string                  `json:"session_id"`
+	PlanetID    string                  `json:"planet_id"`
+	DrillHP     int                     `json:"drill_hp"`
+	DrillMaxHP  int                     `json:"drill_max_hp"`
+	Depth       int                     `json:"depth"`
+	DrillX      int                     `json:"drill_x"`
+	WorldWidth  int                     `json:"world_width"`
+	World       [][]DrillCellResponse   `json:"world"`
+	Resources   []DrillResourceResponse `json:"resources"`
+	Status      string                  `json:"status"`
+	TotalEarned float64                 `json:"total_earned"`
+	CreatedAt   string                  `json:"created_at"`
+	CompletedAt string                  `json:"completed_at"`
+}
