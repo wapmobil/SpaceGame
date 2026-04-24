@@ -46,8 +46,8 @@ type ResourceDef struct {
 }
 
 var resourceDefinitions = map[string]*ResourceDef{
-	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 1, DigTime: 3.0, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.08, Damage: 3},
-	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 2, DigTime: 3.5, DepthStart: 0, DepthEnd: 50, SpawnChance: 0.06, Damage: 3},
+	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 1, DigTime: 3.0, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.08, Damage: 3},
+	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 2, DigTime: 3.5, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.03, Damage: 3},
 	ResourceCopper:   {Type: ResourceCopper, Name: "Медь", Icon: "🟠", Value: 10, DigTime: 4.0, DepthStart: 50, DepthEnd: 100, SpawnChance: 0.07, Damage: 5},
 	ResourceCoal:     {Type: ResourceCoal, Name: "Уголь", Icon: "⬛", Value: 5, DigTime: 3.5, DepthStart: 50, DepthEnd: 150, SpawnChance: 0.08, Damage: 5},
 	ResourceSilver:   {Type: ResourceSilver, Name: "Серебро", Icon: "⚪", Value: 15, DigTime: 5.0, DepthStart: 100, DepthEnd: 200, SpawnChance: 0.05, Damage: 8},
@@ -144,18 +144,17 @@ const (
 
 // DrillConfig holds configuration for drill world generation
 type DrillConfig struct {
-	WorldWidth int
-	ViewHeight int
-	Seed       int64
+	Seed int64
 }
 
 // DrillGame is the main engine for the drill mini-game
 type DrillGame struct {
 	config      DrillConfig
 	session     DrillSession
-	rng         *rand.Rand
-	baseLevel   int
+	mineLevel   int
 	broadcastFn func(*MoveResult)
+	cellsCache  map[string]Cell
+	done        chan struct{}
 }
 
 // activeSessions stores all active drill sessions in memory
@@ -188,8 +187,8 @@ const (
 )
 
 // NewDrillGame creates a new drill game session
-func NewDrillGame(planetID, playerID string, baseLevel int) *DrillGame {
-	maxHP := 80 + baseLevel*40
+func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
+	maxHP := 10 + 100*mineLevel
 	session := DrillSession{
 		ID:             uuid.New().String(),
 		SessionID:      fmt.Sprintf("drill-%d", time.Now().UnixNano()),
@@ -209,16 +208,15 @@ func NewDrillGame(planetID, playerID string, baseLevel int) *DrillGame {
 	}
 
 	config := DrillConfig{
-		WorldWidth: DefaultWorldWidth,
-		ViewHeight: DefaultViewHeight,
-		Seed:       time.Now().UnixNano() + int64(planetID[len(planetID)-1]),
+		Seed: rand.Int63(),
 	}
 
 	game := &DrillGame{
-		config:    config,
-		session:   session,
-		rng:       rand.New(rand.NewSource(config.Seed)),
-		baseLevel: baseLevel,
+		config:     config,
+		session:    session,
+		mineLevel:  mineLevel,
+		cellsCache: make(map[string]Cell),
+		done:       make(chan struct{}),
 	}
 
 	game.generateInitialWorld()
@@ -233,11 +231,15 @@ func (g *DrillGame) autoDescentTicker() {
 	ticker := time.NewTicker(autoDescentInterval)
 	defer ticker.Stop()
 	for {
-		<-ticker.C
-		if g.session.Status != "active" {
+		select {
+		case <-g.done:
 			return
+		case <-ticker.C:
+			if g.session.Status != "active" {
+				return
+			}
+			g.ApplyCommandWithBroadcast()
 		}
-		g.ApplyCommandWithBroadcast()
 	}
 }
 
@@ -376,6 +378,11 @@ func (g *DrillGame) getCellWithState(x, y int) Cell {
 
 // getCellAt deterministically generates a cell based on seed and coordinates
 func (g *DrillGame) getCellAt(x, y int) Cell {
+	key := fmt.Sprintf("%d,%d", x, y)
+	if cell, ok := g.cellsCache[key]; ok {
+		return cell
+	}
+
 	cell := Cell{X: x, Y: y, CellType: CellDirt}
 
 	// Create a deterministic RNG for cell type based on coordinates and seed
@@ -414,12 +421,19 @@ func (g *DrillGame) getCellAt(x, y int) Cell {
 		}
 	}
 
+	g.cellsCache[key] = cell
 	return cell
 }
 
 // selectResourceForDepth picks a random resource based on depth using a deterministic seed
 func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *ResourceDef {
-	r := rand.New(rand.NewSource(seed + 999999))
+	mixed := uint64(seed)
+	mixed ^= mixed >> 30
+	mixed *= 0xbf58476d1ce4e5b9
+	mixed ^= mixed >> 27
+	mixed *= 0x94d049bb133111eb
+	mixed ^= mixed >> 31
+	r := rand.New(rand.NewSource(int64(mixed)))
 	var candidates []*ResourceDef
 	for _, def := range resourceDefinitions {
 		factor := float64(def.DepthStart) / 800.0
@@ -438,19 +452,19 @@ func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *Res
 		return candidates[i].Type < candidates[j].Type
 	})
 
-	// Weight by spawn chance
-	totalChance := 0.0
+	// Weight by spawn chance (use integer weights: SpawnChance * 100)
+	totalWeight := 0
 	for _, c := range candidates {
-		totalChance += c.SpawnChance
+		totalWeight += int(c.SpawnChance * 100)
 	}
 
-	rVal := r.Float64() * totalChance
-	accumulated := 0.0
+	rVal := r.Int63n(int64(totalWeight))
 	for _, c := range candidates {
-		accumulated += c.SpawnChance
-		if rVal <= accumulated {
+		weight := int(c.SpawnChance * 100)
+		if rVal < int64(weight) {
 			return c
 		}
+		rVal -= int64(weight)
 	}
 
 	return candidates[0]
@@ -459,6 +473,22 @@ func (g *DrillGame) selectResourceForDepth(depthFactor float64, seed int64) *Res
 // regenerateWorld rebuilds the 5x5 world centered on current drill position
 func (g *DrillGame) regenerateWorld() {
 	g.session.World = g.buildWorldAt(g.session.Depth, g.session.DrillX)
+	g.cleanupCache()
+}
+
+// cleanupCache removes cells from the cache that are far above the drill
+func (g *DrillGame) cleanupCache() {
+	if len(g.cellsCache) == 0 {
+		return
+	}
+	cutoff := g.session.Depth - 20
+	for key := range g.cellsCache {
+		var x, y int
+		fmt.Sscanf(key, "%d,%d", &x, &y)
+		if y < cutoff {
+			delete(g.cellsCache, key)
+		}
+	}
 }
 
 // processDrillDown moves the drill downward and handles resource damage
@@ -504,6 +534,11 @@ func (g *DrillGame) processExtraction(result *MoveResult, extract bool) {
 		if extract {
 			g.session.DrillHP -= 3
 		}
+		return
+	}
+
+	// Only extract if extract flag is true
+	if !extract {
 		return
 	}
 
@@ -638,6 +673,8 @@ func (g *DrillGame) Destroy() {
 	now := time.Now()
 	g.session.CompletedAt = &now
 	g.convertResourcesToMoney()
+	delete(activeSessions, g.session.SessionID)
+	close(g.done)
 }
 
 // Complete marks the session as completed and converts resources to money
@@ -651,5 +688,6 @@ func (g *DrillGame) Complete() float64 {
 	g.convertResourcesToMoney()
 	totalEarned := g.session.TotalEarned
 	delete(activeSessions, g.session.SessionID)
+	close(g.done)
 	return totalEarned
 }

@@ -204,6 +204,12 @@ func (cm *WSConnectionManager) RemoveClient(connID string) {
 		client.Close()
 	}
 
+	// Clean up any active drill session for this player
+	if dg := game.FindActiveSession("", playerID); dg != nil {
+		dg.Destroy()
+		log.Printf("Drill session destroyed on disconnect: player %s", playerID)
+	}
+
 	// Queue a state update for reconnection
 	cm.messageQueue.Enqueue(playerID, WSMessage{
 		Type: "disconnected",

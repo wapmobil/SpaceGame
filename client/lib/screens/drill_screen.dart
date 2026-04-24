@@ -29,6 +29,9 @@ class _DrillScreenState extends State<DrillScreen> {
 
   @override
   void dispose() {
+    if (_extracting) {
+      _stopExtracting();
+    }
     _resultShown = false;
     super.dispose();
   }
@@ -155,7 +158,7 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Бур будет погружаться глубоко под поверхность,\nсобирая ценные ресурсы',
+                'Бур будет погружаться глубоко под поверхность,\nсобирая ценные ресурсы. Прочность: 10+100*ур.шахты',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
@@ -215,8 +218,8 @@ class _DrillScreenState extends State<DrillScreen> {
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const SizedBox(height: 4),
-                    _buildResourceRow('🛢️ Нефть', '1\$', '0–50'),
-                    _buildResourceRow('💨 Газ', '2\$', '0–50'),
+                    _buildResourceRow('🛢️ Нефть', '1\$', '0–1000'),
+                    _buildResourceRow('💨 Газ', '2\$', '0–1000'),
                     _buildResourceRow('⬛ Уголь', '5\$', '50–150'),
                     _buildResourceRow('🟠 Медь', '10\$', '50–100'),
                     _buildResourceRow('⚪ Серебро', '15\$', '100–200'),
@@ -292,6 +295,9 @@ class _DrillScreenState extends State<DrillScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (state.isActive || state.isGameEnded) {
+              if (_extracting) {
+                _stopExtracting();
+              }
               context.read<GameProvider>().clearDrillState();
             }
             Navigator.of(context).pop();

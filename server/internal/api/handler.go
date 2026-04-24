@@ -2516,12 +2516,11 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		// Get base level from planet
-		var baseLevel int
-		err = db.QueryRow("SELECT level FROM planets WHERE id = $1", planetID).Scan(&baseLevel)
+		// Get mine building level
+		var mineLevel int
+		err = db.QueryRow("SELECT level FROM buildings WHERE planet_id = $1 AND type = 'mine'", planetID).Scan(&mineLevel)
 		if err != nil {
-			http.Error(w, "Failed to get planet level", http.StatusInternalServerError)
-			return
+			mineLevel = 0
 		}
 
 		// Check cooldown from players table
@@ -2534,7 +2533,7 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 		}
 
 		// Create drill game
-		dg := game.NewDrillGame(planetID, playerID, baseLevel)
+		dg := game.NewDrillGame(planetID, playerID, mineLevel)
 		session := dg.GetSession()
 
 		// Wire up broadcast callback for WebSocket updates

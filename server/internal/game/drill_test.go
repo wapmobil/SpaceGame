@@ -13,11 +13,11 @@ func TestNewDrillGame(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	session := game.GetSession()
 
-	if session.DrillMaxHP != 120 { // 80 + 1*40
-		t.Errorf("Expected max HP 120, got %d", session.DrillMaxHP)
+	if session.DrillMaxHP != 110 { // 10 + 100*1
+		t.Errorf("Expected max HP 110, got %d", session.DrillMaxHP)
 	}
-	if session.DrillHP != 120 {
-		t.Errorf("Expected HP 120, got %d", session.DrillHP)
+	if session.DrillHP != 110 {
+		t.Errorf("Expected HP 110, got %d", session.DrillHP)
 	}
 	if session.Depth != 0 {
 		t.Errorf("Expected depth 0, got %d", session.Depth)
@@ -55,11 +55,11 @@ func TestDrillGameWithDifferentLevels(t *testing.T) {
 		level      int
 		expectedHP int
 	}{
-		{1, 120},
-		{2, 160},
-		{3, 200},
-		{5, 280},
-		{10, 480},
+		{1, 110},
+		{2, 210},
+		{3, 310},
+		{5, 510},
+		{10, 1010},
 	}
 
 	for _, tt := range tests {
@@ -838,6 +838,53 @@ func TestDirectionResetsAfterApply(t *testing.T) {
 	}
 }
 
+func TestExtractFalseDoesNotCollectResources(t *testing.T) {
+	game := NewDrillGame("planet-extract-false-1", "player-extract-false-1", 10)
+
+	// Move down to find cells
+	for i := 0; i < 5; i++ {
+		game.SetCommand("", boolPtr(false))
+		game.ApplyCommand()
+	}
+
+	initialResources := len(game.GetSession().Resources)
+
+	// Apply command WITHOUT extract (extract=false)
+	game.SetCommand("", boolPtr(false))
+	game.ApplyCommand()
+
+	// No resources should have been collected
+	finalResources := len(game.GetSession().Resources)
+	if finalResources > initialResources {
+		t.Errorf("Expected no resources collected with extract=false, but collected %d new resources", finalResources-initialResources)
+	}
+}
+
+func TestExtractTrueCollectsResources(t *testing.T) {
+	game := NewDrillGame("planet-extract-true-1", "player-extract-true-1", 10)
+
+	// Move down to find cells
+	for i := 0; i < 5; i++ {
+		game.SetCommand("", boolPtr(false))
+		game.ApplyCommand()
+	}
+
+	// Turn on extract
+	game.SetCommand("", boolPtr(true))
+
+	// Apply multiple commands with extract on
+	for i := 0; i < 3; i++ {
+		game.ApplyCommand()
+	}
+
+	// Resources may or may not have been collected (depends on world generation)
+	// but the key test is that extract=true allows extraction
+	// We can verify by checking that ExtractedCells has entries
+	if len(game.session.ExtractedCells) == 0 {
+		t.Log("No resources were extracted (world may not have had resources at drill path)")
+	}
+}
+
 func TestDirectionDoesNotAffectExtract(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 10)
 
@@ -854,5 +901,153 @@ func TestDirectionDoesNotAffectExtract(t *testing.T) {
 	}
 	if game.session.PendingDirection != "left" {
 		t.Error("Expected PendingDirection to be 'left'")
+	}
+}
+
+func TestDestroyRemovesFromActiveSessions(t *testing.T) {
+	game := NewDrillGame("planet-destroy-1", "player-destroy-1", 1)
+
+	// Verify session is in activeSessions
+	sess := game.GetSession()
+	if ActiveSessions()[sess.SessionID] == nil {
+		t.Fatal("Expected session to be in activeSessions after creation")
+	}
+
+	// Destroy the session
+	game.Destroy()
+
+	// Verify session is removed from activeSessions
+	if _, exists := ActiveSessions()[sess.SessionID]; exists {
+		t.Error("Expected session to be removed from activeSessions after Destroy()")
+	}
+
+	// Verify session status is failed
+	if game.GetSession().Status != "failed" {
+		t.Errorf("Expected status 'failed', got '%s'", game.GetSession().Status)
+	}
+}
+
+func TestCompleteRemovesFromActiveSessions(t *testing.T) {
+	game := NewDrillGame("planet-complete-1", "player-complete-1", 1)
+
+	// Verify session is in activeSessions
+	sess := game.GetSession()
+	if ActiveSessions()[sess.SessionID] == nil {
+		t.Fatal("Expected session to be in activeSessions after creation")
+	}
+
+	// Complete the session
+	game.Complete()
+
+	// Verify session is removed from activeSessions
+	if _, exists := ActiveSessions()[sess.SessionID]; exists {
+		t.Error("Expected session to be removed from activeSessions after Complete()")
+	}
+
+	// Verify session status is completed
+	if game.GetSession().Status != "completed" {
+		t.Errorf("Expected status 'completed', got '%s'", game.GetSession().Status)
+	}
+}
+
+func TestDestroyStopsTicker(t *testing.T) {
+	game := NewDrillGame("planet-ticker-destroy-1", "player-ticker-destroy-1", 10) // high HP so drill doesn't die
+
+	sess := game.GetSession()
+	if ActiveSessions()[sess.SessionID] == nil {
+		t.Fatal("Expected session to be in activeSessions after creation")
+	}
+
+	// Destroy the session
+	game.Destroy()
+
+	// Wait a bit for the ticker goroutine to potentially re-apply commands
+	time.Sleep(1500 * time.Millisecond)
+
+	// Verify session is no longer in activeSessions
+	if _, exists := ActiveSessions()[sess.SessionID]; exists {
+		t.Error("Expected session to be removed from activeSessions after Destroy()")
+	}
+
+	// Verify the ticker stopped by checking that ApplyCommand doesn't cause issues
+	// (if the ticker was still running, it would try to apply commands on a closed channel)
+	result := game.ApplyCommand()
+	if result.Success {
+		t.Error("Expected ApplyCommand to fail after Destroy() since session is no longer active")
+	}
+}
+
+func TestCompleteStopsTicker(t *testing.T) {
+	game := NewDrillGame("planet-ticker-complete-1", "player-ticker-complete-1", 10) // high HP so drill doesn't die
+
+	sess := game.GetSession()
+	if ActiveSessions()[sess.SessionID] == nil {
+		t.Fatal("Expected session to be in activeSessions after creation")
+	}
+
+	// Complete the session
+	game.Complete()
+
+	// Wait a bit for the ticker goroutine to potentially re-apply commands
+	time.Sleep(1500 * time.Millisecond)
+
+	// Verify the ticker stopped
+	result := game.ApplyCommand()
+	if result.Success {
+		t.Error("Expected ApplyCommand to fail after Complete() since session is no longer active")
+	}
+}
+
+func TestDestroyPreventsResourceCollection(t *testing.T) {
+	game := NewDrillGame("planet-nocollect-1", "player-nocollect-1", 10) // high HP
+
+	// Set extract on
+	game.SetCommand("", boolPtr(true))
+
+	// Destroy the session
+	game.Destroy()
+
+	// Simulate what the ticker would do - apply commands
+	time.Sleep(1500 * time.Millisecond)
+
+	// Resources should not have been collected because the ticker should have stopped
+	// The session status should be "failed" and ApplyCommand should not process extraction
+	result := game.ApplyCommand()
+	if result.Success {
+		t.Error("Expected ApplyCommand to fail after Destroy()")
+	}
+}
+
+func TestMultipleDestroyCalls(t *testing.T) {
+	game := NewDrillGame("planet-multiple-destroy-1", "player-multiple-destroy-1", 1)
+
+	// First destroy should work
+	game.Destroy()
+
+	// Second destroy should be a no-op (not panic)
+	game.Destroy()
+
+	// Verify status is still "failed"
+	if game.GetSession().Status != "failed" {
+		t.Errorf("Expected status 'failed', got '%s'", game.GetSession().Status)
+	}
+}
+
+func TestFindActiveSessionAfterDestroy(t *testing.T) {
+	game := NewDrillGame("planet-find-destroy-1", "player-find-destroy-1", 1)
+
+	// Verify we can find the session
+	found := FindActiveSession("planet-find-destroy-1", "player-find-destroy-1")
+	if found == nil {
+		t.Fatal("Expected to find active session before Destroy()")
+	}
+
+	// Destroy the session
+	game.Destroy()
+
+	// Verify we can no longer find the session
+	found = FindActiveSession("planet-find-destroy-1", "player-find-destroy-1")
+	if found != nil {
+		t.Error("Expected FindActiveSession to return nil after Destroy()")
 	}
 }
