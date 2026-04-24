@@ -17,11 +17,7 @@ type BuildingEntry struct {
 }
 
 // CostInfo represents the cost to build/upgrade a building.
-type CostInfo struct {
-	Food  float64 `json:"food"`
-	Iron  float64 `json:"iron"`
-	Money float64 `json:"money"`
-}
+type CostInfo = building.CostMulti
 
 // BuildingsOrder defines the display order of building types.
 var BuildingsOrder = []string{

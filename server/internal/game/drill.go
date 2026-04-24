@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,18 +159,29 @@ type DrillGame struct {
 }
 
 // activeSessions stores all active drill sessions in memory
-var activeSessions = make(map[string]*DrillGame)
+var (
+	activeSessionsMu sync.RWMutex
+	activeSessions   = make(map[string]*DrillGame)
+)
 
 // autoDescentInterval is how often the drill descends automatically
 const autoDescentInterval = 1 * time.Second
 
 // ActiveSessions returns all active drill sessions
 func ActiveSessions() map[string]*DrillGame {
-	return activeSessions
+	activeSessionsMu.RLock()
+	defer activeSessionsMu.RUnlock()
+	result := make(map[string]*DrillGame, len(activeSessions))
+	for k, v := range activeSessions {
+		result[k] = v
+	}
+	return result
 }
 
 // FindActiveSession finds an active or ended drill session by planet and player ID
 func FindActiveSession(planetID, playerID string) *DrillGame {
+	activeSessionsMu.RLock()
+	defer activeSessionsMu.RUnlock()
 	for _, dg := range activeSessions {
 		s := dg.GetSession()
 		if s.PlanetID == planetID && s.PlayerID == playerID && (s.Status == "active" || s.Status == "failed") {
@@ -220,7 +232,9 @@ func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
 	}
 
 	game.generateInitialWorld()
+	activeSessionsMu.Lock()
 	activeSessions[session.SessionID] = game
+	activeSessionsMu.Unlock()
 
 	go game.autoDescentTicker()
 
@@ -673,7 +687,9 @@ func (g *DrillGame) Destroy() {
 	now := time.Now()
 	g.session.CompletedAt = &now
 	g.convertResourcesToMoney()
+	activeSessionsMu.Lock()
 	delete(activeSessions, g.session.SessionID)
+	activeSessionsMu.Unlock()
 	close(g.done)
 }
 
@@ -687,7 +703,9 @@ func (g *DrillGame) Complete() float64 {
 	g.session.CompletedAt = &now
 	g.convertResourcesToMoney()
 	totalEarned := g.session.TotalEarned
+	activeSessionsMu.Lock()
 	delete(activeSessions, g.session.SessionID)
+	activeSessionsMu.Unlock()
 	close(g.done)
 	return totalEarned
 }

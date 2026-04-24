@@ -1,6 +1,9 @@
 package api
 
-import "spacegame/internal/game"
+import (
+	"spacegame/internal/game"
+	"spacegame/internal/game/building"
+)
 
 // PlayerRequest is the request body for player registration.
 type PlayerRequest struct {
@@ -199,11 +202,7 @@ type BuildingCostDetail struct {
 }
 
 // CostDetail represents build costs for the API.
-type CostDetail struct {
-	Food  float64 `json:"food"`
-	Iron  float64 `json:"iron"`
-	Money float64 `json:"money"`
-}
+type CostDetail = building.CostMulti
 
 // ProdDetail represents per-tick resource production for the API.
 type ProdDetail struct {

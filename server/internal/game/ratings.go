@@ -383,44 +383,33 @@ func (g *Game) ResolveEvent(planetID string, eventType string) (string, error) {
 		return "", &PlanetError{PlanetID: planetID, Reason: "unknown_event_type"}
 	}
 
-	// Check if player can afford the resolve cost
+	// Check if player can afford the resolve cost and pay
 	for resource, cost := range eventDef.ResolveCost {
 		switch resource {
 		case "money":
 			if p.Resources.Money < cost {
 				return fmt.Sprintf("Cannot resolve event: need %.0f money, have %.0f", cost, p.Resources.Money), nil
 			}
+			p.Resources.Money -= cost
 		case "food":
 			if p.Resources.Food < cost {
 				return fmt.Sprintf("Cannot resolve event: need %.0f food, have %.0f", cost, p.Resources.Food), nil
 			}
+			p.Resources.Food -= cost
 		case "composite":
 			if p.Resources.Composite < cost {
 				return fmt.Sprintf("Cannot resolve event: need %.0f composite, have %.0f", cost, p.Resources.Composite), nil
 			}
+			p.Resources.Composite -= cost
 		case "mechanisms":
 			if p.Resources.Mechanisms < cost {
 				return fmt.Sprintf("Cannot resolve event: need %.0f mechanisms, have %.0f", cost, p.Resources.Mechanisms), nil
 			}
+			p.Resources.Mechanisms -= cost
 		case "reagents":
 			if p.Resources.Reagents < cost {
 				return fmt.Sprintf("Cannot resolve event: need %.0f reagents, have %.0f", cost, p.Resources.Reagents), nil
 			}
-		}
-	}
-
-	// Pay the cost
-	for resource, cost := range eventDef.ResolveCost {
-		switch resource {
-		case "money":
-			p.Resources.Money -= cost
-		case "food":
-			p.Resources.Food -= cost
-		case "composite":
-			p.Resources.Composite -= cost
-		case "mechanisms":
-			p.Resources.Mechanisms -= cost
-		case "reagents":
 			p.Resources.Reagents -= cost
 		}
 	}

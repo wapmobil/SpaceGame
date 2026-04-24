@@ -64,6 +64,7 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		})
 	})
 
+	// Non-authenticated routes
 	r.Post("/api/register", handleRegister(db))
 	r.Post("/api/login", handleLogin(db))
 	r.Get("/api/planets", handleListPlanets(db))
@@ -71,52 +72,46 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	r.Get("/ws", handleWebSocket(db))
 	r.Get("/health", handleHealth)
 	r.Get("/ws/health", handleWebSocketHealth)
-
-	r.Get("/api/planets/{id}", handleGetPlanet(db))
-	r.Get("/api/planets/{id}/buildings", handleGetBuildings(db))
-	r.Post("/api/planets/{id}/buildings", handleBuildBuilding(db))
-	r.Post("/api/planets/{id}/buildings/{buildingType}/confirm", handleConfirmBuilding(db))
-	r.Post("/api/planets/{id}/buildings/{buildingType}/toggle", handleToggleBuilding(db))
-	r.Get("/api/planets/{id}/build-details", handleGetBuildDetails(db))
-	r.Get("/api/planets/{id}/research", handleGetResearch(db))
-	r.Post("/api/planets/{id}/research/start", handleStartResearch(db))
-
-	r.Get("/api/planets/{id}/fleet", handleGetFleet(db))
-	r.Post("/api/planets/{id}/ship/build", handleBuildShip(db))
-	r.Get("/api/planets/{id}/ships/available", handleGetAvailableShips(db))
-
-	// Expeditions
-	r.Post("/api/planets/{id}/expeditions", handleCreateExpedition(db))
-	r.Get("/api/planets/{id}/expeditions", handleGetExpeditions(db))
-	r.Post("/api/expeditions/{id}/action", handleExpeditionAction(db))
-
-	// Marketplace
-	r.Post("/api/planets/{id}/market/orders", handleCreateMarketOrder(db))
-	r.Get("/api/planets/{id}/market/orders", handleGetMyOrders(db))
 	r.Get("/api/market", handleGetGlobalMarket(db))
-	r.Delete("/api/market/orders/{id}", handleDeleteMarketOrder(db))
-	r.Post("/api/planets/{id}/sell-food", handleSellFood(db))
-
-	// Drill mini-game
-	r.Post("/api/planets/{id}/drill/start", handleStartDrill(db))
-	r.Post("/api/planets/{id}/drill", handleDrillCommand(db))
-	r.Get("/api/planets/{id}/drill/chunk", handleDrillChunk(db))
-	r.Post("/api/planets/{id}/drill/complete", handleCompleteDrill(db))
-	r.Post("/api/planets/{id}/drill/destroy", handleDestroyDrill(db))
-	r.Post("/api/planets/{id}/drill/cleanup", handleCleanupDrill(db))
-
-	// Ratings / Leaderboards
 	r.Get("/api/ratings", handleGetRatings(db))
 
-	// Statistics
-	r.Get("/api/planets/{id}/stats", handleGetStats(db))
+	// Planet-authenticated routes (auth + planet ownership)
+	r.Route("/api/planets", func(rr chi.Router) {
+		rr.Use(requireAuth(db), requirePlanetOwnership(db))
+		rr.Get("/{id}", handleGetPlanet(db))
+		rr.Get("/{id}/buildings", handleGetBuildings(db))
+		rr.Post("/{id}/buildings", handleBuildBuilding(db))
+		rr.Post("/{id}/buildings/{buildingType}/confirm", handleConfirmBuilding(db))
+		rr.Post("/{id}/buildings/{buildingType}/toggle", handleToggleBuilding(db))
+		rr.Get("/{id}/build-details", handleGetBuildDetails(db))
+		rr.Get("/{id}/research", handleGetResearch(db))
+		rr.Post("/{id}/research/start", handleStartResearch(db))
+		rr.Get("/{id}/fleet", handleGetFleet(db))
+		rr.Post("/{id}/ship/build", handleBuildShip(db))
+		rr.Get("/{id}/ships/available", handleGetAvailableShips(db))
+		rr.Post("/{id}/expeditions", handleCreateExpedition(db))
+		rr.Get("/{id}/expeditions", handleGetExpeditions(db))
+		rr.Post("/{id}/market/orders", handleCreateMarketOrder(db))
+		rr.Get("/{id}/market/orders", handleGetMyOrders(db))
+		rr.Post("/{id}/sell-food", handleSellFood(db))
+		rr.Post("/{id}/drill/start", handleStartDrill(db))
+		rr.Post("/{id}/drill", handleDrillCommand(db))
+		rr.Get("/{id}/drill/chunk", handleDrillChunk(db))
+		rr.Post("/{id}/drill/complete", handleCompleteDrill(db))
+		rr.Post("/{id}/drill/destroy", handleDestroyDrill(db))
+		rr.Post("/{id}/drill/cleanup", handleCleanupDrill(db))
+		rr.Get("/{id}/stats", handleGetStats(db))
+		rr.Post("/{id}/events/resolve", handleResolveEvent(db))
+		rr.Get("/{id}/farm", handleGetFarm(db))
+		rr.Post("/{id}/farm/action", handleFarmAction(db))
+	})
 
-	// Events
-	r.Post("/api/planets/{id}/events/resolve", handleResolveEvent(db))
-
-	// Farm mini-game
-	r.Get("/api/planets/{id}/farm", handleGetFarm(db))
-	r.Post("/api/planets/{id}/farm/action", handleFarmAction(db))
+	// Auth-only routes (auth but no planet ownership check)
+	r.Route("/api", func(rr chi.Router) {
+		rr.Use(requireAuth(db))
+		rr.Post("/expeditions/{id}/action", handleExpeditionAction(db))
+		rr.Delete("/market/orders/{id}", handleDeleteMarketOrder(db))
+	})
 
 	return r
 }
