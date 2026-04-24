@@ -283,6 +283,7 @@ type DrillMoveResponse struct {
 	DrillMaxHP    int                     `json:"drill_max_hp"`
 	Depth         int                     `json:"depth"`
 	DrillX        int                     `json:"drill_x"`
+	World         [][]DrillCellResponse   `json:"world"`
 	Resources     []DrillResourceResponse `json:"resources"`
 	TotalEarned   float64                 `json:"total_earned"`
 	GameEnded     bool                    `json:"game_ended"`

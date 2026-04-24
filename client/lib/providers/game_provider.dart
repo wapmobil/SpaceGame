@@ -92,6 +92,11 @@ class GameProvider extends ChangeNotifier {
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
   DrillState? get drillState => _drillState;
+
+  void clearDrillState() {
+    _drillState = null;
+    notifyListeners();
+  }
   List<RatingEntry> get ratings => _ratings;
   Map<String, dynamic>? get stats => _stats;
   List<Map<String, dynamic>> get events => _events;
@@ -1089,8 +1094,8 @@ class GameProvider extends ChangeNotifier {
             drillMaxHp: moveResp.drillMaxHp,
             depth: moveResp.depth,
             drillX: moveResp.drillX,
-            worldWidth: _drillState!.worldWidth,
-            world: _drillState!.world,
+            worldWidth: moveResp.world.isNotEmpty ? moveResp.world[0].length : _drillState!.worldWidth,
+            world: moveResp.world.isNotEmpty ? moveResp.world : _drillState!.world,
             resources: moveResp.resources,
             status: moveResp.gameEnded ? 'failed' : 'active',
             totalEarned: moveResp.totalEarned,
@@ -1126,6 +1131,66 @@ class GameProvider extends ChangeNotifier {
       }
     } catch (e) {
       _setError('Ошибка завершения: $e');
+    }
+  }
+
+  Future<void> destroyDrill() async {
+    if (_player == null || _selectedPlanet == null || _drillState == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/destroy'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        List<List<DrillCell>> world = [];
+        if (data['world'] != null) {
+          world = (data['world'] as List).map((row) {
+            return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
+          }).toList();
+        }
+        List<DrillResource> resources = [];
+        if (data['resources'] != null) {
+          resources = (data['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
+        }
+        _drillState = DrillState(
+          sessionId: _drillState!.sessionId,
+          planetId: _drillState!.planetId,
+          drillHp: data['drill_hp'] as int? ?? 0,
+          drillMaxHp: data['drill_max_hp'] as int? ?? 0,
+          depth: data['depth'] as int? ?? 0,
+          drillX: data['drill_x'] as int? ?? 0,
+          worldWidth: world.isNotEmpty ? world[0].length : _drillState!.worldWidth,
+          world: world,
+          resources: resources,
+          status: 'failed',
+          totalEarned: (data['total_earned'] as num?)?.toDouble() ?? 0,
+          createdAt: _drillState!.createdAt,
+          completedAt: DateTime.now().toUtc().toIso8601String(),
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      _drillState = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> cleanupDrill() async {
+    if (_player == null || _selectedPlanet == null) return;
+    try {
+      await http.post(
+        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/cleanup'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+    } catch (e) {
+      // ignore
     }
   }
 }

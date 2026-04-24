@@ -21,7 +21,10 @@ class DrillScreen extends StatefulWidget {
 class _DrillScreenState extends State<DrillScreen> {
   bool _extracting = false;
   Timer? _extractTimer;
+  Timer? _autoTickTimer;
   String _lastMessage = '';
+  bool _horizontalCooldown = false;
+  bool _resultShown = false;
 
   @override
   void initState() {
@@ -32,11 +35,39 @@ class _DrillScreenState extends State<DrillScreen> {
   @override
   void dispose() {
     _extractTimer?.cancel();
+    _autoTickTimer?.cancel();
+    _resultShown = false;
     super.dispose();
+  }
+
+  void _startAutoTick() {
+    _autoTickTimer?.cancel();
+    _autoTickTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final state = context.read<GameProvider>().drillState;
+      if (state == null || !state.isActive) {
+        timer.cancel();
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _horizontalCooldown = false;
+        });
+      }
+      context.read<GameProvider>().loadDrillState(widget.planetId);
+    });
+  }
+
+  void _stopAutoTick() {
+    _autoTickTimer?.cancel();
+    _autoTickTimer = null;
   }
 
   Future<void> _loadDrillState() async {
     await context.read<GameProvider>().loadDrillState(widget.planetId);
+    final state = context.read<GameProvider>().drillState;
+    if (state?.isActive == true) {
+      _startAutoTick();
+    }
   }
 
   void _startExtracting() {
@@ -60,6 +91,12 @@ class _DrillScreenState extends State<DrillScreen> {
 
   Future<void> _move(String direction) async {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
+    if (direction == 'left' || direction == 'right') {
+      if (_horizontalCooldown) return;
+      setState(() {
+        _horizontalCooldown = true;
+      });
+    }
     await context.read<GameProvider>().drillMove(direction);
     if (mounted) setState(() {});
   }
@@ -67,11 +104,21 @@ class _DrillScreenState extends State<DrillScreen> {
   Future<void> _completeDrill() async {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
     await context.read<GameProvider>().completeDrill();
-    if (mounted) setState(() {});
+    _stopAutoTick();
+  }
+
+  Future<void> _cancelDrill() async {
+    if (context.read<GameProvider>().drillState?.isActive != true) return;
+    _stopAutoTick();
+    await context.read<GameProvider>().destroyDrill();
   }
 
   Future<void> _startDrill() async {
     await context.read<GameProvider>().startDrill();
+    final state = context.read<GameProvider>().drillState;
+    if (state?.isActive == true) {
+      _startAutoTick();
+    }
     if (mounted) setState(() {});
   }
 
@@ -105,20 +152,15 @@ class _DrillScreenState extends State<DrillScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              await context.read<GameProvider>().cleanupDrill();
+              context.read<GameProvider>().clearDrillState();
+              _resultShown = false;
               Navigator.of(ctx).pop();
-              if (widget.onBack != null) widget.onBack!();
+              Navigator.of(context).pop();
             },
             child: const Text('Закрыть'),
           ),
-          if (state.isFailed)
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                _startDrill();
-              },
-              child: const Text('Начать заново'),
-            ),
         ],
       ),
     );
@@ -128,16 +170,20 @@ class _DrillScreenState extends State<DrillScreen> {
   Widget build(BuildContext context) {
     final state = context.watch<GameProvider>().drillState;
 
-    if (state == null) {
-      return _buildLoading();
-    }
-
-    if (state.status == 'no_session') {
+    if (state == null || state.status == 'no_session') {
+      _stopAutoTick();
+      _resultShown = false;
       return _buildStartScreen();
     }
 
-    if (state.isGameEnded) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showResult());
+    if (state.isGameEnded && !_resultShown) {
+      _stopAutoTick();
+      _resultShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showResult();
+      });
+    } else if (!state.isGameEnded) {
+      _resultShown = false;
     }
 
     return _buildGameScreen(state);
@@ -155,7 +201,7 @@ class _DrillScreenState extends State<DrillScreen> {
         title: const Text('Бурение'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: Center(
@@ -196,20 +242,19 @@ class _DrillScreenState extends State<DrillScreen> {
         title: const Text('Бурение'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: widget.onBack,
+          onPressed: () {
+            if (state.isActive || state.isGameEnded) {
+              context.read<GameProvider>().clearDrillState();
+            }
+            Navigator.of(context).pop();
+          },
         ),
         actions: [
           if (state.isActive)
             IconButton(
               icon: const Icon(Icons.exit_to_app),
-              onPressed: _completeDrill,
-              tooltip: 'Завершить',
-            ),
-          if (state.isGameEnded)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: state.isFailed ? _startDrill : widget.onBack,
-              tooltip: state.isFailed ? 'Начать заново' : 'Назад',
+              onPressed: _cancelDrill,
+              tooltip: 'Выйти',
             ),
         ],
       ),
@@ -285,6 +330,37 @@ class _DrillScreenState extends State<DrillScreen> {
               child: const Text('⛏️ Добыча...',
                   style: TextStyle(color: Colors.orange, fontSize: 11)),
             ),
+          if (state.resources.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 4),
+              child: SizedBox(
+                height: 28,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: state.resources.length,
+                  itemBuilder: (ctx, idx) {
+                    final r = state.resources[idx];
+                    return Container(
+                      margin: EdgeInsets.only(right: idx < state.resources.length - 1 ? 4 : 0),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(r.icon, style: const TextStyle(fontSize: 14)),
+                          const SizedBox(width: 2),
+                          Text('${r.amount.toStringAsFixed(0)}',
+                              style: const TextStyle(color: Colors.white, fontSize: 10)),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           if (_lastMessage.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(top: 2),
@@ -337,7 +413,7 @@ class _DrillScreenState extends State<DrillScreen> {
     Color bgColor;
     String content;
 
-    final isDrillPos = rowIdx == state.depth && colIdx == state.drillX;
+    final isDrillPos = rowIdx == 0 && colIdx == 2;
 
     if (isDrillPos) {
       bgColor = Colors.amber;
@@ -410,40 +486,28 @@ class _DrillScreenState extends State<DrillScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _buildControlButton(
-                icon: Icons.arrow_upward,
-                label: 'Вверх',
-                onPressed: () => _move('up'),
-                enabled: state.isActive,
+                icon: Icons.arrow_back,
+                label: '←',
+                onPressed: () => _move('left'),
+                enabled: state.isActive && !_horizontalCooldown,
               ),
               const SizedBox(width: 16),
-              Row(
-                children: [
-                  _buildControlButton(
-                    icon: Icons.arrow_back,
-                    label: '←',
-                    onPressed: () => _move('left'),
-                    enabled: state.isActive,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildExtractButton(state),
-                  const SizedBox(width: 8),
-                  _buildControlButton(
-                    icon: Icons.arrow_forward,
-                    label: '→',
-                    onPressed: () => _move('right'),
-                    enabled: state.isActive,
-                  ),
-                ],
-              ),
+              _buildExtractButton(state),
               const SizedBox(width: 16),
               _buildControlButton(
-                icon: Icons.arrow_downward,
-                label: 'Вниз',
-                onPressed: () => _move('down'),
-                enabled: state.isActive,
+                icon: Icons.arrow_forward,
+                label: '→',
+                onPressed: () => _move('right'),
+                enabled: state.isActive && !_horizontalCooldown,
               ),
             ],
           ),
+          if (_horizontalCooldown)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text('ожидание...',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 10)),
+            ),
         ],
       ),
     );

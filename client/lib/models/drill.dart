@@ -207,6 +207,7 @@ class DrillMoveResponse {
   final int drillMaxHp;
   final int depth;
   final int drillX;
+  final List<List<DrillCell>> world;
   final List<DrillResource> resources;
   final double totalEarned;
   final bool gameEnded;
@@ -221,6 +222,7 @@ class DrillMoveResponse {
     required this.drillMaxHp,
     required this.depth,
     required this.drillX,
+    required this.world,
     required this.resources,
     required this.totalEarned,
     required this.gameEnded,
@@ -235,6 +237,13 @@ class DrillMoveResponse {
       resources = (json['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
     }
 
+    List<List<DrillCell>> world = [];
+    if (json['world'] != null) {
+      world = (json['world'] as List).map((row) {
+        return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
+      }).toList();
+    }
+
     return DrillMoveResponse(
       success: json['success'] as bool? ?? false,
       message: json['message'] as String?,
@@ -242,6 +251,7 @@ class DrillMoveResponse {
       drillMaxHp: json['drill_max_hp'] as int? ?? 0,
       depth: json['depth'] as int? ?? 0,
       drillX: json['drill_x'] as int? ?? 0,
+      world: world,
       resources: resources,
       totalEarned: (json['total_earned'] as num?)?.toDouble() ?? 0,
       gameEnded: json['game_ended'] as bool? ?? false,
@@ -261,6 +271,7 @@ class DrillMoveResponse {
       'drill_max_hp': drillMaxHp,
       'depth': depth,
       'drill_x': drillX,
+      'world': world.map((row) => row.map((cell) => cell.toJson()).toList()).toList(),
       'resources': resources.map((r) => r.toJson()).toList(),
       'total_earned': totalEarned,
       'game_ended': gameEnded,
