@@ -3,17 +3,20 @@ import '../core/app_theme.dart';
 import '../utils/constants.dart';
 import '../models/building.dart';
 import '../providers/game_provider.dart';
+import 'planet_action_chip.dart';
 
 class BuildingCard extends StatefulWidget {
   final Building building;
   final GameProvider gameProvider;
   final VoidCallback? onTap;
+  final void Function(String buildingType, String action)? onNavigateBuilding;
 
   const BuildingCard({
     super.key,
     required this.building,
     required this.gameProvider,
     this.onTap,
+    this.onNavigateBuilding,
   });
 
   @override
@@ -382,6 +385,17 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                   runSpacing: 6,
                   children: prodLines,
                 ),
+              // Navigation chips for working buildings
+              if (building.isWorking && widget.onNavigateBuilding != null) ...[
+                const SizedBox(height: 10),
+                Divider(color: Colors.white.withValues(alpha: 0.08), thickness: 1),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _buildNavigationChips(building.type),
+                ),
+              ],
               // Progress + remaining time
               if (isBuilding) ...[
                 const SizedBox(height: 12),
@@ -409,6 +423,34 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
         ),
       ),
     );
+  }
+
+  List<Widget> _buildNavigationChips(String type) {
+    final chips = <Map<String, dynamic>>[];
+    switch (type) {
+      case 'base':
+        chips.add({'icon': Icons.science, 'label': 'Исследования', 'action': 'research'});
+        break;
+      case 'shipyard':
+        chips.add({'icon': Icons.rocket_launch, 'label': 'Верфь', 'action': 'shipyard'});
+        break;
+      case 'comcenter':
+        chips.add({'icon': Icons.explore, 'label': 'Экспедиция', 'action': 'expedition'});
+        break;
+      case 'mine':
+        chips.add({'icon': Icons.diamond_outlined, 'label': 'Копатель', 'action': 'mining'});
+        break;
+      case 'market':
+        chips.add({'icon': Icons.store, 'label': 'Рынок', 'action': 'market'});
+        break;
+    }
+    return chips.map((chip) {
+      return PlanetActionChip(
+        icon: chip['icon'] as IconData,
+        label: chip['label'] as String,
+        onTap: () => widget.onNavigateBuilding?.call(type, chip['action'] as String),
+      );
+    }).toList();
   }
 
   Widget _statusIndicator() {

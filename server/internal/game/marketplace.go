@@ -416,24 +416,36 @@ func (m *Marketplace) CreateNPCOrder(name, planetID, playerID, resource string, 
 	return order, trader, nil
 }
 
-// GenerateNPCOrders generates random orders for all NPC traders.
-func (m *Marketplace) GenerateNPCOrders() {
+// GenerateNPCOrders generates random orders for NPC traders based on total market level.
+// Base trader count is 3, each market level adds 1 trader.
+func (m *Marketplace) GenerateNPCOrders(marketLevel int) {
 	npcNames := []string{
 		"Trade Station Alpha",
 		"Merchant Outpost Beta",
 		"Galactic Trading Post",
+		"Stellar Market Delta",
+		"Void Trader Epsilon",
+		"Nebula Exchange Zeta",
+		"Quantum Bazaar Eta",
+		"Cosmic Depot Theta",
+	}
+
+	traderCount := 3 + marketLevel
+	if traderCount > len(npcNames) {
+		traderCount = len(npcNames)
 	}
 
 	validResources := []string{"food", "composite", "mechanisms", "reagents"}
 	validTypes := []OrderType{OrderBuy, OrderSell}
 
-	for _, name := range npcNames {
+	for i := 0; i < traderCount; i++ {
+		name := npcNames[i]
 		planetID := fmt.Sprintf("npc_%s", name)
 		playerID := fmt.Sprintf("npc_%s_player", name)
 
 		// Generate 1-3 orders per NPC
 		orderCount := randInt(1, 4)
-		for i := 0; i < orderCount; i++ {
+		for j := 0; j < orderCount; j++ {
 			resource := validResources[randInt(0, len(validResources)-1)]
 			orderType := validTypes[randInt(0, len(validTypes)-1)]
 			amount := float64(randInt(10, 500))

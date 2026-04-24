@@ -497,8 +497,6 @@ const (
 	StatTotalMoneySpent  StatsKey = "total_money_spent"
 	StatTotalBuildings   StatsKey = "total_buildings_constructed"
 	StatTotalResearch    StatsKey = "total_research_completed"
-	StatTotalBattlesWon  StatsKey = "total_battles_won"
-	StatTotalBattlesLost StatsKey = "total_battles_lost"
 	StatTotalExpeditions StatsKey = "total_expeditions_completed"
 	StatMiningPlayed     StatsKey = "total_mining_sessions_played"
 	StatMiningCompleted  StatsKey = "total_mining_sessions_completed"
@@ -523,7 +521,6 @@ const (
 	StatShipDestroyerBuilt StatsKey = "ships_destroyer"
 	StatShipCarrierBuilt StatsKey = "ships_carrier"
 	StatShipTransportBuilt StatsKey = "ships_transport"
-	StatShipBattlecruiserBuilt StatsKey = "ships_battlecruiser"
 	StatShipDestroyer2Built  StatsKey = "ships_destroyer_2"
 	StatShipFrigate2Built    StatsKey = "ships_frigate_2"
 	StatShipScout2Built      StatsKey = "ships_scout_2"
@@ -543,8 +540,6 @@ func AllStatsKeys() []StatsKey {
 		StatTotalMoneySpent,
 		StatTotalBuildings,
 		StatTotalResearch,
-		StatTotalBattlesWon,
-		StatTotalBattlesLost,
 		StatTotalExpeditions,
 		StatMiningPlayed,
 		StatMiningCompleted,
@@ -565,7 +560,6 @@ func AllStatsKeys() []StatsKey {
 		StatShipDestroyerBuilt,
 		StatShipCarrierBuilt,
 		StatShipTransportBuilt,
-		StatShipBattlecruiserBuilt,
 		StatShipDestroyer2Built,
 		StatShipFrigate2Built,
 		StatShipScout2Built,
@@ -681,25 +675,6 @@ func (g *Game) TrackMoneySpent(planetID, playerID string, amount float64) {
 	`, playerID, planetID, string(StatTotalMoneySpent), amount)
 }
 
-// TrackBattleResult records a battle outcome.
-func (g *Game) TrackBattleResult(planetID, playerID string, won bool) {
-	if g.db == nil {
-		return
-	}
-
-	key := StatTotalBattlesLost
-	if won {
-		key = StatTotalBattlesWon
-	}
-
-	g.db.Exec(`
-		INSERT INTO player_stats (player_id, planet_id, stat_key, stat_value, updated_at)
-		VALUES ($1, $2, $3, 1, NOW())
-		ON CONFLICT (player_id, stat_key)
-		DO UPDATE SET stat_value = player_stats.stat_value + 1, updated_at = NOW()
-	`, playerID, planetID, string(key))
-}
-
 // TrackExpeditionCompleted records a completed expedition.
 func (g *Game) TrackExpeditionCompleted(planetID, playerID string) {
 	if g.db == nil {
@@ -778,8 +753,6 @@ func (g *Game) TrackShipBuilt(planetID, playerID, shipType string) {
 		statKey = StatShipCarrierBuilt
 	case "transport":
 		statKey = StatShipTransportBuilt
-	case "battlecruiser":
-		statKey = StatShipBattlecruiserBuilt
 	case "destroyer_2":
 		statKey = StatShipDestroyer2Built
 	case "frigate_2":

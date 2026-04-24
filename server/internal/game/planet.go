@@ -27,7 +27,6 @@ type Planet struct {
 	Research         *research.ResearchSystem
 	Fleet            *ship.Fleet
 	Shipyard         *ship.Shipyard
-	Battles          []BattleRecord
 	Expeditions      []*expedition.Expedition
 	ExplorationMgr   *expedition.ExplorationManager
 	game             *Game

@@ -55,6 +55,7 @@ class Constants {
     'factory': {'name': 'Фабрика', 'icon': '🏗️', 'description': 'Расширенное производство'},
     'shipyard': {'name': 'Верфь', 'icon': '🚀', 'description': 'Строит корабли'},
     'comcenter': {'name': 'Центр связи', 'icon': '📡', 'description': 'Связь'},
+    'market': {'name': 'Рынок', 'icon': '🏪', 'description': 'Открывает доступ к Рынку'},
     'dynamo': {'name': 'Динамомашинa', 'icon': '⚡', 'description': 'Производит энергию, потребщает еду'},
   };
 
@@ -62,6 +63,7 @@ class Constants {
     'energy_storage': 'energy_storage',
     'shipyard': 'ships',
     'comcenter': 'expeditions',
+    'market': 'trade',
   };
 
   static const researchRandomUnlockBuildings = [

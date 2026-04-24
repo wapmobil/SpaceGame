@@ -393,7 +393,7 @@ func TestNPCOrderCreation(t *testing.T) {
 func TestGenerateNPCOrders(t *testing.T) {
 	mp := NewMarketplace()
 
-	mp.GenerateNPCOrders()
+	mp.GenerateNPCOrders(0)
 
 	count := mp.GetOrderCount()
 	if count == 0 {

@@ -495,14 +495,6 @@ func (bs *WSBroadcastService) BroadcastStateUpdate(playerID, planetID string, st
 	})
 }
 
-// BroadcastBattleUpdate sends a battle update to the owning player.
-func (bs *WSBroadcastService) BroadcastBattleUpdate(playerID, battleID string, data map[string]interface{}) {
-	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "battle_update",
-		Data: json.RawMessage(fmt.Sprintf(`{"battle_id":"%s","data":%s}`, battleID, toJSON(data))),
-	})
-}
-
 // BroadcastNotification sends a notification to a player.
 func (bs *WSBroadcastService) BroadcastNotification(playerID, message, notifType string) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
@@ -830,8 +822,6 @@ func (c *WSClient) handleMessage(msg WSMessage) {
 		c.handleBuild(msg)
 	case "research":
 		c.handleResearch(msg)
-	case "battle_action":
-		c.handleBattleAction(msg)
 	case "build_ship":
 		c.handleBuildShip(msg)
 	case "start_expedition":
@@ -864,14 +854,6 @@ func (c *WSClient) handleResearch(msg WSMessage) {
 	if msg.Data != nil {
 		data, _ := json.Marshal(msg.Data)
 		log.Printf("Player %s research action: %s", c.playerID, string(data))
-	}
-}
-
-// handleBattleAction handles a battle action.
-func (c *WSClient) handleBattleAction(msg WSMessage) {
-	if msg.Data != nil {
-		data, _ := json.Marshal(msg.Data)
-		log.Printf("Player %s battle action: %s", c.playerID, string(data))
 	}
 }
 

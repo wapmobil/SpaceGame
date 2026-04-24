@@ -26,7 +26,7 @@ type CostInfo struct {
 // BuildingsOrder defines the display order of building types.
 var BuildingsOrder = []string{
 	"base", "farm", "solar", "storage", "mine", "factory",
-	"energy_storage", "shipyard", "comcenter",
+	"energy_storage", "shipyard", "comcenter", "market",
 	"composite_drone", "mechanism_factory", "reagent_lab", "dynamo",
 }
 
@@ -36,6 +36,7 @@ var BuildingResearchRequirements = map[string]string{
 	"energy_storage": "energy_storage",
 	"shipyard":       "ships",
 	"comcenter":      "expeditions",
+	"market":         "trade",
 }
 
 // RandomUnlockBuildings lists buildings that are randomly unlocked by planet_exploration.

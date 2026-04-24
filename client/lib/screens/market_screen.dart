@@ -15,7 +15,32 @@ class MarketScreen extends StatelessWidget {
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final planet = gameProvider.selectedPlanet;
-          if (planet == null)     return const Center(child: Text('Планета не выбрана'));
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
+
+          final hasWorkingMarket = gameProvider.buildings
+              .where((b) => b.type == 'market' && b.isWorking)
+              .isNotEmpty;
+
+          if (!hasWorkingMarket) {
+            return const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.store_outlined, size: 64, color: Colors.white38),
+                  SizedBox(height: 16),
+                  Text(
+                    'Для доступа к Рынку постройте здание "Рынок"',
+                    style: TextStyle(fontSize: 16, color: Colors.white54),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Требуется исследование "Торговля"',
+                    style: TextStyle(fontSize: 12, color: Colors.white38),
+                  ),
+                ],
+              ),
+            );
+          }
 
           return RefreshIndicator(
             onRefresh: () async {

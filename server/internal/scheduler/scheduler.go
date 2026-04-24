@@ -22,6 +22,7 @@ func (s *Scheduler) Start() {
 	go s.gameTick()
 	go s.ratingsUpdate()
 	go s.randomEventsTick()
+	go s.marketRefresh()
 	log.Println("Scheduler started")
 }
 
@@ -47,5 +48,15 @@ func (s *Scheduler) randomEventsTick() {
 	defer ticker.Stop()
 	for range ticker.C {
 		s.game.TriggerRandomEvents()
+	}
+}
+
+func (s *Scheduler) marketRefresh() {
+	ticker := time.NewTicker(20 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		marketLevel := s.game.GetTotalMarketLevel()
+		s.game.Marketplace.GenerateNPCOrders(marketLevel)
+		log.Printf("NPC traders refreshed (market level: %d)", marketLevel)
 	}
 }

@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../widgets/resources_panel.dart';
-import '../widgets/planet_action_chip.dart';
 import '../widgets/building_card.dart';
 import '../widgets/build_dialog.dart';
 import '../widgets/quick_stats_section.dart';
 import 'shipyard_screen.dart' as ship;
 import 'research_screen.dart' as research;
-import 'battle_screen.dart' as battle;
 import 'expedition_screen.dart' as expedition;
 import 'market_screen.dart' as market;
 import 'mining_screen.dart' as mining;
@@ -45,61 +43,13 @@ class _PlanetScreenState extends State<PlanetScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        planet.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    PlanetActionChip(
-                      icon: Icons.rocket_launch,
-                      label: 'Верфь',
-                      onTap: () => _navigateTo(context, const ship.ShipyardScreen()),
-                    ),
-                    if (gameProvider.canResearch)
-                      PlanetActionChip(
-                        icon: Icons.science,
-                        label: 'Исследования',
-                        onTap: () => _navigateTo(context, const research.ResearchScreen()),
-                      ),
-                    PlanetActionChip(
-                      icon: Icons.local_fire_department,
-                      label: 'Битва',
-                      onTap: () => _navigateTo(context, const battle.BattleScreen()),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    if (gameProvider.canExpedition)
-                      PlanetActionChip(
-                        icon: Icons.explore,
-                        label: 'Экспедиция',
-                        onTap: () => _navigateTo(context, const expedition.ExpeditionScreen()),
-                      ),
-                    PlanetActionChip(
-                      icon: Icons.store,
-                      label: 'Рынок',
-                      onTap: () => _navigateTo(context, const market.MarketScreen()),
-                    ),
-                    if (gameProvider.canMining)
-                      PlanetActionChip(
-                        icon: Icons.diamond_outlined,
-                        label: 'Копатель',
-                        onTap: () => _navigateTo(context, const mining.MiningScreen()),
-                      ),
-                  ],
+                child: Text(
+                  planet.name,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -202,6 +152,7 @@ class _PlanetScreenState extends State<PlanetScreen> {
                   child: BuildingCard(
                     building: buildings[index],
                     gameProvider: gameProvider,
+                    onNavigateBuilding: (buildingType, action) => _navigateTo(context, _getScreenForAction(buildingType, action)),
                   ),
                 );
               },
@@ -210,6 +161,23 @@ class _PlanetScreenState extends State<PlanetScreen> {
         ),
       ),
     );
+  }
+
+  Widget _getScreenForAction(String buildingType, String action) {
+    switch (action) {
+      case 'research':
+        return const research.ResearchScreen();
+      case 'shipyard':
+        return const ship.ShipyardScreen();
+      case 'expedition':
+        return const expedition.ExpeditionScreen();
+      case 'mining':
+        return const mining.MiningScreen();
+      case 'market':
+        return const market.MarketScreen();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   void _showBuildDialog(BuildContext context, GameProvider gameProvider) {

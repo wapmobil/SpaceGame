@@ -32,11 +32,6 @@ func (st *StatsTracker) TrackBuildingConstruction(planetID, playerID, buildingTy
 	st.game.TrackBuildingCompleted(planetID, playerID, buildingType)
 }
 
-// TrackBattleOutcome records battle results.
-func (st *StatsTracker) TrackBattleOutcome(planetID, playerID string, won bool) {
-	st.game.TrackBattleResult(planetID, playerID, won)
-}
-
 // TrackExpeditionOutcome records expedition results.
 func (st *StatsTracker) TrackExpeditionOutcome(planetID, playerID string, completed bool) {
 	if completed {
@@ -102,15 +97,11 @@ func (st *StatsTracker) GetStatsSummary(playerID string) (map[string]interface{}
 				"total":        stats[string(StatShipScoutBuilt)] + stats[string(StatShipFrigateBuilt)] +
 					stats[string(StatShipCruiserBuilt)] + stats[string(StatShipDestroyerBuilt)] +
 					stats[string(StatShipCarrierBuilt)] + stats[string(StatShipTransportBuilt)] +
-					stats[string(StatShipBattlecruiserBuilt)] + stats[string(StatShipDestroyer2Built)] +
+					stats[string(StatShipDestroyer2Built)] +
 					stats[string(StatShipFrigate2Built)] + stats[string(StatShipScout2Built)],
 				"scouts":   stats[string(StatShipScoutBuilt)],
 				"frigates": stats[string(StatShipFrigateBuilt)],
 				"cruisers": stats[string(StatShipCruiserBuilt)],
-			},
-			"combat": map[string]interface{}{
-				"wins":  stats[string(StatTotalBattlesWon)],
-				"losses": stats[string(StatTotalBattlesLost)],
 			},
 			"expeditions": stats[string(StatTotalExpeditions)],
 			"research":    stats[string(StatTotalResearch)],

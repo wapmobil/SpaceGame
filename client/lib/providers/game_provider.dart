@@ -11,7 +11,6 @@ import '../models/research.dart';
 import '../models/expedition.dart';
 import '../models/market.dart';
 import '../models/mining.dart';
-import '../models/battle.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
 
@@ -26,8 +25,7 @@ class GameProvider extends ChangeNotifier {
   ShipyardInfo? _shipyardInfo;
   List<ShipType> _availableShipTypes = [];
   ResearchState? _researchState;
-  List<BattleEntry> _battles = [];
-  ExpeditionsListResponse? _expeditions;
+   ExpeditionsListResponse? _expeditions;
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
   MiningState? _miningState;
@@ -91,8 +89,7 @@ class GameProvider extends ChangeNotifier {
   ShipyardInfo? get shipyardInfo => _shipyardInfo;
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
-  List<BattleEntry> get battles => _battles;
-  ExpeditionsListResponse? get expeditions => _expeditions;
+    ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
   MiningState? get miningState => _miningState;
@@ -228,10 +225,7 @@ class GameProvider extends ChangeNotifier {
       case 'research_update':
         _handleResearchUpdate(data);
         break;
-      case 'battle_update':
-        _handleBattleUpdate(data);
-        break;
-      case 'expedition_update':
+       case 'expedition_update':
         _handleExpeditionUpdate(data);
         break;
       case 'market_update':
@@ -333,14 +327,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  void _handleBattleUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      loadBattles(_selectedPlanet?.id ?? '');
-      notifyListeners();
-    }
-  }
-
-  void _handleExpeditionUpdate(Map<String, dynamic>? data) {
+    void _handleExpeditionUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
       loadExpeditions(_selectedPlanet!.id);
       notifyListeners();
@@ -413,8 +400,7 @@ class GameProvider extends ChangeNotifier {
     loadBuildDetails(planet.id);
     loadShips(planet.id);
     loadResearch(planet.id);
-    loadBattles(planet.id);
-    loadExpeditions(planet.id);
+     loadExpeditions(planet.id);
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
     loadMiningState(planet.id);
@@ -782,28 +768,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadBattles(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/battles'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final battlesData = data['battles'] as List? ?? [];
-        _battles = battlesData
-            .map((e) => BattleEntry.fromJson(e as Map<String, dynamic>))
-            .toList();
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load battles: $e');
-    }
-  }
-
-  Future<void> loadExpeditions(String planetId) async {
+    Future<void> loadExpeditions(String planetId) async {
     if (_player == null) return;
     try {
       final response = await http.get(

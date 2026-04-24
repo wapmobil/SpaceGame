@@ -303,8 +303,6 @@ func TestAllStatsKeys(t *testing.T) {
 		StatTotalFoodProduce,
 		StatTotalBuildings,
 		StatTotalResearch,
-		StatTotalBattlesWon,
-		StatTotalBattlesLost,
 		StatTotalExpeditions,
 		StatMiningPlayed,
 	}

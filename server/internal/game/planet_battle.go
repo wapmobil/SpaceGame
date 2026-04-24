@@ -18,11 +18,6 @@ type BattleRecord struct {
 	Timestamp  time.Time          `json:"timestamp"`
 }
 
-// GetBattleHistory returns the battle history.
-func (p *Planet) GetBattleHistory() []BattleRecord {
-	return p.Battles
-}
-
 // GetFleetSnapshot creates a battle snapshot of the current fleet.
 func (p *Planet) GetFleetSnapshot() *battle.FleetSnapshot {
 	return battle.NewFleetSnapshot(p.Fleet)

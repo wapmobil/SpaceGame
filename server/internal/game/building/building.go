@@ -38,6 +38,8 @@ func BuildTime(bt string, level int) float64 {
 		return float64(level*level+1) * 5 + 10
 	case "mine":
 		return float64(level*level*2 + 10)
+	case "market":
+		return math.Pow(2, float64(level)) * 15
 	default:
 		return 10
 	}
@@ -218,6 +220,21 @@ func Cost(bt string, level int) CostMulti {
 			Iron:  float64(level*level*5 + 5),
 			Money: float64(level * 15),
 		}
+	case "market":
+		if level == 0 {
+			return CostMulti{Food: 120, Iron: 200}
+		}
+		if level <= 2 {
+			return CostMulti{
+				Food: math.Pow(2, float64(level)) * 120,
+				Iron: float64(level*level*200 + 200),
+			}
+		}
+		return CostMulti{
+			Food:  math.Pow(2, float64(level)) * 120,
+			Iron:  float64(level*level*200 + 200),
+			Money: float64(level) * 20,
+		}
 	default:
 		return CostMulti{}
 	}
@@ -253,6 +270,8 @@ func EnergyConsumption(bt string, level int) float64 {
 		return float64(level) * -12
 	case "mine":
 		return float64(level) * 8
+	case "market":
+		return float64(level) * 10
 	default:
 		return 0
 	}

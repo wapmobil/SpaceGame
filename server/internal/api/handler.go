@@ -442,7 +442,7 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 		validBuildings := map[string]bool{
 			"farm": true, "solar": true, "storage": true, "base": true,
 			"factory": true, "energy_storage": true, "shipyard": true,
-			"comcenter": true, "composite_drone": true, "mechanism_factory": true,
+			"comcenter": true, "market": true, "composite_drone": true, "mechanism_factory": true,
 			"reagent_lab": true, "dynamo": true, "mine": true,
 		}
 		if !validBuildings[req.Type] {
@@ -1308,7 +1308,6 @@ func chiURLParam(r *http.Request, key string) string {
 	rest = strings.TrimSuffix(rest, "/fleet")
 	rest = strings.TrimSuffix(rest, "/ship/build")
 	rest = strings.TrimSuffix(rest, "/ships/available")
-	rest = strings.TrimSuffix(rest, "/battles")
 	rest = strings.TrimSuffix(rest, "/expeditions")
 	rest = strings.TrimSuffix(rest, "/mining")
 	rest = strings.TrimSuffix(rest, "/mining/start")
@@ -1338,61 +1337,6 @@ func chiBuildingTypeParam(r *http.Request) string {
 	}
 	// parts[0] = planetId, parts[1] = buildings, parts[2] = buildingType
 	return parts[2]
-}
-
-func handleGetBattles(db *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		authToken := r.Header.Get("X-Auth-Token")
-		if authToken == "" {
-			http.Error(w, "Missing auth token", http.StatusUnauthorized)
-			return
-		}
-
-		var playerID string
-		err := db.QueryRow("SELECT id FROM players WHERE auth_token = $1", authToken).Scan(&playerID)
-		if err != nil {
-			http.Error(w, "Invalid auth token", http.StatusUnauthorized)
-			return
-		}
-
-		planetID := chiURLParam(r, "id")
-		if planetID == "" {
-			http.Error(w, "Missing planet id", http.StatusBadRequest)
-			return
-		}
-
-		var ownerID string
-		err = db.QueryRow("SELECT player_id FROM planets WHERE id = $1", planetID).Scan(&ownerID)
-		if err != nil {
-			http.Error(w, "Planet not found", http.StatusNotFound)
-			return
-		}
-		if ownerID != playerID {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
-
-		p := game.Instance().GetPlanet(planetID)
-		if p == nil {
-			if err := game.Instance().LoadPlanetFromDB(planetID); err != nil {
-				log.Printf("Error loading planet from DB: %v", err)
-			}
-			p = game.Instance().GetPlanet(planetID)
-		}
-
-		battles := p.GetBattleHistory()
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"battles": battles,
-			"total":   len(battles),
-		})
-	}
 }
 
 func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
