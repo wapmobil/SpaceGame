@@ -66,7 +66,7 @@ func (p *Planet) tickEnergy() {
 			if b.IsBuilding() || b.IsBuildComplete() {
 				continue
 			}
-			if b.Type == "solar" || b.Type == "energy_storage" {
+			if b.Type == "solar" || b.Type == "energy_storage" || b.Type == "storage" {
 				continue
 			}
 			if b.Enabled {

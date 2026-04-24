@@ -356,7 +356,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                                    ],
                                  ],
                                ),
-                               if (!isBuilding && building.level > 0)
+                               if (!isBuilding && building.level > 0 && building.type != 'storage')
                                  Switch(
                                   value: building.enabled,
                                   onChanged: (_) => gameProvider.toggleBuilding(building.type),

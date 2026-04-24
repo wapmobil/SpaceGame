@@ -643,7 +643,11 @@ func handleToggleBuilding(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		b.Enabled = !b.Enabled
+		if b.Type == "storage" {
+			b.Enabled = true
+		} else {
+			b.Enabled = !b.Enabled
+		}
 
 		level := p.GetBuildingLevel(buildingType)
 		wsBroadcast.BroadcastBuildingUpdate(ownerID, planetID, buildingType, level)
