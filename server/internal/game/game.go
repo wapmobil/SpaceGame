@@ -28,6 +28,7 @@ type Game struct {
 	planets       map[string]*Planet
 	mu            sync.RWMutex
 	saveCount     map[string]int
+	tickCount     int64
 	db            *db.Database
 	Marketplace   *Marketplace
 	broadcastFunc func(planetID, playerID string, state map[string]interface{})
@@ -273,6 +274,11 @@ func (g *Game) LoadPlanetsFromDB() error {
 
 // Tick processes one game tick for all planets.
 func (g *Game) Tick() {
+	g.mu.Lock()
+	g.tickCount++
+	tick := g.tickCount
+	g.mu.Unlock()
+
 	g.mu.RLock()
 	planets := make([]*Planet, 0, len(g.planets))
 	for _, p := range g.planets {
@@ -281,7 +287,7 @@ func (g *Game) Tick() {
 	g.mu.RUnlock()
 
 	for _, p := range planets {
-		p.Tick()
+		p.Tick(tick)
 	}
 
 	// Check for random events

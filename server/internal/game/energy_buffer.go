@@ -5,21 +5,21 @@ package game
 // The buffer accumulates excess energy and can go negative (deficit).
 type EnergyBuffer struct {
 	Value   float64 // current charge (can be negative = deficit)
-	Max     float64 // max capacity = 20 + energy_storage_level * 100
+	Max     float64 // max capacity = 100 + energy_storage_level * 1000
 	Deficit bool    // true when Value <= 0
 }
 
 // NewEnergyBuffer creates an energy buffer with default max capacity.
 func NewEnergyBuffer() EnergyBuffer {
 	return EnergyBuffer{
-		Value: 20,
-		Max:   20,
+		Value: 100,
+		Max:   100,
 	}
 }
 
 // UpdateMax recalculates max capacity based on energy storage building level.
 func (e *EnergyBuffer) UpdateMax(energyStorageLevel int) {
-	e.Max = 20 + float64(energyStorageLevel)*100
+	e.Max = 100 + float64(energyStorageLevel)*1000
 	if e.Value > e.Max {
 		e.Value = e.Max
 	}
