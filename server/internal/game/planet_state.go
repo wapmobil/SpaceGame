@@ -40,7 +40,6 @@ func (p *Planet) GetState() map[string]interface{} {
 	if p.GardenBedState != nil && p.GardenBedState.RowCount > 0 {
 		gardenBedState = map[string]interface{}{
 			"rows":      p.GardenBedState.Rows,
-			"last_tick": p.GardenBedState.LastTick,
 			"row_count": p.GardenBedState.RowCount,
 		}
 	}

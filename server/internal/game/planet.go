@@ -29,9 +29,8 @@ type Planet struct {
 	Shipyard         *ship.Shipyard
 	Expeditions      []*expedition.Expedition
 	ExplorationMgr   *expedition.ExplorationManager
-	GardenBedState   *GardenBedState
-	GardenBedLastTick int64
-	game             *Game
+	GardenBedState *GardenBedState
+	game           *Game
 }
 
 // NewPlanet creates a new planet with default resources.
@@ -59,8 +58,7 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Shipyard:       ship.NewShipyard(),
 		Expeditions:    make([]*expedition.Expedition, 0),
 		ExplorationMgr: expedition.NewExplorationManager(),
-		GardenBedState:   nil,
-		GardenBedLastTick: 0,
+		GardenBedState: nil,
 		game:           g,
 	}
 	p.EnergyBuffer = NewEnergyBuffer()

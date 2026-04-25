@@ -76,7 +76,7 @@ type GardenBedRow struct {
 	Stage            int     `json:"stage,omitempty"`
 	Weeds            int     `json:"weeds"`
 	WaterTimer       int     `json:"water_timer"`
-	LastTick         int64   `json:"last_tick"`
+	LastTick         int64   // internal: dedup within a tick call
 	GardenBedTicksSinceLast int   `json:"-"` // internal: garden bed ticks since last growth check
 	WitherTimer      int     `json:"wither_timer,omitempty"`
 	StageProgress    int     `json:"-"` // internal: progress within current stage (0 or 1)
@@ -85,9 +85,8 @@ type GardenBedRow struct {
 
 // GardenBedState represents the complete garden bed state for a planet
 type GardenBedState struct {
-	Rows      []GardenBedRow `json:"rows"`
-	LastTick  int64     `json:"last_tick"`
-	RowCount  int       `json:"row_count"`
+	Rows     []GardenBedRow `json:"rows"`
+	RowCount int            `json:"row_count"`
 }
 
 // NewGardenBedState creates a new empty garden bed with the given row count
@@ -105,7 +104,6 @@ func NewGardenBedState(rowCount int) *GardenBedState {
 	}
 	return &GardenBedState{
 		Rows:     rows,
-		LastTick: 0,
 		RowCount: rowCount,
 	}
 }
@@ -313,7 +311,6 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 		}
 	}
 
-	gb.LastTick = gardenBedTickNum
 	return changed
 }
 
@@ -332,12 +329,6 @@ func ProcessGardenBedTick(planet *Planet, gameTick int64) {
 	}
 
 	gardenBedTickNum := gameTick / gardenBedTickInterval
-
-	// Only process if we haven't already processed up to this garden bed tick
-	if gardenBedTickNum <= planet.GardenBedState.LastTick {
-		return
-	}
-
 	GardenBedTick(planet.GardenBedState, gardenBedTickNum)
 
 	// Save garden bed state to DB
@@ -346,16 +337,15 @@ func ProcessGardenBedTick(planet *Planet, gameTick int64) {
 
 // GardenBedActionResult is the result of a garden bed action
 type GardenBedActionResult struct {
-	Success      bool         `json:"success"`
-	Error        string       `json:"error,omitempty"`
-	Rows         []GardenBedRow `json:"rows"`
-	LastTick     int64        `json:"last_tick"`
-	FoodGain     float64      `json:"food_gain,omitempty"`
-	MoneyGain    float64      `json:"money_gain,omitempty"`
-	FoodCost     float64      `json:"food_cost,omitempty"`
-	SeedCost     float64      `json:"seed_cost,omitempty"`
-	UnlockLevel  int          `json:"unlock_level,omitempty"`
-	WitherTimer  int          `json:"wither_timer,omitempty"`
+	Success     bool           `json:"success"`
+	Error       string         `json:"error,omitempty"`
+	Rows        []GardenBedRow `json:"rows"`
+	FoodGain    float64        `json:"food_gain,omitempty"`
+	MoneyGain   float64        `json:"money_gain,omitempty"`
+	FoodCost    float64        `json:"food_cost,omitempty"`
+	SeedCost    float64        `json:"seed_cost,omitempty"`
+	UnlockLevel int            `json:"unlock_level,omitempty"`
+	WitherTimer int            `json:"wither_timer,omitempty"`
 }
 
 // GardenBedActionCooldown is the cooldown between garden bed actions in seconds
@@ -387,10 +377,9 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 	gb := planet.GardenBedState
 	if rowIndex < 0 || rowIndex >= len(gb.Rows) {
 		return &GardenBedActionResult{
-			Success:  false,
-			Error:    "Invalid row index",
-			Rows:     gb.Rows,
-			LastTick: gb.LastTick,
+			Success: false,
+			Error:   "Invalid row index",
+			Rows:    gb.Rows,
 		}, nil
 	}
 
@@ -402,17 +391,15 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 	if exists && time.Since(lastAction) < GardenBedActionCooldown {
 		remaining := GardenBedActionCooldown - time.Since(lastAction)
 		return &GardenBedActionResult{
-			Success:  false,
-			Error:    "Cooldown active. Try again in " + remaining.Round(time.Second).String(),
-			Rows:     gb.Rows,
-			LastTick: gb.LastTick,
+			Success: false,
+			Error:   "Cooldown active. Try again in " + remaining.Round(time.Second).String(),
+			Rows:    gb.Rows,
 		}, nil
 	}
 
 	row := &gb.Rows[rowIndex]
 	result := &GardenBedActionResult{
-		Rows:     gb.Rows,
-		LastTick: gb.LastTick,
+		Rows: gb.Rows,
 	}
 
 	switch action {

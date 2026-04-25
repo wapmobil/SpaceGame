@@ -24,17 +24,10 @@ func LoadGardenBedFromDB(planet *Planet) error {
 	}
 
 	var gardenBedGridJSON []byte
-	var gardenBedLastTick int64
 
 	err = planet.game.db.QueryRow(`
-		SELECT garden_bed_grid, garden_bed_last_tick FROM planets WHERE id = $1
-	`, planet.ID).Scan(&gardenBedGridJSON, &gardenBedLastTick)
-
-	// Migrate: if gardenBedLastTick looks like a Unix timestamp (> 1000000), treat as 0
-	// (old code stored Unix timestamp; new code stores garden bed tick number)
-	if gardenBedLastTick > 1000000 {
-		gardenBedLastTick = 0
-	}
+		SELECT garden_bed_grid FROM planets WHERE id = $1
+	`, planet.ID).Scan(&gardenBedGridJSON)
 
 	if err == sql.ErrNoRows {
 		return nil
@@ -73,19 +66,16 @@ func LoadGardenBedFromDB(planet *Planet) error {
 				}
 			}
 			planet.GardenBedState = &GardenBedState{
-				Rows:     rows,
-				LastTick: gardenBedLastTick,
-				RowCount: len(rows),
-			}
-			planet.GardenBedLastTick = gardenBedLastTick
-			log.Printf("Garden bed state loaded from DB for planet %s (rows=%d)", planet.ID, len(rows))
+			Rows:     rows,
+			RowCount: len(rows),
+		}
+		log.Printf("Garden bed state loaded from DB for planet %s (rows=%d)", planet.ID, len(rows))
 			return nil
 		}
 	}
 
 	// No saved data or parse failed, create fresh state
 	planet.GardenBedState = NewGardenBedState(farmLevel)
-	planet.GardenBedLastTick = gardenBedLastTick
 	log.Printf("Garden bed state created fresh for planet %s (level=%d, rows=%d)", planet.ID, farmLevel, farmLevel)
 
 	return nil
@@ -114,9 +104,9 @@ func SaveGardenBedToDB(planet *Planet) {
 
 	_, err = planet.game.db.Exec(`
 		UPDATE planets 
-		SET garden_bed_grid = $1::jsonb, garden_bed_last_tick = $2, updated_at = NOW()
-		WHERE id = $3
-	`, string(gardenBedGridData), planet.GardenBedState.LastTick, planet.ID)
+		SET garden_bed_grid = $1::jsonb, updated_at = NOW()
+		WHERE id = $2
+	`, string(gardenBedGridData), planet.ID)
 
 	if err != nil {
 		log.Printf("Error saving garden bed for planet %s: %v", planet.ID, err)
@@ -146,7 +136,6 @@ func GetGardenBedState(planet *Planet) ([]byte, error) {
 
 	result := map[string]interface{}{
 		"rows":      planet.GardenBedState.Rows,
-		"last_tick": planet.GardenBedState.LastTick,
 		"row_count": planet.GardenBedState.RowCount,
 	}
 

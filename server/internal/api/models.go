@@ -244,7 +244,6 @@ type BuildDetailsResponse struct {
 // GardenBedStateResponse represents the garden bed state in API responses.
 type GardenBedStateResponse struct {
 	Rows     []game.GardenBedRow `json:"rows"`
-	LastTick int64               `json:"last_tick"`
 	RowCount int                 `json:"row_count"`
 }
 

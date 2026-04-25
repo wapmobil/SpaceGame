@@ -69,13 +69,12 @@ func handleGardenBedAction(db *sql.DB) http.HandlerFunc {
 		}
 
 		wsBroadcast.BroadcastGardenBedUpdate(ownerID, map[string]interface{}{
-			"planet_id":   planetID,
-			"rows":        result.Rows,
-			"last_tick":   result.LastTick,
-			"food_gain":   result.FoodGain,
-			"money_gain":  result.MoneyGain,
-			"food_cost":   result.FoodCost,
-			"seed_cost":   result.SeedCost,
+			"planet_id":    planetID,
+			"rows":         result.Rows,
+			"food_gain":    result.FoodGain,
+			"money_gain":   result.MoneyGain,
+			"food_cost":    result.FoodCost,
+			"seed_cost":    result.SeedCost,
 			"unlock_level": result.UnlockLevel,
 			"wither_timer": result.WitherTimer,
 		})

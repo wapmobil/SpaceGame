@@ -436,9 +436,9 @@ func (g *Game) savePlanet(p *Planet) {
 			} else {
 				_, err = g.db.Exec(`
 					UPDATE planets 
-					SET garden_bed_grid = $1::jsonb, garden_bed_last_tick = $2, updated_at = NOW()
-					WHERE id = $3
-				`, string(gardenBedData), p.GardenBedState.LastTick, p.ID)
+					SET garden_bed_grid = $1::jsonb, updated_at = NOW()
+					WHERE id = $2
+				`, string(gardenBedData), p.ID)
 				if err != nil {
 					log.Printf("Error saving garden bed for planet %s: %v", p.ID, err)
 				}

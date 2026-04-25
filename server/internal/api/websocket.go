@@ -989,8 +989,8 @@ func (c *WSClient) handleGardenBedAction(msg WSMessage) {
 	if !result.Success {
 		c.WriteJSON(WSMessage{
 			Type: "garden_bed_action_result",
-			Data: json.RawMessage(fmt.Sprintf(`{"success":false,"error":"%s","rows":%s,"last_tick":%d}`,
-				escapeJSON(result.Error), toJSON(result.Rows), result.LastTick)),
+			Data: json.RawMessage(fmt.Sprintf(`{"success":false,"error":"%s","rows":%s}`,
+				escapeJSON(result.Error), toJSON(result.Rows))),
 		})
 		return
 	}
@@ -998,14 +998,13 @@ func (c *WSClient) handleGardenBedAction(msg WSMessage) {
 	wsBroadcast.BroadcastGardenBedUpdate(c.playerID, map[string]interface{}{
 		"planet_id": c.planetID,
 		"rows":      result.Rows,
-		"last_tick": result.LastTick,
 		"food_gain": result.FoodGain,
 	})
 
 	c.WriteJSON(WSMessage{
 		Type: "garden_bed_action_result",
-		Data: json.RawMessage(fmt.Sprintf(`{"success":true,"rows":%s,"last_tick":%d,"food_gain":%.0f}`,
-			toJSON(result.Rows), result.LastTick, result.FoodGain)),
+		Data: json.RawMessage(fmt.Sprintf(`{"success":true,"rows":%s,"food_gain":%.0f}`,
+			toJSON(result.Rows), result.FoodGain)),
 	})
 }
 

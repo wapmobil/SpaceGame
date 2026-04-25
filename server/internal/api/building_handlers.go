@@ -370,7 +370,6 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 		if p.GardenBedState != nil && p.GardenBedState.RowCount > 0 {
 			gardenBedStateResp = GardenBedStateResponse{
 				Rows:     p.GardenBedState.Rows,
-				LastTick: p.GardenBedState.LastTick,
 				RowCount: p.GardenBedState.RowCount,
 			}
 		} else {
@@ -379,7 +378,6 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 				p.GardenBedState = game.NewGardenBedState(farmLevel)
 				gardenBedStateResp = GardenBedStateResponse{
 					Rows:     p.GardenBedState.Rows,
-					LastTick: p.GardenBedState.LastTick,
 					RowCount: p.GardenBedState.RowCount,
 				}
 			}
