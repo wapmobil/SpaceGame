@@ -233,7 +233,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                       '🌿',
                       'Прополоть',
                       AppTheme.dangerColor,
-                      weedCost: 1,
+                      weedCost: farmLevel * 10,
                     ),
                   if (row.weeds == 0)
                     Center(
@@ -263,6 +263,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                   '🧹',
                   'Очистить',
                   AppTheme.dangerColor,
+                  weedCost: farmLevel * 10,
                 ),
               ),
             ),
@@ -282,7 +283,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                       '🌿',
                       'Прополоть',
                       AppTheme.dangerColor,
-                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat'),
+                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat') * farmLevel,
                     ),
                   _buildActionChip(
                     context,
@@ -292,7 +293,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                     '💧',
                     'Полить',
                     AppTheme.accentColor,
-                    waterCost: gardenBedProvider.getWaterCost(row.plantType ?? 'wheat'),
+                    waterCost: gardenBedProvider.getWaterCost(row.plantType ?? 'wheat') * farmLevel,
                   ),
                   if (row.isMature)
                     _buildActionChip(
