@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:html' show window;
 import 'package:flutter/foundation.dart';
+import '../core/platform_service.dart';
+import '../core/platform_service_web.dart' if (dart.library.io) '../core/platform_service_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/websocket_manager.dart';
@@ -77,9 +78,10 @@ class GameProvider extends ChangeNotifier {
         _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
 
   static String _getBaseUri() {
-    if (kIsWeb) {
-      final host = window.location.host;
-      final scheme = window.location.protocol == 'https:' ? 'https' : 'http';
+    final service = createPlatformService();
+    final host = service.host;
+    final scheme = service.scheme;
+    if (host.isNotEmpty) {
       return '$scheme://$host';
     }
     return 'http://localhost:8080';

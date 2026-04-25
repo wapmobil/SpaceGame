@@ -55,7 +55,7 @@ fi
 # 2. Build Flutter web
 echo "[2/5] Building Flutter web..."
 cd "$CLIENT_DIR"
-flutter build web --release
+flutter build web --release --wasm
 echo "  Done"
 
 # 3. Copy frontend to server web directory
