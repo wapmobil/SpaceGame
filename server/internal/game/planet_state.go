@@ -29,19 +29,19 @@ func (p *Planet) GetState() map[string]interface{} {
 		})
 	}
 
-	// Build farm state for WS updates
-	var farmState map[string]interface{}
-	if p.FarmState == nil {
+	// Build garden bed state for WS updates
+	var gardenBedState map[string]interface{}
+	if p.GardenBedState == nil {
 		farmLevel := p.GetBuildingLevel("farm")
 		if farmLevel > 0 {
-			p.FarmState = NewFarmState(farmLevel)
+			p.GardenBedState = NewGardenBedState(farmLevel)
 		}
 	}
-	if p.FarmState != nil && p.FarmState.RowCount > 0 {
-		farmState = map[string]interface{}{
-			"rows":      p.FarmState.Rows,
-			"last_tick": p.FarmState.LastTick,
-			"row_count": p.FarmState.RowCount,
+	if p.GardenBedState != nil && p.GardenBedState.RowCount > 0 {
+		gardenBedState = map[string]interface{}{
+			"rows":      p.GardenBedState.Rows,
+			"last_tick": p.GardenBedState.LastTick,
+			"row_count": p.GardenBedState.RowCount,
 		}
 	}
 
@@ -71,7 +71,7 @@ func (p *Planet) GetState() map[string]interface{} {
 		"storage_capacity":   p.CalculateStorageCapacity(),
 		"research_paused":    !p.HasOperationalBase(),
 		"research":           researchStates,
-		"farm_state":         farmState,
+		"garden_bed_state":   gardenBedState,
 	}
 	return result
 }

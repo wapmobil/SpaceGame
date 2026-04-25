@@ -558,10 +558,10 @@ func (bs *WSBroadcastService) BroadcastDrillUpdate(playerID string, data map[str
 	})
 }
 
-// BroadcastFarmUpdate sends a farm update to the owning player.
-func (bs *WSBroadcastService) BroadcastFarmUpdate(playerID string, data map[string]interface{}) {
+// BroadcastGardenBedUpdate sends a garden bed update to the owning player.
+func (bs *WSBroadcastService) BroadcastGardenBedUpdate(playerID string, data map[string]interface{}) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "farm_update",
+		Type: "garden_bed_update",
 		Data: json.RawMessage(toJSON(data)),
 	})
 }
@@ -831,8 +831,8 @@ func (c *WSClient) handleMessage(msg WSMessage) {
 		c.handleDeleteMarketOrder(msg)
 	case "drill_command":
 		c.handleDrillCommand(msg)
-	case "farm_action":
-		c.handleFarmAction(msg)
+	case "garden_bed_action":
+		c.handleGardenBedAction(msg)
 	default:
 		c.WriteJSON(WSMessage{
 			Type: "ack",
@@ -930,12 +930,12 @@ func (c *WSClient) handleDrillCommand(msg WSMessage) {
 	})
 }
 
-// handleFarmAction handles a farm action from the client via WebSocket.
-func (c *WSClient) handleFarmAction(msg WSMessage) {
+// handleGardenBedAction handles a garden bed action from the client via WebSocket.
+func (c *WSClient) handleGardenBedAction(msg WSMessage) {
 	if msg.Data == nil {
 		c.WriteJSON(WSMessage{
 			Type:  "error",
-			Error: "Missing farm action data",
+			Error: "Missing garden bed action data",
 		})
 		return
 	}
@@ -948,7 +948,7 @@ func (c *WSClient) handleFarmAction(msg WSMessage) {
 	if err := json.Unmarshal(msg.Data, &req); err != nil {
 		c.WriteJSON(WSMessage{
 			Type:  "error",
-			Error: "Invalid farm action",
+			Error: "Invalid garden bed action",
 		})
 		return
 	}
@@ -977,7 +977,7 @@ func (c *WSClient) handleFarmAction(msg WSMessage) {
 		return
 	}
 
-	result, err := game.FarmActionInternal(p, req.Action, req.RowIndex, req.PlantType)
+	result, err := game.GardenBedActionInternal(p, req.Action, req.RowIndex, req.PlantType)
 	if err != nil {
 		c.WriteJSON(WSMessage{
 			Type:  "error",
@@ -988,14 +988,14 @@ func (c *WSClient) handleFarmAction(msg WSMessage) {
 
 	if !result.Success {
 		c.WriteJSON(WSMessage{
-			Type: "farm_action_result",
+			Type: "garden_bed_action_result",
 			Data: json.RawMessage(fmt.Sprintf(`{"success":false,"error":"%s","rows":%s,"last_tick":%d}`,
 				escapeJSON(result.Error), toJSON(result.Rows), result.LastTick)),
 		})
 		return
 	}
 
-	wsBroadcast.BroadcastFarmUpdate(c.playerID, map[string]interface{}{
+	wsBroadcast.BroadcastGardenBedUpdate(c.playerID, map[string]interface{}{
 		"planet_id": c.planetID,
 		"rows":      result.Rows,
 		"last_tick": result.LastTick,
@@ -1003,7 +1003,7 @@ func (c *WSClient) handleFarmAction(msg WSMessage) {
 	})
 
 	c.WriteJSON(WSMessage{
-		Type: "farm_action_result",
+		Type: "garden_bed_action_result",
 		Data: json.RawMessage(fmt.Sprintf(`{"success":true,"rows":%s,"last_tick":%d,"food_gain":%.0f}`,
 			toJSON(result.Rows), result.LastTick, result.FoodGain)),
 	})

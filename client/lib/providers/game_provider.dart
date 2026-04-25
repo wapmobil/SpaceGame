@@ -13,11 +13,11 @@ import '../models/market.dart';
 import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
-import '../providers/farm_provider.dart';
+import '../providers/garden_bed_provider.dart';
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
-  final FarmProvider _farmProvider;
+  final GardenBedProvider _gardenBedProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -72,9 +72,9 @@ class GameProvider extends ChangeNotifier {
   // Research paused status
   bool _researchPaused = false;
 
-  GameProvider({required this.websocket, String? baseUrl, FarmProvider? farmProvider})
+  GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
-        _farmProvider = farmProvider ?? FarmProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
+        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
 
   static String _getBaseUri() {
     if (kIsWeb) {
@@ -95,7 +95,7 @@ class GameProvider extends ChangeNotifier {
   ShipyardInfo? get shipyardInfo => _shipyardInfo;
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
-  FarmProvider get farmProvider => _farmProvider;
+  GardenBedProvider get gardenBedProvider => _gardenBedProvider;
     ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
@@ -179,7 +179,7 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _player = Player.fromJson(data);
-        _farmProvider.setAuthToken(_player!.authToken);
+        _gardenBedProvider.setAuthToken(_player!.authToken);
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
@@ -223,7 +223,7 @@ class GameProvider extends ChangeNotifier {
     if (id != null && token != null) {
       _baseUrl = url;
       _player = Player(id: id, authToken: token, name: name ?? '');
-      _farmProvider.setAuthToken(token);
+      _gardenBedProvider.setAuthToken(token);
       notifyListeners();
       await connectWebSocket();
       await loadPlanets();
@@ -263,13 +263,13 @@ class GameProvider extends ChangeNotifier {
       case 'drill_update':
         onDrillUpdate(data ?? {});
         break;
-      case 'farm_update':
-        _farmProvider.onFarmUpdate(data ?? {});
+      case 'garden_bed_update':
+        _gardenBedProvider.onGardenBedUpdate(data ?? {});
         notifyListeners();
         break;
       default:
-        if (message['type'] == 'farm_action_result') {
-          _farmProvider.onFarmWSActionResult(data ?? {});
+        if (message['type'] == 'garden_bed_action_result') {
+          _gardenBedProvider.onGardenBedWSActionResult(data ?? {});
           notifyListeners();
         }
     }
@@ -431,7 +431,7 @@ class GameProvider extends ChangeNotifier {
      loadExpeditions(planet.id);
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
-    _farmProvider.getFarm(planet.id);
+    _gardenBedProvider.getGardenBed(planet.id);
         notifyListeners();
   }
 
@@ -544,9 +544,9 @@ class GameProvider extends ChangeNotifier {
     _researchUnlocks = data['research_unlocks'] as String? ?? '';
 
     // Update farm state
-    final farmStateJson = data['farm_state'] as Map<String, dynamic>?;
+    final farmStateJson = data['garden_bed_state'] as Map<String, dynamic>?;
     if (farmStateJson != null && farmStateJson.isNotEmpty) {
-      _farmProvider.onFarmUpdate(farmStateJson);
+      _gardenBedProvider.onGardenBedUpdate(farmStateJson);
     }
 
     notifyListeners();

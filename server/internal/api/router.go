@@ -100,8 +100,8 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Post("/{id}/drill/cleanup", handleCleanupDrill(db))
 		rr.Get("/{id}/stats", handleGetStats(db))
 		rr.Post("/{id}/events/resolve", handleResolveEvent(db))
-		rr.Get("/{id}/farm", handleGetFarm(db))
-		rr.Post("/{id}/farm/action", handleFarmAction(db))
+		rr.Get("/{id}/garden_bed", handleGetGardenBed(db))
+		rr.Post("/{id}/garden_bed/action", handleGardenBedAction(db))
 	})
 
 	// Non-authenticated routes (after /api/planets route to avoid middleware conflict)

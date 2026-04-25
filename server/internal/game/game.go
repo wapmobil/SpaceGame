@@ -161,7 +161,7 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 	}
 
 	// Load farm state
-	if err := LoadFarmFromDB(planet); err != nil {
+	if err := LoadGardenBedFromDB(planet); err != nil {
 		log.Printf("Error loading farm for planet %s: %v", planet.ID, err)
 	}
 
@@ -261,7 +261,7 @@ func (g *Game) LoadPlanetsFromDB() error {
 		}
 
 		// Load farm state
-		if err := LoadFarmFromDB(planet); err != nil {
+		if err := LoadGardenBedFromDB(planet); err != nil {
 			log.Printf("Error loading farm for planet %s: %v", id, err)
 		}
 
@@ -376,9 +376,9 @@ func (g *Game) savePlanet(p *Planet) {
 		log.Printf("Error saving research for planet %s: %v", p.ID, err)
 	}
 
-	// Save farm state
-	if p.FarmState != nil && p.FarmState.RowCount > 0 {
-		SaveFarmToDB(p)
+	// Save garden bed state
+	if p.GardenBedState != nil && p.GardenBedState.RowCount > 0 {
+		SaveGardenBedToDB(p)
 	}
 
 	// Save fleet state
@@ -427,20 +427,20 @@ func (g *Game) savePlanet(p *Planet) {
 		}
 	}
 
-	// Save farm state
-	if farmGrid, _ := g.db.ColumnExists(context.Background(), "planets", "farm_grid"); farmGrid {
-		if p.FarmState != nil {
-			farmData, err := json.Marshal(p.FarmState.Rows)
+	// Save garden bed state
+	if gardenBedGrid, _ := g.db.ColumnExists(context.Background(), "planets", "garden_bed_grid"); gardenBedGrid {
+		if p.GardenBedState != nil {
+			gardenBedData, err := json.Marshal(p.GardenBedState.Rows)
 			if err != nil {
-				log.Printf("Error marshaling farm for planet %s: %v", p.ID, err)
+				log.Printf("Error marshaling garden bed for planet %s: %v", p.ID, err)
 			} else {
 				_, err = g.db.Exec(`
 					UPDATE planets 
-					SET farm_grid = $1::jsonb, farm_last_tick = $2, updated_at = NOW()
+					SET garden_bed_grid = $1::jsonb, garden_bed_last_tick = $2, updated_at = NOW()
 					WHERE id = $3
-				`, string(farmData), p.FarmState.LastTick, p.ID)
+				`, string(gardenBedData), p.GardenBedState.LastTick, p.ID)
 				if err != nil {
-					log.Printf("Error saving farm for planet %s: %v", p.ID, err)
+					log.Printf("Error saving garden bed for planet %s: %v", p.ID, err)
 				}
 			}
 		}

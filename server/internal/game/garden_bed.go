@@ -20,16 +20,16 @@ const (
 	PlantBlueberry = "blueberry"
 )
 
-// Farm row statuses
+// Garden bed row statuses
 const (
-	FarmRowEmpty     = "empty"
-	FarmRowPlanted   = "planted"
-	FarmRowMature    = "mature"
-	FarmRowWithered  = "withered"
+	GardenBedRowEmpty     = "empty"
+	GardenBedRowPlanted   = "planted"
+	GardenBedRowMature    = "mature"
+	GardenBedRowWithered  = "withered"
 )
 
-// FarmPlant defines a plant type
-type FarmPlant struct {
+// GardenBedPlant defines a plant type
+type GardenBedPlant struct {
 	Type        string
 	Name        string
 	Icon        string
@@ -44,7 +44,7 @@ type FarmPlant struct {
 	GrowthTicks int64
 }
 
-var farmPlants = map[string]*FarmPlant{
+var gardenBedPlants = map[string]*GardenBedPlant{
 	PlantWheat:     {Type: PlantWheat, Name: "Пшеница", Icon: "🌾", SeedCost: 5, MoneyReward: 15, FoodReward: 5, UnlockLevel: 1, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 2, WaterCost: 1, GrowthTicks: 60},
 	PlantBerries:   {Type: PlantBerries, Name: "Ягоды", Icon: "🫐", SeedCost: 15, MoneyReward: 45, FoodReward: 15, UnlockLevel: 2, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 5, WaterCost: 3, GrowthTicks: 120},
 	PlantRaspberry: {Type: PlantRaspberry, Name: "Малина", Icon: "🪴", SeedCost: 25, MoneyReward: 80, FoodReward: 25, UnlockLevel: 3, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 15, WaterCost: 5, GrowthTicks: 180},
@@ -55,47 +55,47 @@ var farmPlants = map[string]*FarmPlant{
 	PlantBlueberry: {Type: PlantBlueberry, Name: "Звёздная голубика", Icon: "🫐", SeedCost: 1000, MoneyReward: 3500, FoodReward: 300, UnlockLevel: 13, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 80, WaterCost: 50, GrowthTicks: 1500},
 }
 
-// GetFarmPlant returns a farm plant by type, or nil if unknown
-func GetFarmPlant(typeID string) *FarmPlant {
-	return farmPlants[typeID]
+// GetGardenBedPlant returns a garden bed plant by type, or nil if unknown
+func GetGardenBedPlant(typeID string) *GardenBedPlant {
+	return gardenBedPlants[typeID]
 }
 
-// GetAllFarmPlants returns all farm plant definitions
-func GetAllFarmPlants() []*FarmPlant {
-	result := make([]*FarmPlant, 0, len(farmPlants))
-	for _, p := range farmPlants {
+// GetAllGardenBedPlants returns all garden bed plant definitions
+func GetAllGardenBedPlants() []*GardenBedPlant {
+	result := make([]*GardenBedPlant, 0, len(gardenBedPlants))
+	for _, p := range gardenBedPlants {
 		result = append(result, p)
 	}
 	return result
 }
 
-// FarmRow represents a single row in the farm grid
-type FarmRow struct {
+// GardenBedRow represents a single row in the garden bed grid
+type GardenBedRow struct {
 	Status           string  `json:"status"`
 	PlantType        string  `json:"plant_type,omitempty"`
 	Stage            int     `json:"stage,omitempty"`
 	Weeds            int     `json:"weeds"`
 	WaterTimer       int     `json:"water_timer"`
 	LastTick         int64   `json:"last_tick"`
-	FarmTicksSinceLast int   `json:"-"` // internal: farm ticks since last growth check
+	GardenBedTicksSinceLast int   `json:"-"` // internal: garden bed ticks since last growth check
 	WitherTimer      int     `json:"wither_timer,omitempty"`
 	StageProgress    int     `json:"-"` // internal: progress within current stage (0 or 1)
 	TicksToMature    int     `json:"ticks_to_mature,omitempty"`
 }
 
-// FarmState represents the complete farm state for a planet
-type FarmState struct {
-	Rows      []FarmRow `json:"rows"`
+// GardenBedState represents the complete garden bed state for a planet
+type GardenBedState struct {
+	Rows      []GardenBedRow `json:"rows"`
 	LastTick  int64     `json:"last_tick"`
 	RowCount  int       `json:"row_count"`
 }
 
-// NewFarmState creates a new empty farm with the given row count
-func NewFarmState(rowCount int) *FarmState {
-	rows := make([]FarmRow, rowCount)
+// NewGardenBedState creates a new empty garden bed with the given row count
+func NewGardenBedState(rowCount int) *GardenBedState {
+	rows := make([]GardenBedRow, rowCount)
 	for i := range rows {
-		rows[i] = FarmRow{
-			Status:        FarmRowEmpty,
+		rows[i] = GardenBedRow{
+			Status:        GardenBedRowEmpty,
 			Weeds:         0,
 			WaterTimer:    0,
 			Stage:         0,
@@ -103,26 +103,26 @@ func NewFarmState(rowCount int) *FarmState {
 			StageProgress: 0,
 		}
 	}
-	return &FarmState{
+	return &GardenBedState{
 		Rows:     rows,
 		LastTick: 0,
 		RowCount: rowCount,
 	}
 }
 
-// NewFarmStateFromJSON deserializes farm state from JSONB data
-func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
+// NewGardenBedStateFromJSON deserializes garden bed state from JSONB data
+func NewGardenBedStateFromJSON(data []byte, rowCount int) *GardenBedState {
 	if len(data) == 0 || string(data) == "null" || string(data) == "[]" {
-		return NewFarmState(rowCount)
+		return NewGardenBedState(rowCount)
 	}
 
-	// Try parsing as FarmState first
-	var state FarmState
+	// Try parsing as GardenBedState first
+	var state GardenBedState
 	if err := json.Unmarshal(data, &state); err != nil {
-		// Try parsing as []FarmRow
-		var rows []FarmRow
+		// Try parsing as []GardenBedRow
+		var rows []GardenBedRow
 		if err2 := json.Unmarshal(data, &rows); err2 != nil {
-			return NewFarmState(rowCount)
+			return NewGardenBedState(rowCount)
 		}
 		state.Rows = rows
 		state.RowCount = len(rows)
@@ -131,7 +131,7 @@ func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
 	// Normalize legacy data: empty string status -> empty
 	for i := range state.Rows {
 		if state.Rows[i].Status == "" {
-			state.Rows[i].Status = FarmRowEmpty
+			state.Rows[i].Status = GardenBedRowEmpty
 		}
 		if state.Rows[i].WitherTimer == 0 {
 			state.Rows[i].WitherTimer = 0
@@ -146,21 +146,21 @@ func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
 	return &state
 }
 
-// FarmTick processes one farm tick (every farmTickInterval game ticks)
-// farmTickNum is the farm tick number (gameTick / farmTickInterval)
+// GardenBedTick processes one garden bed tick (every gardenBedTickInterval game ticks)
+// gardenBedTickNum is the garden bed tick number (gameTick / gardenBedTickInterval)
 // Returns true if the state changed
-func FarmTick(farm *FarmState, farmTickNum int64) bool {
-	if farm == nil || len(farm.Rows) == 0 {
+func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
+	if gb == nil || len(gb.Rows) == 0 {
 		return false
 	}
 
 	changed := false
 
-	for i := range farm.Rows {
-		row := &farm.Rows[i]
+	for i := range gb.Rows {
+		row := &gb.Rows[i]
 
 		// --- Empty rows: weed growth ---
-		if row.Status == FarmRowEmpty {
+		if row.Status == GardenBedRowEmpty {
 			weedChance := 0.05 // 5% for empty rows
 			if row.WaterTimer > 0 {
 				weedChance = 0.06 // 6% for watered empty rows
@@ -169,29 +169,29 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 				row.Weeds++
 				changed = true
 			}
-			row.LastTick = farmTickNum
+			row.LastTick = gardenBedTickNum
 			continue
-		} else if row.Status == FarmRowWithered {
+		} else if row.Status == GardenBedRowWithered {
 			// --- Withered rows: no processing, just tick ---
-			row.LastTick = farmTickNum
+			row.LastTick = gardenBedTickNum
 			continue
-		} else if row.Status == FarmRowPlanted {
-			plant := farmPlants[row.PlantType]
+		} else if row.Status == GardenBedRowPlanted {
+			plant := gardenBedPlants[row.PlantType]
 			if plant == nil {
-				row.Status = FarmRowEmpty
+				row.Status = GardenBedRowEmpty
 				row.PlantType = ""
 				row.Stage = 0
 				row.Weeds = 0
 				row.WaterTimer = 0
-				row.LastTick = farmTickNum
-				row.FarmTicksSinceLast = 0
+				row.LastTick = gardenBedTickNum
+				row.GardenBedTicksSinceLast = 0
 				row.StageProgress = 0
 				changed = true
 				continue
 			}
 
 			// Skip if already processed this tick
-			if row.LastTick == farmTickNum {
+			if row.LastTick == gardenBedTickNum {
 				continue
 			}
 
@@ -230,7 +230,7 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 					newStage := row.Stage + 1
 					if newStage >= plant.Stages-1 {
 						newStage = plant.Stages - 1
-						row.Status = FarmRowMature
+						row.Status = GardenBedRowMature
 						row.WitherTimer = 0
 						row.StageProgress = 0
 					}
@@ -253,19 +253,19 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 				}
 			}
 
-			row.LastTick = farmTickNum
+			row.LastTick = gardenBedTickNum
 			continue
-		} else if row.Status == FarmRowMature {
+		} else if row.Status == GardenBedRowMature {
 			// --- Mature rows: wither check ---
-			plant := farmPlants[row.PlantType]
+			plant := gardenBedPlants[row.PlantType]
 			if plant == nil {
-				row.Status = FarmRowEmpty
+				row.Status = GardenBedRowEmpty
 				row.PlantType = ""
 				row.Stage = 0
 				row.Weeds = 0
 				row.WaterTimer = 0
-				row.LastTick = farmTickNum
-				row.FarmTicksSinceLast = 0
+				row.LastTick = gardenBedTickNum
+				row.GardenBedTicksSinceLast = 0
 				row.WitherTimer = 0
 				row.StageProgress = 0
 				row.TicksToMature = 0
@@ -297,7 +297,7 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 			// Increment wither timer
 			row.WitherTimer++
 			if row.WitherTimer >= int(witherTicks) {
-				row.Status = FarmRowWithered
+				row.Status = GardenBedRowWithered
 				changed = true
 			}
 
@@ -308,120 +308,120 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 			}
 			row.TicksToMature = remainingWither
 
-			row.LastTick = farmTickNum
+			row.LastTick = gardenBedTickNum
 			continue
 		}
 	}
 
-	farm.LastTick = farmTickNum
+	gb.LastTick = gardenBedTickNum
 	return changed
 }
 
-// ProcessFarmTick is the main entry point called from planet_tick.go
-// Only processes when gameTick % farmTickInterval == 0 (once every N game ticks)
-func ProcessFarmTick(planet *Planet, gameTick int64) {
-	if planet == nil || planet.FarmState == nil {
+// ProcessGardenBedTick is the main entry point called from planet_tick.go
+// Only processes when gameTick % gardenBedTickInterval == 0 (once every N game ticks)
+func ProcessGardenBedTick(planet *Planet, gameTick int64) {
+	if planet == nil || planet.GardenBedState == nil {
 		return
 	}
 
-	const farmTickInterval = 10
+	const gardenBedTickInterval = 10
 
 	// Only process every N ticks
-	if gameTick%farmTickInterval != 0 {
+	if gameTick%gardenBedTickInterval != 0 {
 		return
 	}
 
-	farmTickNum := gameTick / farmTickInterval
+	gardenBedTickNum := gameTick / gardenBedTickInterval
 
-	// Only process if we haven't already processed up to this farm tick
-	if farmTickNum <= planet.FarmState.LastTick {
+	// Only process if we haven't already processed up to this garden bed tick
+	if gardenBedTickNum <= planet.GardenBedState.LastTick {
 		return
 	}
 
-	FarmTick(planet.FarmState, farmTickNum)
+	GardenBedTick(planet.GardenBedState, gardenBedTickNum)
 
-	// Save farm state to DB
-	SaveFarmToDB(planet)
+	// Save garden bed state to DB
+	SaveGardenBedToDB(planet)
 }
 
-// FarmActionResult is the result of a farm action
-type FarmActionResult struct {
-	Success      bool      `json:"success"`
-	Error        string    `json:"error,omitempty"`
-	Rows         []FarmRow `json:"rows"`
-	LastTick     int64     `json:"last_tick"`
-	FoodGain     float64   `json:"food_gain,omitempty"`
-	MoneyGain    float64   `json:"money_gain,omitempty"`
-	FoodCost     float64   `json:"food_cost,omitempty"`
-	SeedCost     float64   `json:"seed_cost,omitempty"`
-	UnlockLevel  int       `json:"unlock_level,omitempty"`
-	WitherTimer  int       `json:"wither_timer,omitempty"`
+// GardenBedActionResult is the result of a garden bed action
+type GardenBedActionResult struct {
+	Success      bool         `json:"success"`
+	Error        string       `json:"error,omitempty"`
+	Rows         []GardenBedRow `json:"rows"`
+	LastTick     int64        `json:"last_tick"`
+	FoodGain     float64      `json:"food_gain,omitempty"`
+	MoneyGain    float64      `json:"money_gain,omitempty"`
+	FoodCost     float64      `json:"food_cost,omitempty"`
+	SeedCost     float64      `json:"seed_cost,omitempty"`
+	UnlockLevel  int          `json:"unlock_level,omitempty"`
+	WitherTimer  int          `json:"wither_timer,omitempty"`
 }
 
-// FarmActionCooldown is the cooldown between farm actions in seconds
-const FarmActionCooldown = 5 * time.Second
+// GardenBedActionCooldown is the cooldown between garden bed actions in seconds
+const GardenBedActionCooldown = 5 * time.Second
 
-// farmLastActionTime stores the last action time per planet
-var farmLastActionTime = make(map[string]time.Time)
-var farmActionMu = &sync.Mutex{}
+// gardenBedLastActionTime stores the last action time per planet
+var gardenBedLastActionTime = make(map[string]time.Time)
+var gardenBedActionMu = &sync.Mutex{}
 
-// getFarmActionKey returns the cache key for a planet's farm action cooldown
-func getFarmActionKey(planetID string) string {
-	return "farm:" + planetID
+// getGardenBedActionKey returns the cache key for a planet's garden bed action cooldown
+func getGardenBedActionKey(planetID string) string {
+	return "garden_bed:" + planetID
 }
 
-// ClearFarmCooldown clears the cooldown for a planet (for testing)
-func ClearFarmCooldown(planetID string) {
-	farmActionMu.Lock()
-	delete(farmLastActionTime, getFarmActionKey(planetID))
-	farmActionMu.Unlock()
+// ClearGardenBedCooldown clears the cooldown for a planet (for testing)
+func ClearGardenBedCooldown(planetID string) {
+	gardenBedActionMu.Lock()
+	delete(gardenBedLastActionTime, getGardenBedActionKey(planetID))
+	gardenBedActionMu.Unlock()
 }
 
-// farmAction handles player farm actions with cooldown enforcement
+// gardenBedAction handles player garden bed actions with cooldown enforcement
 // Returns the result as JSON bytes
-func farmAction(planet *Planet, action string, rowIndex int, plantType string) (*FarmActionResult, error) {
-	if planet == nil || planet.FarmState == nil {
-		return nil, &PlanetError{PlanetID: planet.ID, Reason: "no_farm", Extra: "Farm not available"}
+func gardenBedAction(planet *Planet, action string, rowIndex int, plantType string) (*GardenBedActionResult, error) {
+	if planet == nil || planet.GardenBedState == nil {
+		return nil, &PlanetError{PlanetID: planet.ID, Reason: "no_garden_bed", Extra: "Garden beds not available"}
 	}
 
-	farm := planet.FarmState
-	if rowIndex < 0 || rowIndex >= len(farm.Rows) {
-		return &FarmActionResult{
+	gb := planet.GardenBedState
+	if rowIndex < 0 || rowIndex >= len(gb.Rows) {
+		return &GardenBedActionResult{
 			Success:  false,
 			Error:    "Invalid row index",
-			Rows:     farm.Rows,
-			LastTick: farm.LastTick,
+			Rows:     gb.Rows,
+			LastTick: gb.LastTick,
 		}, nil
 	}
 
 	// Check cooldown
-	farmActionMu.Lock()
-	lastAction, exists := farmLastActionTime[getFarmActionKey(planet.ID)]
-	farmActionMu.Unlock()
+	gardenBedActionMu.Lock()
+	lastAction, exists := gardenBedLastActionTime[getGardenBedActionKey(planet.ID)]
+	gardenBedActionMu.Unlock()
 
-	if exists && time.Since(lastAction) < FarmActionCooldown {
-		remaining := FarmActionCooldown - time.Since(lastAction)
-		return &FarmActionResult{
+	if exists && time.Since(lastAction) < GardenBedActionCooldown {
+		remaining := GardenBedActionCooldown - time.Since(lastAction)
+		return &GardenBedActionResult{
 			Success:  false,
 			Error:    "Cooldown active. Try again in " + remaining.Round(time.Second).String(),
-			Rows:     farm.Rows,
-			LastTick: farm.LastTick,
+			Rows:     gb.Rows,
+			LastTick: gb.LastTick,
 		}, nil
 	}
 
-	row := &farm.Rows[rowIndex]
-	result := &FarmActionResult{
-		Rows:     farm.Rows,
-		LastTick: farm.LastTick,
+	row := &gb.Rows[rowIndex]
+	result := &GardenBedActionResult{
+		Rows:     gb.Rows,
+		LastTick: gb.LastTick,
 	}
 
 	switch action {
 	case "plant":
-		if row.Status != FarmRowEmpty {
+		if row.Status != GardenBedRowEmpty {
 			result.Error = "Row is not empty"
 			return result, nil
 		}
-		plant := farmPlants[plantType]
+		plant := gardenBedPlants[plantType]
 		if plant == nil {
 			result.Error = "Unknown plant type"
 			return result, nil
@@ -442,20 +442,20 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		// Deduct seed cost
 		planet.Resources.Money -= plant.SeedCost
 		result.SeedCost = plant.SeedCost
-		row.Status = FarmRowPlanted
+		row.Status = GardenBedRowPlanted
 		row.PlantType = plantType
 		row.Stage = 0
 		row.Weeds = 0
 		row.WaterTimer = 0
 		row.WitherTimer = 0
 		row.LastTick = 0
-		row.FarmTicksSinceLast = 0
+		row.GardenBedTicksSinceLast = 0
 		row.StageProgress = 0
 		row.TicksToMature = 0
 		result.Success = true
 
 	case "weed":
-		if row.Status == FarmRowEmpty {
+		if row.Status == GardenBedRowEmpty {
 			result.Error = "Row is empty"
 			return result, nil
 		}
@@ -465,8 +465,8 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		}
 		// Get weed cost
 		weedCost := 2.0
-		if row.Status == FarmRowPlanted || row.Status == FarmRowMature || row.Status == FarmRowWithered {
-			plant := farmPlants[row.PlantType]
+		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
+			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
 				weedCost = plant.WeedCost
 			}
@@ -484,14 +484,14 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		result.Success = true
 
 	case "water":
-		if row.Status == FarmRowEmpty {
+		if row.Status == GardenBedRowEmpty {
 			result.Error = "Row is empty"
 			return result, nil
 		}
 		// Get water cost
 		waterCost := 1.0
-		if row.Status == FarmRowPlanted || row.Status == FarmRowMature || row.Status == FarmRowWithered {
-			plant := farmPlants[row.PlantType]
+		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
+			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
 				waterCost = plant.WaterCost
 			}
@@ -509,11 +509,11 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		result.Success = true
 
 	case "harvest":
-		if row.Status != FarmRowMature {
+		if row.Status != GardenBedRowMature {
 			result.Error = "Plant is not mature"
 			return result, nil
 		}
-		plant := farmPlants[row.PlantType]
+		plant := gardenBedPlants[row.PlantType]
 		if plant != nil {
 			planet.Resources.Food += plant.FoodReward
 			planet.Resources.Money += plant.MoneyReward
@@ -521,14 +521,14 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 			result.MoneyGain = plant.MoneyReward
 		}
 		// Reset row to empty
-		row.Status = FarmRowEmpty
+		row.Status = GardenBedRowEmpty
 		row.PlantType = ""
 		row.Stage = 0
 		row.Weeds = 0
 		row.WaterTimer = 0
 		row.WitherTimer = 0
 		row.LastTick = 0
-		row.FarmTicksSinceLast = 0
+		row.GardenBedTicksSinceLast = 0
 		row.StageProgress = 0
 		row.TicksToMature = 0
 		result.Success = true
@@ -539,12 +539,12 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 	}
 
 	// Update cooldown
-	farmActionMu.Lock()
-	farmLastActionTime[getFarmActionKey(planet.ID)] = time.Now()
-	farmActionMu.Unlock()
+	gardenBedActionMu.Lock()
+	gardenBedLastActionTime[getGardenBedActionKey(planet.ID)] = time.Now()
+	gardenBedActionMu.Unlock()
 
 	// Save to DB
-	SaveFarmToDB(planet)
+	SaveGardenBedToDB(planet)
 
 	return result, nil
 }

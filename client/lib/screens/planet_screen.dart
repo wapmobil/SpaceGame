@@ -10,7 +10,7 @@ import 'research_screen.dart' as research;
 import 'expedition_screen.dart' as expedition;
 import 'market_screen.dart' as market;
 import 'drill_screen.dart';
-import 'farm_screen.dart';
+import 'garden_bed_screen.dart';
 
 class PlanetScreen extends StatefulWidget {
   const PlanetScreen({super.key});
@@ -178,7 +178,7 @@ class _PlanetScreenState extends State<PlanetScreen> {
       case 'market':
         return const market.MarketScreen();
       case 'farm':
-        return FarmScreen(planetId: context.read<GameProvider>().selectedPlanet!.id);
+        return GardenBedScreen(planetId: context.read<GameProvider>().selectedPlanet!.id);
       default:
         return const SizedBox.shrink();
     }

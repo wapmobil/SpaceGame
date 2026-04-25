@@ -429,7 +429,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
         chips.add({'icon': Icons.store, 'label': 'Рынок', 'action': 'market'});
         break;
       case 'farm':
-        chips.add({'icon': Icons.eco, 'label': 'Ферма', 'action': 'farm'});
+        chips.add({'icon': Icons.eco, 'label': 'Грядки', 'action': 'farm'});
         break;
     }
     return chips.map((chip) {

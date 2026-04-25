@@ -1,22 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import '../models/farm.dart';
+import '../models/garden_bed.dart';
 import '../core/websocket_manager.dart';
 
-class FarmProvider extends ChangeNotifier {
+class GardenBedProvider extends ChangeNotifier {
   final WebSocketManager websocket;
   final String baseUrl;
   String? _authToken;
-  FarmState? _farmState;
+  GardenBedState? _gardenBedState;
   DateTime? _lastActionTime;
   bool _isLoading = false;
   String? _errorMessage;
 
-  FarmProvider({required this.websocket, required this.baseUrl, String? authToken})
+  GardenBedProvider({required this.websocket, required this.baseUrl, String? authToken})
       : _authToken = authToken;
 
-  FarmState? get farmState => _farmState;
+  GardenBedState? get gardenBedState => _gardenBedState;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get canAct => _lastActionTime == null || DateTime.now().difference(_lastActionTime!).inSeconds >= 5;
@@ -92,48 +92,48 @@ class FarmProvider extends ChangeNotifier {
     return allPlants[type]?['growthTicks'] ?? 60;
   }
 
-  Future<void> getFarm(String planetId) async {
+  Future<void> getGardenBed(String planetId) async {
     if (_authToken == null) return;
     _isLoading = true;
     notifyListeners();
 
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/planets/$planetId/farm'),
+        Uri.parse('$baseUrl/api/planets/$planetId/garden_bed'),
         headers: {'X-Auth-Token': _authToken!},
       );
 
       if (response.statusCode == 200) {
         if (response.body.isEmpty) {
-          _farmState = null;
+          _gardenBedState = null;
           _isLoading = false;
           _errorMessage = null;
           notifyListeners();
           return;
         }
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _farmState = FarmState.fromJson(data);
+        _gardenBedState = GardenBedState.fromJson(data);
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
       } else if (response.statusCode == 404) {
-        _farmState = null;
+        _gardenBedState = null;
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
       } else {
-        _setError('Failed to load farm: ${response.statusCode}');
+        _setError('Failed to load garden bed: ${response.statusCode}');
         _isLoading = false;
         notifyListeners();
       }
     } catch (e) {
-      _setError('Error loading farm: $e');
+      _setError('Error loading garden bed: $e');
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> farmAction(String planetId, String action, int rowIndex, {String? plantType}) async {
+  Future<void> gardenBedAction(String planetId, String action, int rowIndex, {String? plantType}) async {
     if (_authToken == null) return;
     _isLoading = true;
     _lastActionTime = DateTime.now();
@@ -149,7 +149,7 @@ class FarmProvider extends ChangeNotifier {
       }
 
       final response = await http.post(
-        Uri.parse('$baseUrl/api/planets/$planetId/farm/action'),
+        Uri.parse('$baseUrl/api/planets/$planetId/garden_bed/action'),
         headers: {
           'Content-Type': 'application/json',
           'X-Auth-Token': _authToken!,
@@ -160,11 +160,11 @@ class FarmProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final rowsData = data['rows'] as List? ?? [];
-        final rows = rowsData.map((r) => FarmRow.fromJson(r as Map<String, dynamic>)).toList();
-        _farmState = FarmState(
+        final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
+        _gardenBedState = GardenBedState(
           rows: rows,
-          lastTick: data['last_tick'] as int? ?? _farmState?.lastTick ?? 0,
-          rowCount: _farmState?.rowCount ?? rows.length,
+          lastTick: data['last_tick'] as int? ?? _gardenBedState?.lastTick ?? 0,
+          rowCount: _gardenBedState?.rowCount ?? rows.length,
         );
         _isLoading = false;
         _errorMessage = null;
@@ -194,15 +194,15 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-  void onFarmUpdate(Map<String, dynamic> data) {
+  void onGardenBedUpdate(Map<String, dynamic> data) {
     try {
       final rowsData = data['rows'] as List? ?? [];
-      final rows = rowsData.map((r) => FarmRow.fromJson(r as Map<String, dynamic>)).toList();
+      final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
 
-      _farmState = FarmState(
+      _gardenBedState = GardenBedState(
         rows: rows,
-        lastTick: data['last_tick'] as int? ?? _farmState?.lastTick ?? 0,
-        rowCount: _farmState?.rowCount ?? rows.length,
+        lastTick: data['last_tick'] as int? ?? _gardenBedState?.lastTick ?? 0,
+        rowCount: _gardenBedState?.rowCount ?? rows.length,
       );
 
       // Reset cooldown and error on successful update
@@ -210,21 +210,21 @@ class FarmProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
     } catch (e) {
-      debugPrint('Failed to process farm update: $e');
+      debugPrint('Failed to process garden bed update: $e');
     }
   }
 
-  void onFarmWSActionResult(Map<String, dynamic> data) {
+  void onGardenBedWSActionResult(Map<String, dynamic> data) {
     try {
       final success = data['success'] as bool? ?? false;
       if (success) {
         final rowsData = data['rows'] as List? ?? [];
-        final rows = rowsData.map((r) => FarmRow.fromJson(r as Map<String, dynamic>)).toList();
+        final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
 
-        _farmState = FarmState(
+        _gardenBedState = GardenBedState(
           rows: rows,
-          lastTick: data['last_tick'] as int? ?? _farmState?.lastTick ?? 0,
-          rowCount: _farmState?.rowCount ?? rows.length,
+          lastTick: data['last_tick'] as int? ?? _gardenBedState?.lastTick ?? 0,
+          rowCount: _gardenBedState?.rowCount ?? rows.length,
         );
         _lastActionTime = null;
         _errorMessage = null;
@@ -235,7 +235,7 @@ class FarmProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Failed to process farm WS action result: $e');
+      debugPrint('Failed to process garden bed WS action result: $e');
     }
   }
 
@@ -282,7 +282,7 @@ class FarmProvider extends ChangeNotifier {
     }
   }
 
-  String getRowStatusText(FarmRow row) {
+  String getRowStatusText(GardenBedRow row) {
     if (row.isEmpty) return 'Пусто';
     if (row.isMature) return 'Собрать';
     if (row.isWithered) return 'Увядшее';
@@ -294,7 +294,7 @@ class FarmProvider extends ChangeNotifier {
     return '';
   }
 
-  double getRowProgress(FarmRow row) {
+  double getRowProgress(GardenBedRow row) {
     if (!row.isPlanted || row.isMature) return 1.0;
     final stage = row.stage ?? 0;
     return (stage + 1) / 3.0;
@@ -314,7 +314,7 @@ class FarmProvider extends ChangeNotifier {
     return '${seconds}с';
   }
 
-  String getWitherStatusText(FarmRow row) {
+  String getWitherStatusText(GardenBedRow row) {
     if (!row.isMature && !row.isWithered) return '';
     if (row.isWithered) return '🥀 Увядшее';
     final witherTimer = row.witherTimer;

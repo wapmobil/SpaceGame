@@ -366,21 +366,21 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			}
 		}
 
-		var farmStateResp FarmStateResponse
-		if p.FarmState != nil && p.FarmState.RowCount > 0 {
-			farmStateResp = FarmStateResponse{
-				Rows:     p.FarmState.Rows,
-				LastTick: p.FarmState.LastTick,
-				RowCount: p.FarmState.RowCount,
+		var gardenBedStateResp GardenBedStateResponse
+		if p.GardenBedState != nil && p.GardenBedState.RowCount > 0 {
+			gardenBedStateResp = GardenBedStateResponse{
+				Rows:     p.GardenBedState.Rows,
+				LastTick: p.GardenBedState.LastTick,
+				RowCount: p.GardenBedState.RowCount,
 			}
 		} else {
 			farmLevel := p.GetBuildingLevel("farm")
 			if farmLevel > 0 {
-				p.FarmState = game.NewFarmState(farmLevel)
-				farmStateResp = FarmStateResponse{
-					Rows:     p.FarmState.Rows,
-					LastTick: p.FarmState.LastTick,
-					RowCount: p.FarmState.RowCount,
+				p.GardenBedState = game.NewGardenBedState(farmLevel)
+				gardenBedStateResp = GardenBedStateResponse{
+					Rows:     p.GardenBedState.Rows,
+					LastTick: p.GardenBedState.LastTick,
+					RowCount: p.GardenBedState.RowCount,
 				}
 			}
 		}
@@ -417,7 +417,7 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 			CanExpedition:      details.CanExpedition,
 			BuildingCosts:      buildingCosts,
 			ResearchUnlocks:    p.Resources.ResearchUnlocks,
-			FarmState:          farmStateResp,
+			GardenBedState:       gardenBedStateResp,
 		}
 
 		JSON(w, http.StatusOK, resp)

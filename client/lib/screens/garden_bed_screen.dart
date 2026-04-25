@@ -1,27 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/farm_provider.dart';
+import '../providers/garden_bed_provider.dart';
 import '../providers/game_provider.dart';
-import '../models/farm.dart';
+import '../models/garden_bed.dart';
 import '../core/app_theme.dart';
 
-class FarmScreen extends StatefulWidget {
+class GardenBedScreen extends StatefulWidget {
   final String planetId;
 
-  const FarmScreen({super.key, required this.planetId});
+  const GardenBedScreen({super.key, required this.planetId});
 
   @override
-  State<FarmScreen> createState() => _FarmScreenState();
+  State<GardenBedScreen> createState() => _GardenBedScreenState();
 }
 
-class _FarmScreenState extends State<FarmScreen> {
+class _GardenBedScreenState extends State<GardenBedScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final fp = context.read<GameProvider>().farmProvider;
+      final fp = context.read<GameProvider>().gardenBedProvider;
       fp.clearError();
-      fp.getFarm(widget.planetId);
+      fp.getGardenBed(widget.planetId);
     });
   }
 
@@ -30,30 +30,30 @@ class _FarmScreenState extends State<FarmScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Ферма'),
+        title: const Text('Грядки'),
         backgroundColor: AppTheme.cardColor,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
-          final farmProvider = gameProvider.farmProvider;
+          final gardenBedProvider = gameProvider.gardenBedProvider;
           return ListenableBuilder(
-            listenable: farmProvider,
+            listenable: gardenBedProvider,
             builder: (context, _) {
-              if (farmProvider.isLoading && farmProvider.farmState == null) {
+              if (gardenBedProvider.isLoading && gardenBedProvider.gardenBedState == null) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              final farmState = farmProvider.farmState;
-              if (farmState == null) {
-                return const Center(child: Text('Ферма не построена'));
+              final gardenBedState = gardenBedProvider.gardenBedState;
+              if (gardenBedState == null) {
+                return const Center(child: Text('Грядки не построены'));
               }
-              if (farmState.rows.isEmpty) {
-                return const Center(child: Text('Ферма не построена'));
+              if (gardenBedState.rows.isEmpty) {
+                return const Center(child: Text('Грядки не построены'));
               }
 
-              final farmLevel = gameProvider.getBuildingLevelForPlanet(widget.planetId, 'farm');
+              final farmLevel = gameProvider.getBuildingLevelForPlanet(widget.planetId, "farm");
 
               return Padding(
                 padding: const EdgeInsets.all(16),
@@ -61,7 +61,7 @@ class _FarmScreenState extends State<FarmScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Error banner
-                    if (farmProvider.errorMessage != null)
+                    if (gardenBedProvider.errorMessage != null)
                       Container(
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(12),
@@ -76,13 +76,13 @@ class _FarmScreenState extends State<FarmScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                farmProvider.errorMessage!,
+                                gardenBedProvider.errorMessage!,
                                 style: const TextStyle(color: AppTheme.dangerColor, fontSize: 13),
                               ),
                             ),
                             IconButton(
                               icon: const Icon(Icons.close, size: 18, color: AppTheme.dangerColor),
-                              onPressed: () => farmProvider.clearError(),
+                              onPressed: () => gardenBedProvider.clearError(),
                             ),
                           ],
                         ),
@@ -101,11 +101,11 @@ class _FarmScreenState extends State<FarmScreen> {
                           const Icon(Icons.eco_outlined, color: AppTheme.accentColor, size: 20),
                           const SizedBox(width: 8),
                           Text(
-                            'Ур. $farmLevel • ${farmState.rowCount} рядов',
+                            'Ур. $farmLevel • ${gardenBedState.rowCount} рядов',
                             style: const TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600),
                           ),
                           const Spacer(),
-                          if (!farmProvider.canAct)
+                          if (!gardenBedProvider.canAct)
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
@@ -113,7 +113,7 @@ class _FarmScreenState extends State<FarmScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '${farmProvider.remainingCooldown}с',
+                                '${gardenBedProvider.remainingCooldown}с',
                                 style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -143,9 +143,9 @@ class _FarmScreenState extends State<FarmScreen> {
                     // Farm rows
                     Expanded(
                       child: ListView.builder(
-                        itemCount: farmState.rows.length,
+                        itemCount: gardenBedState.rows.length,
                         itemBuilder: (context, rowIndex) {
-                          return _buildRowCard(context, farmProvider, gameProvider, farmState.rows[rowIndex], rowIndex, farmLevel);
+                          return _buildRowCard(context, gardenBedProvider, gameProvider, gardenBedState.rows[rowIndex], rowIndex, farmLevel);
                         },
                       ),
                     ),
@@ -172,7 +172,7 @@ class _FarmScreenState extends State<FarmScreen> {
     );
   }
 
-  Widget _buildRowCard(BuildContext context, FarmProvider farmProvider, GameProvider gameProvider, FarmRow row, int rowIndex, int farmLevel) {
+  Widget _buildRowCard(BuildContext context, GardenBedProvider gardenBedProvider, GameProvider gameProvider, GardenBedRow row, int rowIndex, int farmLevel) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -211,7 +211,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 const SizedBox(width: 12),
                 // Plant info
                 Expanded(
-                  child: _buildPlantInfo(context, farmProvider, row),
+                  child: _buildPlantInfo(context, gardenBedProvider, row),
                 ),
               ],
             ),
@@ -227,7 +227,7 @@ class _FarmScreenState extends State<FarmScreen> {
                   if (row.weeds > 0)
                     _buildActionChip(
                       context,
-                      farmProvider,
+                      gardenBedProvider,
                       'weed',
                       rowIndex,
                       '🌿',
@@ -239,7 +239,7 @@ class _FarmScreenState extends State<FarmScreen> {
                     Center(
                       child: _buildActionChip(
                         context,
-                        farmProvider,
+                        gardenBedProvider,
                         'plant',
                         rowIndex,
                         '+',
@@ -257,7 +257,7 @@ class _FarmScreenState extends State<FarmScreen> {
               child: Center(
                 child: _buildActionChip(
                   context,
-                  farmProvider,
+                  gardenBedProvider,
                   'weed',
                   rowIndex,
                   '🧹',
@@ -276,35 +276,35 @@ class _FarmScreenState extends State<FarmScreen> {
                   if (row.weeds > 0)
                     _buildActionChip(
                       context,
-                      farmProvider,
+                      gardenBedProvider,
                       'weed',
                       rowIndex,
                       '🌿',
                       'Прополоть',
                       AppTheme.dangerColor,
-                      weedCost: farmProvider.getWeedCost(row.plantType ?? 'wheat'),
+                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat'),
                     ),
                   _buildActionChip(
                     context,
-                    farmProvider,
+                    gardenBedProvider,
                     'water',
                     rowIndex,
                     '💧',
                     'Полить',
                     AppTheme.accentColor,
-                    waterCost: farmProvider.getWaterCost(row.plantType ?? 'wheat'),
+                    waterCost: gardenBedProvider.getWaterCost(row.plantType ?? 'wheat'),
                   ),
                   if (row.isMature)
                     _buildActionChip(
                       context,
-                      farmProvider,
+                      gardenBedProvider,
                       'harvest',
                       rowIndex,
                       '🌾',
                       'Собрать',
                       AppTheme.successColor,
-                      moneyReward: farmProvider.getMoneyReward(row.plantType ?? 'wheat'),
-                      foodReward: farmProvider.getFoodReward(row.plantType ?? 'wheat'),
+                      moneyReward: gardenBedProvider.getMoneyReward(row.plantType ?? 'wheat'),
+                      foodReward: gardenBedProvider.getFoodReward(row.plantType ?? 'wheat'),
                     ),
                 ],
               ),
@@ -315,7 +315,7 @@ class _FarmScreenState extends State<FarmScreen> {
     );
   }
 
-  Widget _buildPlantInfo(BuildContext context, FarmProvider farmProvider, FarmRow row) {
+  Widget _buildPlantInfo(BuildContext context, GardenBedProvider gardenBedProvider, GardenBedRow row) {
     if (row.isEmpty && row.weeds == 0) {
       return const Text(
         'Пусто',
@@ -396,13 +396,13 @@ class _FarmScreenState extends State<FarmScreen> {
         Row(
           children: [
             Text(
-              farmProvider.getPlantIcon(row.plantType ?? ''),
+              gardenBedProvider.getPlantIcon(row.plantType ?? ''),
               style: const TextStyle(fontSize: 18),
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                farmProvider.getPlantName(row.plantType ?? ''),
+                gardenBedProvider.getPlantName(row.plantType ?? ''),
                 style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -414,7 +414,7 @@ class _FarmScreenState extends State<FarmScreen> {
           Row(
             children: [
               Text(
-                farmProvider.getStageName(row.stage ?? 0),
+                gardenBedProvider.getStageName(row.stage ?? 0),
                 style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
               const SizedBox(width: 8),
@@ -422,7 +422,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(3),
                   child: LinearProgressIndicator(
-                    value: farmProvider.getRowProgress(row),
+                    value: gardenBedProvider.getRowProgress(row),
                     minHeight: 4,
                     color: row.isMature ? AppTheme.successColor : AppTheme.accentColor,
                     backgroundColor: Colors.white.withValues(alpha: 0.1),
@@ -438,7 +438,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 const Text('🕛', style: TextStyle(fontSize: 11)),
                 const SizedBox(width: 2),
                 Text(
-                  farmProvider.getTicksToMatureText(row.ticksToMature),
+                  gardenBedProvider.getTicksToMatureText(row.ticksToMature),
                   style: const TextStyle(color: AppTheme.accentColor, fontSize: 10),
                 ),
               ],
@@ -452,14 +452,14 @@ class _FarmScreenState extends State<FarmScreen> {
               const Text('💰', style: TextStyle(fontSize: 12)),
               const SizedBox(width: 2),
               Text(
-                farmProvider.getMoneyReward(row.plantType ?? '').toStringAsFixed(0),
+                gardenBedProvider.getMoneyReward(row.plantType ?? '').toStringAsFixed(0),
                 style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.w600),
               ),
               const SizedBox(width: 8),
               const Text('🍍', style: TextStyle(fontSize: 12)),
               const SizedBox(width: 2),
               Text(
-                farmProvider.getFoodReward(row.plantType ?? '').toStringAsFixed(0),
+                gardenBedProvider.getFoodReward(row.plantType ?? '').toStringAsFixed(0),
                 style: const TextStyle(color: AppTheme.successColor, fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ],
@@ -471,7 +471,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 const Text('⏱', style: TextStyle(fontSize: 11)),
                 const SizedBox(width: 2),
                 Text(
-                  farmProvider.getTicksToMatureText(row.ticksToMature),
+                  gardenBedProvider.getTicksToMatureText(row.ticksToMature),
                   style: const TextStyle(color: Colors.orange, fontSize: 10),
                 ),
               ],
@@ -517,7 +517,7 @@ class _FarmScreenState extends State<FarmScreen> {
 
   Widget _buildActionChip(
     BuildContext context,
-    FarmProvider farmProvider,
+    GardenBedProvider gardenBedProvider,
     String action,
     int rowIndex,
     String icon,
@@ -528,7 +528,7 @@ class _FarmScreenState extends State<FarmScreen> {
     double moneyReward = 0,
     double foodReward = 0,
   }) {
-    final canAct = farmProvider.canAct;
+    final canAct = gardenBedProvider.canAct;
     String fullLabel = label;
     if (weedCost > 0) fullLabel = '$label (🍍${weedCost.toInt()})';
     if (waterCost > 0) fullLabel = '$label (🍍${waterCost.toInt()})';
@@ -536,7 +536,7 @@ class _FarmScreenState extends State<FarmScreen> {
 
     return ElevatedButton(
       onPressed: canAct
-          ? () => _handleAction(context, farmProvider, action, rowIndex)
+          ? () => _handleAction(context, gardenBedProvider, action, rowIndex)
           : null,
       style: ElevatedButton.styleFrom(
         backgroundColor: color.withValues(alpha: canAct ? 0.2 : 0.1),
@@ -560,27 +560,27 @@ class _FarmScreenState extends State<FarmScreen> {
     );
   }
 
-  Future<void> _handleAction(BuildContext context, FarmProvider farmProvider, String action, int rowIndex) async {
+  Future<void> _handleAction(BuildContext context, GardenBedProvider gardenBedProvider, String action, int rowIndex) async {
     if (action == 'plant') {
       final selectedPlant = await _showPlantSelectionDialog(context);
       if (selectedPlant != null) {
-        await farmProvider.farmAction(widget.planetId, 'plant', rowIndex, plantType: selectedPlant);
+        await gardenBedProvider.gardenBedAction(widget.planetId, 'plant', rowIndex, plantType: selectedPlant);
       }
-    } else if (action == 'weed' && context.read<FarmProvider>().farmState?.rows[rowIndex].isWithered == true) {
-      await farmProvider.farmAction(widget.planetId, 'weed', rowIndex);
+    } else if (action == 'weed' && context.read<GardenBedProvider>().gardenBedState?.rows[rowIndex].isWithered == true) {
+      await gardenBedProvider.gardenBedAction(widget.planetId, 'weed', rowIndex);
     } else {
-      await farmProvider.farmAction(widget.planetId, action, rowIndex);
+      await gardenBedProvider.gardenBedAction(widget.planetId, action, rowIndex);
     }
-    farmProvider.clearError();
+    gardenBedProvider.clearError();
   }
 
   Future<String?> _showPlantSelectionDialog(BuildContext context) async {
-    final farmProvider = context.read<GameProvider>().farmProvider;
+    final gardenBedProvider = context.read<GameProvider>().gardenBedProvider;
     final gameProvider = context.read<GameProvider>();
-    final farmLevel = gameProvider.getBuildingLevelForPlanet(widget.planetId, 'farm');
+    final farmLevel = gameProvider.getBuildingLevelForPlanet(widget.planetId, "farm");
     final money = (gameProvider.selectedPlanet?.resources['money'] as num?)?.toDouble() ?? 0;
 
-    final availablePlants = farmProvider.getAvailablePlants(farmLevel);
+    final availablePlants = gardenBedProvider.getAvailablePlants(farmLevel);
 
     final result = await showDialog<String>(
       context: context,
@@ -601,7 +601,7 @@ class _FarmScreenState extends State<FarmScreen> {
                 final moneyReward = (plant['moneyReward'] as num).toDouble();
                 final foodReward = (plant['foodReward'] as num).toDouble();
                 final unlockLevel = plant['unlockLevel'] as int;
-                final isUnlocked = farmProvider.isPlantUnlocked(type, farmLevel);
+                final isUnlocked = gardenBedProvider.isPlantUnlocked(type, farmLevel);
                 final canAfford = money >= seedCost;
 
                 return InkWell(

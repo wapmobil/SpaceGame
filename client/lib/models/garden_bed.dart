@@ -1,4 +1,4 @@
-class FarmRow {
+class GardenBedRow {
   final String status; // "empty", "planted", "mature", "withered"
   final String? plantType;
   final int? stage;
@@ -8,7 +8,7 @@ class FarmRow {
   final int witherTimer;
   final int ticksToMature;
 
-  FarmRow({
+  GardenBedRow({
     required this.status,
     this.plantType,
     this.stage = 0,
@@ -19,10 +19,10 @@ class FarmRow {
     this.ticksToMature = 0,
   });
 
-  factory FarmRow.fromJson(Map<String, dynamic> json) {
+  factory GardenBedRow.fromJson(Map<String, dynamic> json) {
     String status = json['status'] as String? ?? 'empty';
     if (status.isEmpty) status = 'empty';
-    return FarmRow(
+    return GardenBedRow(
       status: status,
       plantType: json['plant_type'] as String?,
       stage: json['stage'] as int? ?? 0,
@@ -56,7 +56,7 @@ class FarmRow {
   bool get isAtMaxWeeds => weeds >= 3;
   bool get isWatered => waterTimer > 0;
 
-  FarmRow copyWith({
+  GardenBedRow copyWith({
     String? status,
     String? plantType,
     int? stage,
@@ -65,7 +65,7 @@ class FarmRow {
     int? lastTick,
     int? witherTimer,
   }) {
-    return FarmRow(
+    return GardenBedRow(
       status: status ?? this.status,
       plantType: plantType ?? this.plantType,
       stage: stage ?? this.stage,
@@ -77,22 +77,22 @@ class FarmRow {
   }
 }
 
-class FarmState {
-  final List<FarmRow> rows;
+class GardenBedState {
+  final List<GardenBedRow> rows;
   final int lastTick;
   final int rowCount;
 
-  FarmState({
+  GardenBedState({
     required this.rows,
     this.lastTick = 0,
     this.rowCount = 0,
   });
 
-  factory FarmState.fromJson(Map<String, dynamic> json) {
+  factory GardenBedState.fromJson(Map<String, dynamic> json) {
     final rowsData = json['rows'] as List? ?? [];
-    final rows = rowsData.map((r) => FarmRow.fromJson(r as Map<String, dynamic>)).toList();
+    final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
 
-    return FarmState(
+    return GardenBedState(
       rows: rows,
       lastTick: json['last_tick'] as int? ?? 0,
       rowCount: json['row_count'] as int? ?? rows.length,
@@ -108,7 +108,7 @@ class FarmState {
   }
 }
 
-class FarmPlant {
+class GardenBedPlant {
   final String type;
   final String name;
   final String icon;
@@ -121,7 +121,7 @@ class FarmPlant {
   final double waterCost;
   final int growthTicks;
 
-  FarmPlant({
+  GardenBedPlant({
     required this.type,
     required this.name,
     required this.icon,
@@ -135,8 +135,8 @@ class FarmPlant {
     required this.growthTicks,
   });
 
-  factory FarmPlant.fromJson(Map<String, dynamic> json) {
-    return FarmPlant(
+  factory GardenBedPlant.fromJson(Map<String, dynamic> json) {
+    return GardenBedPlant(
       type: json['type'] as String? ?? '',
       name: json['name'] as String? ?? '',
       icon: json['icon'] as String? ?? '',

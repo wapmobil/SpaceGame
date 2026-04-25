@@ -110,7 +110,7 @@ class WebSocketManager extends ChangeNotifier {
       data['plant_type'] = plantType;
     }
     send({
-      'type': 'farm_action',
+      'type': 'garden_bed_action',
       'data': data,
     });
   }
