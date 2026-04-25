@@ -7,7 +7,7 @@ import (
 )
 
 // Tick processes one game tick (1 second).
-func (p *Planet) Tick() {
+func (p *Planet) Tick(gameTick int64) {
 	p.LastTick = time.Now()
 
 	// 0. Recalculate build speed from research
@@ -36,11 +36,11 @@ func (p *Planet) Tick() {
 	// 3.6 Auto-disable base when food is depleted
 	p.autoDisableBase()
 
-	// 3.7 Farm tick (every 100 seconds, only if farm is working)
+	// 3.7 Farm tick (every 10 ticks, only if farm is working)
 	if p.FarmState != nil && p.GetBuildingLevel("farm") > 0 {
 		farmIdx := p.FindBuildingIndex("farm")
-		if farmIdx >= 0 && p.Buildings[farmIdx].IsWorking() {
-			ProcessFarmTick(p, p.LastTick.Unix())
+		if farmIdx >= 0 && farmIdx < len(p.Buildings) && p.Buildings[farmIdx].IsWorking() {
+			ProcessFarmTick(p, gameTick)
 		}
 	}
 

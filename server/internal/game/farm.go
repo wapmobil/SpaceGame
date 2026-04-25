@@ -105,6 +105,13 @@ func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
 		state.RowCount = len(rows)
 	}
 
+	// Normalize legacy data: empty string status -> empty
+	for i := range state.Rows {
+		if state.Rows[i].Status == "" {
+			state.Rows[i].Status = FarmRowEmpty
+		}
+	}
+
 	// Ensure row count matches
 	if len(state.Rows) != state.RowCount {
 		state.RowCount = len(state.Rows)
@@ -113,9 +120,10 @@ func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
 	return &state
 }
 
-// FarmTick processes one farm tick (100 game ticks = 100 seconds)
+// FarmTick processes one farm tick (every farmTickInterval game ticks)
+// farmTickNum is the farm tick number (gameTick / farmTickInterval)
 // Returns true if the state changed
-func FarmTick(farm *FarmState, currentTick int64) bool {
+func FarmTick(farm *FarmState, farmTickNum int64) bool {
 	if farm == nil || len(farm.Rows) == 0 {
 		return false
 	}
@@ -131,14 +139,20 @@ func FarmTick(farm *FarmState, currentTick int64) bool {
 		}
 
 		// Skip if we've already processed this tick
-		if row.LastTick == currentTick {
+		if row.LastTick == farmTickNum {
 			continue
 		}
 
 		plant := farmPlants[row.PlantType]
 		if plant == nil {
-			row.LastTick = currentTick
+			row.Status = FarmRowEmpty
+			row.PlantType = ""
+			row.Stage = 0
+			row.Weeds = 0
+			row.WaterTimer = 0
+			row.LastTick = farmTickNum
 			row.FarmTicksSinceLast = 0
+			changed = true
 			continue
 		}
 
@@ -184,34 +198,35 @@ func FarmTick(farm *FarmState, currentTick int64) bool {
 			}
 		}
 
-		row.LastTick = currentTick
+		row.LastTick = farmTickNum
 	}
 
-	farm.LastTick = currentTick
+	farm.LastTick = farmTickNum
 	return changed
 }
 
 // ProcessFarmTick is the main entry point called from planet_tick.go
-// Only processes if gameTick % 100 == 0 and gameTick > farm.LastTick
+// Only processes when gameTick % farmTickInterval == 0 (once every N game ticks)
 func ProcessFarmTick(planet *Planet, gameTick int64) {
 	if planet == nil || planet.FarmState == nil {
 		return
 	}
 
-	// Only process every 100 ticks
-	if gameTick%100 != 0 {
+	const farmTickInterval = 10
+
+	// Only process every N ticks
+	if gameTick%farmTickInterval != 0 {
 		return
 	}
 
-	// Only process if we haven't already processed up to this tick
-	if gameTick <= planet.FarmState.LastTick {
+	farmTickNum := gameTick / farmTickInterval
+
+	// Only process if we haven't already processed up to this farm tick
+	if farmTickNum <= planet.FarmState.LastTick {
 		return
 	}
 
-	// Process all farm ticks between last and current
-	for t := planet.FarmState.LastTick + 100; t <= gameTick; t += 100 {
-		FarmTick(planet.FarmState, t)
-	}
+	FarmTick(planet.FarmState, farmTickNum)
 
 	// Save farm state to DB
 	SaveFarmToDB(planet)

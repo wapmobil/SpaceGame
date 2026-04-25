@@ -30,6 +30,12 @@ func LoadFarmFromDB(planet *Planet) error {
 		SELECT farm_grid, farm_last_tick FROM planets WHERE id = $1
 	`, planet.ID).Scan(&farmGridJSON, &farmLastTick)
 
+	// Migrate: if farmLastTick looks like a Unix timestamp (> 1000000), treat as 0
+	// (old code stored Unix timestamp; new code stores farm tick number)
+	if farmLastTick > 1000000 {
+		farmLastTick = 0
+	}
+
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -53,6 +59,12 @@ func LoadFarmFromDB(planet *Planet) error {
 	if len(farmGridJSON) > 0 && string(farmGridJSON) != "null" && string(farmGridJSON) != "[]" {
 		var rows []FarmRow
 		if err := json.Unmarshal(farmGridJSON, &rows); err == nil && len(rows) > 0 {
+			// Normalize legacy data: empty string status -> empty
+			for i := range rows {
+				if rows[i].Status == "" {
+					rows[i].Status = FarmRowEmpty
+				}
+			}
 			// Ensure row count matches building level
 			if len(rows) < farmLevel {
 				// Extend rows to match building level
@@ -66,6 +78,7 @@ func LoadFarmFromDB(planet *Planet) error {
 				RowCount: len(rows),
 			}
 			planet.FarmLastTick = farmLastTick
+			log.Printf("Farm state loaded from DB for planet %s (rows=%d)", planet.ID, len(rows))
 			return nil
 		}
 	}
@@ -73,6 +86,7 @@ func LoadFarmFromDB(planet *Planet) error {
 	// No saved data or parse failed, create fresh state
 	planet.FarmState = NewFarmState(farmLevel)
 	planet.FarmLastTick = farmLastTick
+	log.Printf("Farm state created fresh for planet %s (level=%d, rows=%d)", planet.ID, farmLevel, farmLevel)
 
 	return nil
 }
@@ -109,30 +123,25 @@ func SaveFarmToDB(planet *Planet) {
 	}
 }
 
-// GetFarmState returns the farm state as JSON bytes
+// GetFarmState returns the farm state as JSON bytes.
+// Returns nil when no farm building exists on the planet.
 func GetFarmState(planet *Planet) ([]byte, error) {
 	if planet == nil {
-		return json.Marshal(map[string]interface{}{
-			"rows":      []interface{}{},
-			"last_tick": 0,
-			"row_count": 0,
-		})
+		return nil, nil
 	}
 
 	// Lazy init: create FarmState if farm building exists but state is nil
 	if planet.FarmState == nil {
 		farmLevel := planet.GetBuildingLevel("farm")
+		log.Printf("GetFarmState: FarmState is nil for planet %s, farmLevel=%d", planet.ID, farmLevel)
 		if farmLevel > 0 {
 			planet.FarmState = NewFarmState(farmLevel)
+			log.Printf("GetFarmState: created fresh farm state for planet %s (rows=%d)", planet.ID, farmLevel)
 		}
 	}
 
 	if planet.FarmState == nil {
-		return json.Marshal(map[string]interface{}{
-			"rows":      []interface{}{},
-			"last_tick": 0,
-			"row_count": 0,
-		})
+		return nil, nil
 	}
 
 	result := map[string]interface{}{

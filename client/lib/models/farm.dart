@@ -16,8 +16,10 @@ class FarmRow {
   });
 
   factory FarmRow.fromJson(Map<String, dynamic> json) {
+    String status = json['status'] as String? ?? 'empty';
+    if (status.isEmpty) status = 'empty';
     return FarmRow(
-      status: json['status'] as String? ?? 'empty',
+      status: status,
       plantType: json['plant_type'] as String?,
       stage: json['stage'] as int? ?? 0,
       weeds: json['weeds'] as int? ?? 0,

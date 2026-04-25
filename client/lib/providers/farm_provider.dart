@@ -50,9 +50,22 @@ class FarmProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
+        if (response.body.isEmpty) {
+          _farmState = null;
+          _isLoading = false;
+          _errorMessage = null;
+          notifyListeners();
+          return;
+        }
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _farmState = FarmState.fromJson(data);
         _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+      } else if (response.statusCode == 404) {
+        _farmState = null;
+        _isLoading = false;
+        _errorMessage = null;
         notifyListeners();
       } else {
         _setError('Failed to load farm: ${response.statusCode}');
@@ -92,8 +105,15 @@ class FarmProvider extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _farmState = FarmState.fromJson(data);
+        final rowsData = data['rows'] as List? ?? [];
+        final rows = rowsData.map((r) => FarmRow.fromJson(r as Map<String, dynamic>)).toList();
+        _farmState = FarmState(
+          rows: rows,
+          lastTick: data['last_tick'] as int? ?? _farmState?.lastTick ?? 0,
+          rowCount: _farmState?.rowCount ?? rows.length,
+        );
         _isLoading = false;
+        _errorMessage = null;
         notifyListeners();
       } else if (response.statusCode == 400) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -131,8 +151,9 @@ class FarmProvider extends ChangeNotifier {
         rowCount: _farmState?.rowCount ?? rows.length,
       );
 
-      // Reset cooldown on successful update
+      // Reset cooldown and error on successful update
       _lastActionTime = null;
+      _errorMessage = null;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to process farm update: $e');
@@ -152,6 +173,7 @@ class FarmProvider extends ChangeNotifier {
           rowCount: _farmState?.rowCount ?? rows.length,
         );
         _lastActionTime = null;
+        _errorMessage = null;
         notifyListeners();
       } else {
         _setError(data['error'] as String? ?? 'Action failed');
@@ -172,7 +194,7 @@ class FarmProvider extends ChangeNotifier {
       case 'melon':
         return 'Космическая дыня';
       default:
-        return type;
+        return 'Растение';
     }
   }
 
@@ -185,7 +207,7 @@ class FarmProvider extends ChangeNotifier {
       case 'melon':
         return '🍈';
       default:
-        return '❓';
+        return '🌱';
     }
   }
 

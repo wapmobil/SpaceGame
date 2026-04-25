@@ -19,7 +19,9 @@ class _FarmScreenState extends State<FarmScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GameProvider>().farmProvider.getFarm(widget.planetId);
+      final fp = context.read<GameProvider>().farmProvider;
+      fp.clearError();
+      fp.getFarm(widget.planetId);
     });
   }
 
@@ -36,65 +38,101 @@ class _FarmScreenState extends State<FarmScreen> {
       body: Consumer<GameProvider>(
         builder: (context, gameProvider, _) {
           final farmProvider = gameProvider.farmProvider;
-          if (farmProvider.isLoading && farmProvider.farmState == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          return ListenableBuilder(
+            listenable: farmProvider,
+            builder: (context, _) {
+              if (farmProvider.isLoading && farmProvider.farmState == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          final farmState = farmProvider.farmState;
-          if (farmState == null) {
-            return const Center(child: Text('Ферма не построена'));
-          }
+              final farmState = farmProvider.farmState;
+              if (farmState == null) {
+                return const Center(child: Text('Ферма не построена'));
+              }
+              if (farmState.rows.isEmpty) {
+                return const Center(child: Text('Ферма не построена'));
+              }
 
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Info bar
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.accentColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.eco_outlined, color: AppTheme.accentColor, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${farmState.rowCount} рядов',
-                        style: const TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600),
-                      ),
-                      const Spacer(),
-                      if (!farmProvider.canAct)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${farmProvider.remainingCooldown}с',
-                            style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600),
-                          ),
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Error banner
+                    if (farmProvider.errorMessage != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.dangerColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.dangerColor.withValues(alpha: 0.3)),
                         ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: AppTheme.dangerColor, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                farmProvider.errorMessage!,
+                                style: const TextStyle(color: AppTheme.dangerColor, fontSize: 13),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18, color: AppTheme.dangerColor),
+                              onPressed: () => farmProvider.clearError(),
+                            ),
+                          ],
+                        ),
+                      ),
 
-                // Farm rows
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: farmState.rows.length,
-                    itemBuilder: (context, rowIndex) {
-                      return _buildRowCard(context, farmProvider, farmState.rows[rowIndex], rowIndex);
-                    },
-                  ),
+                    // Info bar
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.accentColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.eco_outlined, color: AppTheme.accentColor, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${farmState.rowCount} рядов',
+                            style: const TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600),
+                          ),
+                          const Spacer(),
+                          if (!farmProvider.canAct)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${farmProvider.remainingCooldown}с',
+                                style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Farm rows
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: farmState.rows.length,
+                        itemBuilder: (context, rowIndex) {
+                          return _buildRowCard(context, farmProvider, farmState.rows[rowIndex], rowIndex);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -209,7 +247,7 @@ class _FarmScreenState extends State<FarmScreen> {
   }
 
   Widget _buildPlantInfo(BuildContext context, FarmProvider farmProvider, FarmRow row) {
-    if (row.isEmpty) {
+    if (row.isEmpty || (row.isPlanted && (row.plantType == null || row.plantType!.isEmpty))) {
       return const Text(
         'Пусто',
         style: const TextStyle(color: Colors.white38, fontSize: 13),
@@ -334,6 +372,7 @@ class _FarmScreenState extends State<FarmScreen> {
   }
 
   Future<void> _handleAction(BuildContext context, FarmProvider farmProvider, String action, int rowIndex) async {
+    final gameProvider = context.read<GameProvider>();
     if (action == 'plant') {
       // Show plant selection dialog
       final selectedPlant = await _showPlantSelectionDialog(context);
@@ -343,6 +382,8 @@ class _FarmScreenState extends State<FarmScreen> {
     } else {
       await farmProvider.farmAction(widget.planetId, action, rowIndex);
     }
+    gameProvider.notifyListeners();
+    farmProvider.clearError();
   }
 
   Future<String?> _showPlantSelectionDialog(BuildContext context) async {

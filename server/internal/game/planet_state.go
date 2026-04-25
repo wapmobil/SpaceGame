@@ -29,7 +29,23 @@ func (p *Planet) GetState() map[string]interface{} {
 		})
 	}
 
-	return map[string]interface{}{
+	// Build farm state for WS updates
+	var farmState map[string]interface{}
+	if p.FarmState == nil {
+		farmLevel := p.GetBuildingLevel("farm")
+		if farmLevel > 0 {
+			p.FarmState = NewFarmState(farmLevel)
+		}
+	}
+	if p.FarmState != nil && p.FarmState.RowCount > 0 {
+		farmState = map[string]interface{}{
+			"rows":      p.FarmState.Rows,
+			"last_tick": p.FarmState.LastTick,
+			"row_count": p.FarmState.RowCount,
+		}
+	}
+
+	result := map[string]interface{}{
 		"id":               p.ID,
 		"owner_id":         p.OwnerID,
 		"name":             p.Name,
@@ -55,7 +71,9 @@ func (p *Planet) GetState() map[string]interface{} {
 		"storage_capacity":   p.CalculateStorageCapacity(),
 		"research_paused":    !p.HasOperationalBase(),
 		"research":           researchStates,
+		"farm_state":         farmState,
 	}
+	return result
 }
 
 // GetEnergyBalance returns the current energy balance.

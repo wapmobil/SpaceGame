@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"spacegame/internal/game"
@@ -23,6 +24,12 @@ func handleGetFarm(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		if farmState == nil {
+			JSON(w, http.StatusNotFound, map[string]string{"error": "Farm not built"})
+			return
+		}
+
+		log.Printf("handleGetFarm: planetID=%s, farmState=%s", planetID, string(farmState))
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(farmState)
 	}
@@ -52,7 +59,7 @@ func handleFarmAction(db *sql.DB) http.HandlerFunc {
 
 		result, err := game.FarmActionInternal(p, req.Action, req.RowIndex, req.PlantType)
 		if err != nil {
-			Error(w, http.StatusBadRequest, err.Error())
+			JSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 			return
 		}
 

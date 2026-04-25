@@ -168,6 +168,7 @@ class GameProvider extends ChangeNotifier {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _player = Player.fromJson(data);
+        _farmProvider.setAuthToken(_player!.authToken);
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
@@ -211,6 +212,7 @@ class GameProvider extends ChangeNotifier {
     if (id != null && token != null) {
       _baseUrl = url;
       _player = Player(id: id, authToken: token, name: name ?? '');
+      _farmProvider.setAuthToken(token);
       notifyListeners();
       await connectWebSocket();
       await loadPlanets();
@@ -252,10 +254,12 @@ class GameProvider extends ChangeNotifier {
         break;
       case 'farm_update':
         _farmProvider.onFarmUpdate(data ?? {});
+        notifyListeners();
         break;
       default:
         if (message['type'] == 'farm_action_result') {
           _farmProvider.onFarmWSActionResult(data ?? {});
+          notifyListeners();
         }
     }
   }
