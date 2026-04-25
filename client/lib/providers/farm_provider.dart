@@ -38,6 +38,60 @@ class FarmProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Plant definitions
+  Map<String, Map<String, dynamic>> get allPlants => {
+    'wheat': {'type': 'wheat', 'name': 'Пшеница', 'icon': '🌾', 'seedCost': 5, 'moneyReward': 15, 'foodReward': 5, 'unlockLevel': 1, 'weedCost': 2, 'waterCost': 1, 'growthTicks': 60},
+    'berries': {'type': 'berries', 'name': 'Ягоды', 'icon': '🫐', 'seedCost': 15, 'moneyReward': 45, 'foodReward': 15, 'unlockLevel': 2, 'weedCost': 5, 'waterCost': 3, 'growthTicks': 120},
+    'raspberry': {'type': 'raspberry', 'name': 'Малина', 'icon': '🪴', 'seedCost': 25, 'moneyReward': 80, 'foodReward': 25, 'unlockLevel': 3, 'weedCost': 15, 'waterCost': 5, 'growthTicks': 180},
+    'rose': {'type': 'rose', 'name': 'Космическая роза', 'icon': '🌷', 'seedCost': 60, 'moneyReward': 200, 'foodReward': 50, 'unlockLevel': 5, 'weedCost': 25, 'waterCost': 10, 'growthTicks': 300},
+    'sunflower': {'type': 'sunflower', 'name': 'Космический подсолнух', 'icon': '🌻', 'seedCost': 120, 'moneyReward': 400, 'foodReward': 80, 'unlockLevel': 7, 'weedCost': 20, 'waterCost': 30, 'growthTicks': 450},
+    'melon': {'type': 'melon', 'name': 'Космическая дыня', 'icon': '🍈', 'seedCost': 250, 'moneyReward': 800, 'foodReward': 120, 'unlockLevel': 9, 'weedCost': 30, 'waterCost': 20, 'growthTicks': 600},
+    'banana': {'type': 'banana', 'name': 'Лунный банан', 'icon': '🌙', 'seedCost': 500, 'moneyReward': 1700, 'foodReward': 150, 'unlockLevel': 11, 'weedCost': 50, 'waterCost': 50, 'growthTicks': 900},
+    'blueberry': {'type': 'blueberry', 'name': 'Звёздная голубика', 'icon': '🫐', 'seedCost': 1000, 'moneyReward': 3500, 'foodReward': 300, 'unlockLevel': 13, 'weedCost': 80, 'waterCost': 50, 'growthTicks': 1500},
+  };
+
+  Map<String, dynamic>? getPlant(String type) {
+    return allPlants[type];
+  }
+
+  List<Map<String, dynamic>> getAvailablePlants(int farmLevel) {
+    return allPlants.values.where((p) => (p['unlockLevel'] as int) <= farmLevel).toList();
+  }
+
+  bool isPlantUnlocked(String type, int farmLevel) {
+    final plant = allPlants[type];
+    if (plant == null) return false;
+    return (plant['unlockLevel'] as int) <= farmLevel;
+  }
+
+  double getSeedCost(String type) {
+    return allPlants[type]?['seedCost']?.toDouble() ?? 0;
+  }
+
+  double getMoneyReward(String type) {
+    return allPlants[type]?['moneyReward']?.toDouble() ?? 0;
+  }
+
+  double getFoodReward(String type) {
+    return allPlants[type]?['foodReward']?.toDouble() ?? 0;
+  }
+
+  int getUnlockLevel(String type) {
+    return allPlants[type]?['unlockLevel'] ?? 1;
+  }
+
+  double getWeedCost(String type) {
+    return allPlants[type]?['weedCost']?.toDouble() ?? 2;
+  }
+
+  double getWaterCost(String type) {
+    return allPlants[type]?['waterCost']?.toDouble() ?? 1;
+  }
+
+  int getGrowthTicks(String type) {
+    return allPlants[type]?['growthTicks'] ?? 60;
+  }
+
   Future<void> getFarm(String planetId) async {
     if (_authToken == null) return;
     _isLoading = true;
@@ -186,6 +240,8 @@ class FarmProvider extends ChangeNotifier {
   }
 
   String getPlantName(String type) {
+    final plant = allPlants[type];
+    if (plant != null) return plant['name'] as String;
     switch (type) {
       case 'wheat':
         return 'Пшеница';
@@ -199,6 +255,8 @@ class FarmProvider extends ChangeNotifier {
   }
 
   String getPlantIcon(String type) {
+    final plant = allPlants[type];
+    if (plant != null) return plant['icon'] as String;
     switch (type) {
       case 'wheat':
         return '🌾';
@@ -227,6 +285,7 @@ class FarmProvider extends ChangeNotifier {
   String getRowStatusText(FarmRow row) {
     if (row.isEmpty) return 'Пусто';
     if (row.isMature) return 'Собрать';
+    if (row.isWithered) return 'Увядшее';
     if (row.isPlanted) {
       final plantName = getPlantName(row.plantType ?? '');
       final stageName = getStageName(row.stage ?? 0);
@@ -241,6 +300,29 @@ class FarmProvider extends ChangeNotifier {
     return (stage + 1) / 3.0;
   }
 
+  String getTicksToMatureText(int ticks) {
+    if (ticks <= 0) return '';
+    // Each farm tick = 10 seconds
+    final totalSeconds = ticks * 10;
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0 && seconds > 0) {
+      return '${minutes}м ${seconds}с';
+    } else if (minutes > 0) {
+      return '${minutes}м';
+    }
+    return '${seconds}с';
+  }
+
+  String getWitherStatusText(FarmRow row) {
+    if (!row.isMature && !row.isWithered) return '';
+    if (row.isWithered) return '🥀 Увядшее';
+    final witherTimer = row.witherTimer;
+    if (witherTimer <= 0) return '';
+    return '⏱ $witherTimer';
+  }
+
+  @override
   void dispose() {
     super.dispose();
   }

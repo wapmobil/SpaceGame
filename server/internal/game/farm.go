@@ -3,38 +3,56 @@ package game
 import (
 	"encoding/json"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 )
 
 // Plant types
 const (
-	PlantWheat   = "wheat"
-	PlantBerries = "berries"
-	PlantMelon   = "melon"
+	PlantWheat     = "wheat"
+	PlantBerries   = "berries"
+	PlantRaspberry = "raspberry"
+	PlantRose      = "rose"
+	PlantSunflower = "sunflower"
+	PlantMelon     = "melon"
+	PlantBanana    = "banana"
+	PlantBlueberry = "blueberry"
 )
 
 // Farm row statuses
 const (
-	FarmRowEmpty   = "empty"
-	FarmRowPlanted = "planted"
-	FarmRowMature  = "mature"
+	FarmRowEmpty     = "empty"
+	FarmRowPlanted   = "planted"
+	FarmRowMature    = "mature"
+	FarmRowWithered  = "withered"
 )
 
 // FarmPlant defines a plant type
 type FarmPlant struct {
-	Type       string
-	Name       string
-	Icon       string
-	FoodReward float64
-	Stages     int
-	StageNames []string
+	Type        string
+	Name        string
+	Icon        string
+	SeedCost    float64
+	MoneyReward float64
+	FoodReward  float64
+	UnlockLevel int
+	Stages      int
+	StageNames  []string
+	WeedCost    float64
+	WaterCost   float64
+	GrowthTicks int64
 }
 
 var farmPlants = map[string]*FarmPlant{
-	PlantWheat: {Type: PlantWheat, Name: "Пшеница", Icon: "🌾", FoodReward: 5, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}},
-	PlantBerries: {Type: PlantBerries, Name: "Ягоды", Icon: "🫐", FoodReward: 15, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}},
-	PlantMelon:   {Type: PlantMelon, Name: "Космическая дыня", Icon: "🍈", FoodReward: 30, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}},
+	PlantWheat:     {Type: PlantWheat, Name: "Пшеница", Icon: "🌾", SeedCost: 5, MoneyReward: 15, FoodReward: 5, UnlockLevel: 1, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 2, WaterCost: 1, GrowthTicks: 60},
+	PlantBerries:   {Type: PlantBerries, Name: "Ягоды", Icon: "🫐", SeedCost: 15, MoneyReward: 45, FoodReward: 15, UnlockLevel: 2, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 5, WaterCost: 3, GrowthTicks: 120},
+	PlantRaspberry: {Type: PlantRaspberry, Name: "Малина", Icon: "🪴", SeedCost: 25, MoneyReward: 80, FoodReward: 25, UnlockLevel: 3, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 15, WaterCost: 5, GrowthTicks: 180},
+	PlantRose:      {Type: PlantRose, Name: "Космическая роза", Icon: "🌷", SeedCost: 60, MoneyReward: 200, FoodReward: 50, UnlockLevel: 5, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 25, WaterCost: 10, GrowthTicks: 300},
+	PlantSunflower: {Type: PlantSunflower, Name: "Космический подсолнух", Icon: "🌻", SeedCost: 120, MoneyReward: 400, FoodReward: 80, UnlockLevel: 7, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 20, WaterCost: 30, GrowthTicks: 450},
+	PlantMelon:     {Type: PlantMelon, Name: "Космическая дыня", Icon: "🍈", SeedCost: 250, MoneyReward: 800, FoodReward: 120, UnlockLevel: 9, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 30, WaterCost: 20, GrowthTicks: 600},
+	PlantBanana:    {Type: PlantBanana, Name: "Лунный банан", Icon: "🌙", SeedCost: 500, MoneyReward: 1700, FoodReward: 150, UnlockLevel: 11, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 50, WaterCost: 50, GrowthTicks: 900},
+	PlantBlueberry: {Type: PlantBlueberry, Name: "Звёздная голубика", Icon: "🫐", SeedCost: 1000, MoneyReward: 3500, FoodReward: 300, UnlockLevel: 13, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 80, WaterCost: 50, GrowthTicks: 1500},
 }
 
 // GetFarmPlant returns a farm plant by type, or nil if unknown
@@ -60,6 +78,9 @@ type FarmRow struct {
 	WaterTimer       int     `json:"water_timer"`
 	LastTick         int64   `json:"last_tick"`
 	FarmTicksSinceLast int   `json:"-"` // internal: farm ticks since last growth check
+	WitherTimer      int     `json:"wither_timer,omitempty"`
+	StageProgress    int     `json:"-"` // internal: progress within current stage (0 or 1)
+	TicksToMature    int     `json:"ticks_to_mature,omitempty"`
 }
 
 // FarmState represents the complete farm state for a planet
@@ -74,10 +95,12 @@ func NewFarmState(rowCount int) *FarmState {
 	rows := make([]FarmRow, rowCount)
 	for i := range rows {
 		rows[i] = FarmRow{
-			Status:   FarmRowEmpty,
-			Weeds:    0,
-			WaterTimer: 0,
-			Stage:    0,
+			Status:        FarmRowEmpty,
+			Weeds:         0,
+			WaterTimer:    0,
+			Stage:         0,
+			WitherTimer:   0,
+			StageProgress: 0,
 		}
 	}
 	return &FarmState{
@@ -110,6 +133,9 @@ func NewFarmStateFromJSON(data []byte, rowCount int) *FarmState {
 		if state.Rows[i].Status == "" {
 			state.Rows[i].Status = FarmRowEmpty
 		}
+		if state.Rows[i].WitherTimer == 0 {
+			state.Rows[i].WitherTimer = 0
+		}
 	}
 
 	// Ensure row count matches
@@ -133,72 +159,158 @@ func FarmTick(farm *FarmState, farmTickNum int64) bool {
 	for i := range farm.Rows {
 		row := &farm.Rows[i]
 
-		// Only process rows with planted (non-mature) plants
-		if row.Status != FarmRowPlanted {
-			continue
-		}
-
-		// Skip if we've already processed this tick
-		if row.LastTick == farmTickNum {
-			continue
-		}
-
-		plant := farmPlants[row.PlantType]
-		if plant == nil {
-			row.Status = FarmRowEmpty
-			row.PlantType = ""
-			row.Stage = 0
-			row.Weeds = 0
-			row.WaterTimer = 0
-			row.LastTick = farmTickNum
-			row.FarmTicksSinceLast = 0
-			changed = true
-			continue
-		}
-
-		// Weed spawn: 10% chance per tick, up to 3 weeds
-		if rand.Float64() < 0.10 && row.Weeds < 3 {
-			row.Weeds++
-			changed = true
-		}
-
-		// Check if watered BEFORE decrementing
-		isWatered := row.WaterTimer > 0
-
-		// Water timer decrements
-		if row.WaterTimer > 0 {
-			row.WaterTimer--
-			changed = true
-		}
-
-		// Growth: only if weeds < 3 (not fully blocked)
-		if row.Weeds < 3 {
-			advanceStage := false
-
-			if isWatered {
-				// Watered: advance 1 stage per tick
-				advanceStage = true
-			} else {
-				// Normal: advance 1 stage every 2 ticks
-				row.FarmTicksSinceLast++
-				if row.FarmTicksSinceLast >= 2 {
-					advanceStage = true
-					row.FarmTicksSinceLast = 0
-				}
+		// --- Empty rows: weed growth ---
+		if row.Status == FarmRowEmpty {
+			weedChance := 0.05 // 5% for empty rows
+			if row.WaterTimer > 0 {
+				weedChance = 0.06 // 6% for watered empty rows
 			}
-
-			if advanceStage {
-				newStage := row.Stage + 1
-				if newStage >= plant.Stages-1 {
-					newStage = plant.Stages - 1
-					row.Status = FarmRowMature
-				}
-				row.Stage = newStage
+			if rand.Float64() < weedChance && row.Weeds < 3 {
+				row.Weeds++
 				changed = true
 			}
-		}
+			row.LastTick = farmTickNum
+			continue
+		} else if row.Status == FarmRowWithered {
+			// --- Withered rows: no processing, just tick ---
+			row.LastTick = farmTickNum
+			continue
+		} else if row.Status == FarmRowPlanted {
+			plant := farmPlants[row.PlantType]
+			if plant == nil {
+				row.Status = FarmRowEmpty
+				row.PlantType = ""
+				row.Stage = 0
+				row.Weeds = 0
+				row.WaterTimer = 0
+				row.LastTick = farmTickNum
+				row.FarmTicksSinceLast = 0
+				row.StageProgress = 0
+				changed = true
+				continue
+			}
 
-		row.LastTick = farmTickNum
+			// Skip if already processed this tick
+			if row.LastTick == farmTickNum {
+				continue
+			}
+
+			// Weed spawn: 10% chance per tick, up to 3 weeds
+			if rand.Float64() < 0.10 && row.Weeds < 3 {
+				row.Weeds++
+				changed = true
+			}
+
+			// Check if watered BEFORE decrementing
+			isWatered := row.WaterTimer > 0
+
+			// Water timer decrements
+			if row.WaterTimer > 0 {
+				row.WaterTimer--
+				changed = true
+			}
+
+			// Growth: only if weeds < 3 (not fully blocked)
+			if row.Weeds < 3 {
+				advanceStage := false
+
+				if isWatered {
+					// Watered: advance 1 stage per tick
+					advanceStage = true
+				} else {
+					// Normal: advance 1 stage every 2 ticks
+					row.StageProgress++
+					if row.StageProgress >= 2 {
+						advanceStage = true
+						row.StageProgress = 0
+					}
+				}
+
+				if advanceStage {
+					newStage := row.Stage + 1
+					if newStage >= plant.Stages-1 {
+						newStage = plant.Stages - 1
+						row.Status = FarmRowMature
+						row.WitherTimer = 0
+						row.StageProgress = 0
+					}
+					row.Stage = newStage
+					changed = true
+				}
+			}
+
+			// Calculate ticks to mature
+			if row.Weeds >= 3 {
+				row.TicksToMature = -1 // blocked
+			} else {
+				remainingStages := (plant.Stages - 1) - row.Stage
+				if remainingStages <= 0 {
+					row.TicksToMature = 0
+				} else if isWatered {
+					row.TicksToMature = remainingStages
+				} else {
+					row.TicksToMature = remainingStages*2 - row.StageProgress
+				}
+			}
+
+			row.LastTick = farmTickNum
+			continue
+		} else if row.Status == FarmRowMature {
+			// --- Mature rows: wither check ---
+			plant := farmPlants[row.PlantType]
+			if plant == nil {
+				row.Status = FarmRowEmpty
+				row.PlantType = ""
+				row.Stage = 0
+				row.Weeds = 0
+				row.WaterTimer = 0
+				row.LastTick = farmTickNum
+				row.FarmTicksSinceLast = 0
+				row.WitherTimer = 0
+				row.StageProgress = 0
+				row.TicksToMature = 0
+				changed = true
+				continue
+			}
+
+			// Calculate wither time based on water status
+			witherTicks := int64(30) // default 30 ticks (5 min)
+			if row.WaterTimer > 0 {
+				witherTicks = 50 // watered: 50 ticks (8.3 min)
+			}
+			if row.Weeds >= 1 {
+				if witherTicks > 15 {
+					witherTicks = 15
+				}
+			}
+			if row.Weeds >= 2 {
+				if witherTicks > 10 {
+					witherTicks = 10
+				}
+			}
+			if row.Weeds >= 3 {
+				if witherTicks > 5 {
+					witherTicks = 5
+				}
+			}
+
+			// Increment wither timer
+			row.WitherTimer++
+			if row.WitherTimer >= int(witherTicks) {
+				row.Status = FarmRowWithered
+				changed = true
+			}
+
+			// TicksToMature = remaining wither time
+			remainingWither := int(witherTicks) - row.WitherTimer
+			if remainingWither < 0 {
+				remainingWither = 0
+			}
+			row.TicksToMature = remainingWither
+
+			row.LastTick = farmTickNum
+			continue
+		}
 	}
 
 	farm.LastTick = farmTickNum
@@ -234,11 +346,16 @@ func ProcessFarmTick(planet *Planet, gameTick int64) {
 
 // FarmActionResult is the result of a farm action
 type FarmActionResult struct {
-	Success  bool     `json:"success"`
-	Error    string   `json:"error,omitempty"`
-	Rows     []FarmRow `json:"rows"`
-	LastTick int64    `json:"last_tick"`
-	FoodGain float64  `json:"food_gain,omitempty"`
+	Success      bool      `json:"success"`
+	Error        string    `json:"error,omitempty"`
+	Rows         []FarmRow `json:"rows"`
+	LastTick     int64     `json:"last_tick"`
+	FoodGain     float64   `json:"food_gain,omitempty"`
+	MoneyGain    float64   `json:"money_gain,omitempty"`
+	FoodCost     float64   `json:"food_cost,omitempty"`
+	SeedCost     float64   `json:"seed_cost,omitempty"`
+	UnlockLevel  int       `json:"unlock_level,omitempty"`
+	WitherTimer  int       `json:"wither_timer,omitempty"`
 }
 
 // FarmActionCooldown is the cooldown between farm actions in seconds
@@ -309,12 +426,32 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 			result.Error = "Unknown plant type"
 			return result, nil
 		}
+		// Check unlock level
+		farmLevel := planet.GetBuildingLevel("farm")
+		if farmLevel < plant.UnlockLevel {
+			result.Error = "Requires farm level " + itoa(plant.UnlockLevel)
+			result.UnlockLevel = plant.UnlockLevel
+			return result, nil
+		}
+		// Check money
+		if planet.Resources.Money < plant.SeedCost {
+			result.Error = "Not enough money. Need " + itoaF(plant.SeedCost) + "💰, have " + itoaF(planet.Resources.Money) + "💰"
+			result.SeedCost = plant.SeedCost
+			return result, nil
+		}
+		// Deduct seed cost
+		planet.Resources.Money -= plant.SeedCost
+		result.SeedCost = plant.SeedCost
 		row.Status = FarmRowPlanted
 		row.PlantType = plantType
 		row.Stage = 0
 		row.Weeds = 0
 		row.WaterTimer = 0
+		row.WitherTimer = 0
 		row.LastTick = 0
+		row.FarmTicksSinceLast = 0
+		row.StageProgress = 0
+		row.TicksToMature = 0
 		result.Success = true
 
 	case "weed":
@@ -322,9 +459,28 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 			result.Error = "Row is empty"
 			return result, nil
 		}
-		if row.Weeds > 0 {
-			row.Weeds--
+		if row.Weeds <= 0 {
+			result.Error = "No weeds to remove"
+			return result, nil
 		}
+		// Get weed cost
+		weedCost := 2.0
+		if row.Status == FarmRowPlanted || row.Status == FarmRowMature || row.Status == FarmRowWithered {
+			plant := farmPlants[row.PlantType]
+			if plant != nil {
+				weedCost = plant.WeedCost
+			}
+		}
+		// Check food
+		if planet.Resources.Food < weedCost {
+			result.Error = "Not enough food. Need " + itoaF(weedCost) + "🍍, have " + itoaF(planet.Resources.Food) + "🍍"
+			result.FoodCost = weedCost
+			return result, nil
+		}
+		// Deduct food and remove weed
+		planet.Resources.Food -= weedCost
+		result.FoodCost = weedCost
+		row.Weeds--
 		result.Success = true
 
 	case "water":
@@ -332,6 +488,23 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 			result.Error = "Row is empty"
 			return result, nil
 		}
+		// Get water cost
+		waterCost := 1.0
+		if row.Status == FarmRowPlanted || row.Status == FarmRowMature || row.Status == FarmRowWithered {
+			plant := farmPlants[row.PlantType]
+			if plant != nil {
+				waterCost = plant.WaterCost
+			}
+		}
+		// Check food
+		if planet.Resources.Food < waterCost {
+			result.Error = "Not enough food. Need " + itoaF(waterCost) + "🍍, have " + itoaF(planet.Resources.Food) + "🍍"
+			result.FoodCost = waterCost
+			return result, nil
+		}
+		// Deduct food and set water timer
+		planet.Resources.Food -= waterCost
+		result.FoodCost = waterCost
 		row.WaterTimer = 10
 		result.Success = true
 
@@ -343,7 +516,9 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		plant := farmPlants[row.PlantType]
 		if plant != nil {
 			planet.Resources.Food += plant.FoodReward
+			planet.Resources.Money += plant.MoneyReward
 			result.FoodGain = plant.FoodReward
+			result.MoneyGain = plant.MoneyReward
 		}
 		// Reset row to empty
 		row.Status = FarmRowEmpty
@@ -351,7 +526,11 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 		row.Stage = 0
 		row.Weeds = 0
 		row.WaterTimer = 0
+		row.WitherTimer = 0
 		row.LastTick = 0
+		row.FarmTicksSinceLast = 0
+		row.StageProgress = 0
+		row.TicksToMature = 0
 		result.Success = true
 
 	default:
@@ -368,4 +547,15 @@ func farmAction(planet *Planet, action string, rowIndex int, plantType string) (
 	SaveFarmToDB(planet)
 
 	return result, nil
+}
+
+func itoa(n int) string {
+	return strconv.Itoa(n)
+}
+
+func itoaF(f float64) string {
+	if f == float64(int(f)) {
+		return strconv.Itoa(int(f))
+	}
+	return strconv.FormatFloat(f, 'f', 1, 64)
 }

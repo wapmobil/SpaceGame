@@ -166,9 +166,10 @@ func TestFarmTick_EmptyRow(t *testing.T) {
 	farm := NewFarmState(1)
 	// Row is empty by default
 
-	changed := FarmTick(farm, 100)
-	if changed {
-		t.Error("Expected no change for empty row")
+	FarmTick(farm, 100)
+	// Empty rows only update LastTick, weeds are random
+	if farm.Rows[0].LastTick != 100 {
+		t.Errorf("Expected LastTick 100, got %d", farm.Rows[0].LastTick)
 	}
 }
 
@@ -193,12 +194,11 @@ func TestFarmTick_MatureRow(t *testing.T) {
 }
 
 func TestFarmAction_Plant(t *testing.T) {
-	// We need a planet for the action to work
-	// Create a mock planet with farm state
 	planet := &Planet{
 		ID:      "test-planet-plant",
 		FarmState: NewFarmState(1),
-		Resources: PlanetResources{Food: 100},
+		Resources: PlanetResources{Food: 100, Money: 100},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
 	result, err := FarmActionInternal(planet, "plant", 0, PlantWheat)
@@ -216,6 +216,12 @@ func TestFarmAction_Plant(t *testing.T) {
 	}
 	if result.Rows[0].Stage != 0 {
 		t.Errorf("Expected stage 0, got %d", result.Rows[0].Stage)
+	}
+	if result.SeedCost != 5 {
+		t.Errorf("Expected seed cost 5, got %.0f", result.SeedCost)
+	}
+	if planet.Resources.Money != 95 {
+		t.Errorf("Expected money 95 after planting, got %.0f", planet.Resources.Money)
 	}
 }
 
@@ -255,6 +261,7 @@ func TestFarmAction_Weed(t *testing.T) {
 			RowCount: 1,
 		},
 		Resources: PlanetResources{Food: 100},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
 	// Clear cooldown between tests
@@ -269,6 +276,12 @@ func TestFarmAction_Weed(t *testing.T) {
 	if result.Rows[0].Weeds != 1 {
 		t.Errorf("Expected 1 weed after weeding, got %d", result.Rows[0].Weeds)
 	}
+	if result.FoodCost != 2 {
+		t.Errorf("Expected food cost 2 for wheat weed, got %.0f", result.FoodCost)
+	}
+	if planet.Resources.Food != 98 {
+		t.Errorf("Expected 98 food after weeding, got %.0f", planet.Resources.Food)
+	}
 }
 
 func TestFarmAction_WeedMax(t *testing.T) {
@@ -281,6 +294,7 @@ func TestFarmAction_WeedMax(t *testing.T) {
 			RowCount: 1,
 		},
 		Resources: PlanetResources{Food: 100},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
 	// Clear cooldown between tests
@@ -295,6 +309,9 @@ func TestFarmAction_WeedMax(t *testing.T) {
 	if result.Rows[0].Weeds != 2 {
 		t.Errorf("Expected 2 weeds after weeding from 3, got %d", result.Rows[0].Weeds)
 	}
+	if result.FoodCost != 2 {
+		t.Errorf("Expected food cost 2 for wheat weed, got %.0f", result.FoodCost)
+	}
 }
 
 func TestFarmAction_Water(t *testing.T) {
@@ -307,6 +324,7 @@ func TestFarmAction_Water(t *testing.T) {
 			RowCount: 1,
 		},
 		Resources: PlanetResources{Food: 100},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
 	// Clear cooldown between tests
@@ -321,6 +339,12 @@ func TestFarmAction_Water(t *testing.T) {
 	if result.Rows[0].WaterTimer != 10 {
 		t.Errorf("Expected water_timer 10, got %d", result.Rows[0].WaterTimer)
 	}
+	if result.FoodCost != 1 {
+		t.Errorf("Expected food cost 1 for wheat water, got %.0f", result.FoodCost)
+	}
+	if planet.Resources.Food != 99 {
+		t.Errorf("Expected 99 food after watering, got %.0f", planet.Resources.Food)
+	}
 }
 
 func TestFarmAction_Harvest(t *testing.T) {
@@ -332,7 +356,7 @@ func TestFarmAction_Harvest(t *testing.T) {
 			},
 			RowCount: 1,
 		},
-		Resources: PlanetResources{Food: 100},
+		Resources: PlanetResources{Food: 100, Money: 50},
 	}
 
 	// Clear cooldown between tests
@@ -350,8 +374,14 @@ func TestFarmAction_Harvest(t *testing.T) {
 	if result.FoodGain != 5 {
 		t.Errorf("Expected food gain 5, got %.0f", result.FoodGain)
 	}
+	if result.MoneyGain != 15 {
+		t.Errorf("Expected money gain 15, got %.0f", result.MoneyGain)
+	}
 	if planet.Resources.Food != 105 {
 		t.Errorf("Expected 105 food after harvest, got %.0f", planet.Resources.Food)
+	}
+	if planet.Resources.Money != 65 {
+		t.Errorf("Expected 65 money after harvest, got %.0f", planet.Resources.Money)
 	}
 }
 
@@ -364,7 +394,7 @@ func TestFarmAction_HarvestBerries(t *testing.T) {
 			},
 			RowCount: 1,
 		},
-		Resources: PlanetResources{Food: 100},
+		Resources: PlanetResources{Food: 100, Money: 50},
 	}
 
 	// Clear cooldown between tests
@@ -375,6 +405,9 @@ func TestFarmAction_HarvestBerries(t *testing.T) {
 	}
 	if result.FoodGain != 15 {
 		t.Errorf("Expected food gain 15 for berries, got %.0f", result.FoodGain)
+	}
+	if result.MoneyGain != 45 {
+		t.Errorf("Expected money gain 45 for berries, got %.0f", result.MoneyGain)
 	}
 }
 
@@ -387,7 +420,7 @@ func TestFarmAction_HarvestMelon(t *testing.T) {
 			},
 			RowCount: 1,
 		},
-		Resources: PlanetResources{Food: 100},
+		Resources: PlanetResources{Food: 100, Money: 50},
 	}
 
 	// Clear cooldown between tests
@@ -396,8 +429,11 @@ func TestFarmAction_HarvestMelon(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
-	if result.FoodGain != 30 {
-		t.Errorf("Expected food gain 30 for melon, got %.0f", result.FoodGain)
+	if result.FoodGain != 120 {
+		t.Errorf("Expected food gain 120 for melon, got %.0f", result.FoodGain)
+	}
+	if result.MoneyGain != 800 {
+		t.Errorf("Expected money gain 800 for melon, got %.0f", result.MoneyGain)
 	}
 }
 
@@ -488,7 +524,8 @@ func TestFarmAction_Cooldown(t *testing.T) {
 			},
 			RowCount: 1,
 		},
-		Resources: PlanetResources{Food: 100},
+		Resources: PlanetResources{Food: 100, Money: 100},
+		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
 	// First action should succeed
@@ -521,6 +558,15 @@ func TestFarmPlantDefinitions(t *testing.T) {
 	if wheat.Icon != "🌾" {
 		t.Errorf("Expected wheat icon '🌾', got '%s'", wheat.Icon)
 	}
+	if wheat.SeedCost != 5 {
+		t.Errorf("Expected wheat seed cost 5, got %.0f", wheat.SeedCost)
+	}
+	if wheat.MoneyReward != 15 {
+		t.Errorf("Expected wheat money reward 15, got %.0f", wheat.MoneyReward)
+	}
+	if wheat.UnlockLevel != 1 {
+		t.Errorf("Expected wheat unlock level 1, got %d", wheat.UnlockLevel)
+	}
 
 	berries := farmPlants[PlantBerries]
 	if berries == nil {
@@ -534,15 +580,44 @@ func TestFarmPlantDefinitions(t *testing.T) {
 	if melon == nil {
 		t.Fatal("Melon plant not found")
 	}
-	if melon.FoodReward != 30 {
-		t.Errorf("Expected melon food reward 30, got %.0f", melon.FoodReward)
+	if melon.FoodReward != 120 {
+		t.Errorf("Expected melon food reward 120, got %.0f", melon.FoodReward)
+	}
+	if melon.MoneyReward != 800 {
+		t.Errorf("Expected melon money reward 800, got %.0f", melon.MoneyReward)
+	}
+	if melon.UnlockLevel != 9 {
+		t.Errorf("Expected melon unlock level 9, got %d", melon.UnlockLevel)
+	}
+
+	// Check new plants exist
+	rose := farmPlants[PlantRose]
+	if rose == nil {
+		t.Fatal("Rose plant not found")
+	}
+	if rose.Name != "Космическая роза" {
+		t.Errorf("Expected rose name 'Космическая роза', got '%s'", rose.Name)
+	}
+	if rose.UnlockLevel != 5 {
+		t.Errorf("Expected rose unlock level 5, got %d", rose.UnlockLevel)
+	}
+
+	banana := farmPlants[PlantBanana]
+	if banana == nil {
+		t.Fatal("Banana plant not found")
+	}
+	if banana.Name != "Лунный банан" {
+		t.Errorf("Expected banana name 'Лунный банан', got '%s'", banana.Name)
+	}
+	if banana.UnlockLevel != 11 {
+		t.Errorf("Expected banana unlock level 11, got %d", banana.UnlockLevel)
 	}
 }
 
 func TestGetAllFarmPlants(t *testing.T) {
 	plants := GetAllFarmPlants()
-	if len(plants) != 3 {
-		t.Errorf("Expected 3 plant types, got %d", len(plants))
+	if len(plants) != 8 {
+		t.Errorf("Expected 8 plant types, got %d", len(plants))
 	}
 }
 
@@ -744,15 +819,18 @@ func TestFarmStateJSONSerialization(t *testing.T) {
 func TestFarmTick_NoTickForEmptyRows(t *testing.T) {
 	farm := NewFarmState(2)
 
-	// All rows empty, no ticks should change anything
+	// All rows empty - they should just update LastTick
 	startTick := time.Now()
-	changed := FarmTick(farm, 100)
+	FarmTick(farm, 100)
 	elapsed := time.Since(startTick)
 
 	if elapsed > 100*time.Millisecond {
 		t.Errorf("FarmTick took too long (%v) on empty farm", elapsed)
 	}
-	if changed {
-		t.Error("Expected no change for all-empty farm")
+	// Empty rows may get weeds (random), so we only check that LastTick was updated
+	for i := range farm.Rows {
+		if farm.Rows[i].LastTick != 100 {
+			t.Errorf("Row %d: expected LastTick 100, got %d", i, farm.Rows[i].LastTick)
+		}
 	}
 }

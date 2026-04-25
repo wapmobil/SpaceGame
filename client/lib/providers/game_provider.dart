@@ -147,6 +147,17 @@ class GameProvider extends ChangeNotifier {
   bool get researchPaused => _researchPaused;
   String? get authToken => _player?.authToken;
 
+  int getBuildingLevelForPlanet(String planetId, String buildingType) {
+    final planet = planets.firstWhere((p) => p.id == planetId, orElse: () => _selectedPlanet!);
+    final buildings = planet.buildings ?? [];
+    for (final b in buildings) {
+      if (b.type == buildingType) {
+        return b.level;
+      }
+    }
+    return 0;
+  }
+
   void _setError(String msg) {
     _errorMessage = msg;
     notifyListeners();
