@@ -148,8 +148,7 @@ class GameProvider extends ChangeNotifier {
   String? get authToken => _player?.authToken;
 
   int getBuildingLevelForPlanet(String planetId, String buildingType) {
-    final planet = planets.firstWhere((p) => p.id == planetId, orElse: () => _selectedPlanet!);
-    final buildings = planet.buildings ?? [];
+    final buildings = planetId == _selectedPlanet?.id ? _buildings : (planets.firstWhere((p) => p.id == planetId, orElse: () => _selectedPlanet!).buildings ?? []);
     for (final b in buildings) {
       if (b.type == buildingType) {
         return b.level;

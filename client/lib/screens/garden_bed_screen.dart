@@ -504,7 +504,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
               const Text('💧', style: TextStyle(fontSize: 11)),
               const SizedBox(width: 2),
               Text(
-                '$row.waterTimer',
+                '${row.waterTimer}',
                 style: const TextStyle(color: AppTheme.accentColor, fontSize: 10),
               ),
             ],
