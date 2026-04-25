@@ -22,7 +22,7 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 					Error(w, http.StatusConflict, "Already have an active drill session")
 					return
 				}
-				delete(game.ActiveSessions(), s.SessionID)
+				game.RemoveSession(s.SessionID)
 			}
 		}
 
@@ -185,6 +185,8 @@ func handleCompleteDrill(db *sql.DB) http.HandlerFunc {
 		totalEarned := dg.Complete()
 		sess := dg.GetSession()
 
+		db.Exec("UPDATE players SET drill_last_completed = NOW() WHERE id = $1", playerID)
+
 		if totalEarned > 0 {
 			p := game.Instance().GetPlanet(planetID)
 			if p != nil {
@@ -268,6 +270,8 @@ func handleDestroyDrill(db *sql.DB) http.HandlerFunc {
 
 		dg.Destroy()
 
+		db.Exec("UPDATE players SET drill_last_completed = NOW() WHERE id = $1", playerID)
+
 		totalEarned := dg.GetSession().TotalEarned
 		if totalEarned > 0 {
 			p := game.Instance().GetPlanet(planetID)
@@ -342,7 +346,7 @@ func handleCleanupDrill(db *sql.DB) http.HandlerFunc {
 						game.Instance().SavePlanet(p)
 					}
 				}
-				delete(game.ActiveSessions(), sess.SessionID)
+				game.RemoveSession(sess.SessionID)
 			}
 		}
 

@@ -178,6 +178,13 @@ func ActiveSessions() map[string]*DrillGame {
 	return result
 }
 
+// RemoveSession removes a drill session from the active sessions map
+func RemoveSession(sessionID string) {
+	activeSessionsMu.Lock()
+	defer activeSessionsMu.Unlock()
+	delete(activeSessions, sessionID)
+}
+
 // FindActiveSession finds an active or ended drill session by planet and player ID
 func FindActiveSession(planetID, playerID string) *DrillGame {
 	activeSessionsMu.RLock()
