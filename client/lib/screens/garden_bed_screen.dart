@@ -567,8 +567,8 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
       if (selectedPlant != null) {
         await gardenBedProvider.gardenBedAction(widget.planetId, 'plant', rowIndex, plantType: selectedPlant);
       }
-    } else if (action == 'weed' && context.read<GardenBedProvider>().gardenBedState?.rows[rowIndex].isWithered == true) {
-      await gardenBedProvider.gardenBedAction(widget.planetId, 'weed', rowIndex);
+    } else if (action == 'weed' && gardenBedProvider.gardenBedState?.rows[rowIndex].isWithered == true) {
+      await gardenBedProvider.gardenBedAction(widget.planetId, 'clear', rowIndex);
     } else {
       await gardenBedProvider.gardenBedAction(widget.planetId, action, rowIndex);
     }

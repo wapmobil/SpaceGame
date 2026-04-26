@@ -346,6 +346,12 @@ class GameProvider extends ChangeNotifier {
         );
       }
 
+      // Update garden bed state
+      final farmStateJson = stateData['garden_bed_state'] as Map<String, dynamic>?;
+      if (farmStateJson != null && farmStateJson.isNotEmpty) {
+        _gardenBedProvider.onGardenBedUpdate(farmStateJson);
+      }
+
       notifyListeners();
     }
   }

@@ -518,6 +518,32 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		row.TicksToMature = 0
 		result.Success = true
 
+	case "clear":
+		if row.Status != GardenBedRowWithered {
+			result.Error = "Only withered plants can be cleared"
+			return result, nil
+		}
+		farmLevel := planet.GetBuildingLevel("farm")
+		clearCost := float64(farmLevel) * 10.0
+		if planet.Resources.Food < clearCost {
+			result.Error = "Not enough food. Need " + itoaF(clearCost) + "🍍, have " + itoaF(planet.Resources.Food) + "🍍"
+			result.FoodCost = clearCost
+			return result, nil
+		}
+		planet.Resources.Food -= clearCost
+		result.FoodCost = clearCost
+		row.Status = GardenBedRowEmpty
+		row.PlantType = ""
+		row.Stage = 0
+		row.Weeds = 0
+		row.WaterTimer = 0
+		row.WitherTimer = 0
+		row.LastTick = 0
+		row.GardenBedTicksSinceLast = 0
+		row.StageProgress = 0
+		row.TicksToMature = 0
+		result.Success = true
+
 	default:
 		result.Error = "Unknown action: " + action
 		return result, nil
