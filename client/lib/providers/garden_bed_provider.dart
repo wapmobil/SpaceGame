@@ -310,7 +310,6 @@ class GardenBedProvider extends ChangeNotifier {
     final growthTicks = getGrowthTicks(plantType);
     final stages = 3;
     final ticksPerStage = growthTicks ~/ (stages - 1);
-    final interval = row.isWatered ? ticksPerStage ~/ 2 : ticksPerStage;
     final maxStage = stages - 1;
     final totalTicks = maxStage * ticksPerStage;
     final completed = (row.stage ?? 0) * ticksPerStage + row.stageProgress;

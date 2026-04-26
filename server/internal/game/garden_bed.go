@@ -210,15 +210,15 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 			}
 
 			// Growth: only if weeds < 3 (not fully blocked)
+			ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
 			if row.Weeds < 3 {
 				advanceStage := false
-				ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
 
 				if isWatered {
-					ticksPerStage = ticksPerStage / 2
+					row.StageProgress += 2
+				} else {
+					row.StageProgress++
 				}
-
-				row.StageProgress++
 				if row.StageProgress >= ticksPerStage {
 					advanceStage = true
 					row.StageProgress = 0
@@ -244,12 +244,12 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				remainingStages := (plant.Stages - 1) - row.Stage
 				if remainingStages <= 0 {
 					row.TicksToMature = 0
-				} else if isWatered {
-					ticksPerStage := plant.GrowthTicks / (plant.Stages - 1) / 2
-					row.TicksToMature = remainingStages*ticksPerStage - row.StageProgress
 				} else {
-					ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
-					row.TicksToMature = remainingStages*ticksPerStage - row.StageProgress
+					remainingTicks := remainingStages*ticksPerStage - row.StageProgress
+					if isWatered && remainingTicks > 0 {
+						remainingTicks = (remainingTicks + 1) / 2
+					}
+					row.TicksToMature = remainingTicks
 				}
 			}
 
