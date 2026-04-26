@@ -41,18 +41,18 @@ type GardenBedPlant struct {
 	StageNames  []string
 	WeedCost    float64
 	WaterCost   float64
-	
+	GrowthTicks int
 }
 
 var gardenBedPlants = map[string]*GardenBedPlant{
-	PlantWheat:     {Type: PlantWheat, Name: "Пшеница", Icon: "🌾", SeedCost: 5, MoneyReward: 15, FoodReward: 5, UnlockLevel: 1, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 2, WaterCost: 1},
-	PlantBerries:   {Type: PlantBerries, Name: "Ягоды", Icon: "🫐", SeedCost: 15, MoneyReward: 45, FoodReward: 15, UnlockLevel: 2, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 5, WaterCost: 3},
-	PlantRaspberry: {Type: PlantRaspberry, Name: "Малина", Icon: "🪴", SeedCost: 25, MoneyReward: 80, FoodReward: 25, UnlockLevel: 3, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 15, WaterCost: 5},
-	PlantRose:      {Type: PlantRose, Name: "Космическая роза", Icon: "🌷", SeedCost: 60, MoneyReward: 200, FoodReward: 50, UnlockLevel: 5, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 25, WaterCost: 10},
-	PlantSunflower: {Type: PlantSunflower, Name: "Космический подсолнух", Icon: "🌻", SeedCost: 120, MoneyReward: 400, FoodReward: 80, UnlockLevel: 7, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 20, WaterCost: 30},
-	PlantMelon:     {Type: PlantMelon, Name: "Космическая дыня", Icon: "🍈", SeedCost: 250, MoneyReward: 800, FoodReward: 120, UnlockLevel: 9, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 30, WaterCost: 20},
-	PlantBanana:    {Type: PlantBanana, Name: "Лунный банан", Icon: "🌙", SeedCost: 500, MoneyReward: 1700, FoodReward: 150, UnlockLevel: 11, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 50, WaterCost: 50},
-	PlantBlueberry: {Type: PlantBlueberry, Name: "Звёздная голубика", Icon: "🫐", SeedCost: 1000, MoneyReward: 3500, FoodReward: 300, UnlockLevel: 13, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 80, WaterCost: 50},
+	PlantWheat:     {Type: PlantWheat, Name: "Пшеница", Icon: "🌾", SeedCost: 5, MoneyReward: 15, FoodReward: 5, UnlockLevel: 1, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 2, WaterCost: 1, GrowthTicks: 60},
+	PlantBerries:   {Type: PlantBerries, Name: "Ягоды", Icon: "🫐", SeedCost: 15, MoneyReward: 45, FoodReward: 15, UnlockLevel: 2, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 5, WaterCost: 3, GrowthTicks: 120},
+	PlantRaspberry: {Type: PlantRaspberry, Name: "Малина", Icon: "🪴", SeedCost: 25, MoneyReward: 80, FoodReward: 25, UnlockLevel: 3, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 15, WaterCost: 5, GrowthTicks: 180},
+	PlantRose:      {Type: PlantRose, Name: "Космическая роза", Icon: "🌷", SeedCost: 60, MoneyReward: 200, FoodReward: 50, UnlockLevel: 5, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 25, WaterCost: 10, GrowthTicks: 300},
+	PlantSunflower: {Type: PlantSunflower, Name: "Космический подсолнух", Icon: "🌻", SeedCost: 120, MoneyReward: 400, FoodReward: 80, UnlockLevel: 7, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 20, WaterCost: 30, GrowthTicks: 450},
+	PlantMelon:     {Type: PlantMelon, Name: "Космическая дыня", Icon: "🍈", SeedCost: 250, MoneyReward: 800, FoodReward: 120, UnlockLevel: 9, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 30, WaterCost: 20, GrowthTicks: 600},
+	PlantBanana:    {Type: PlantBanana, Name: "Лунный банан", Icon: "🌙", SeedCost: 500, MoneyReward: 1700, FoodReward: 150, UnlockLevel: 11, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 50, WaterCost: 50, GrowthTicks: 900},
+	PlantBlueberry: {Type: PlantBlueberry, Name: "Звёздная голубика", Icon: "🫐", SeedCost: 1000, MoneyReward: 3500, FoodReward: 300, UnlockLevel: 13, Stages: 3, StageNames: []string{"Семя", "Росток", "Созрело"}, WeedCost: 80, WaterCost: 50, GrowthTicks: 1500},
 }
 
 // GetGardenBedPlant returns a garden bed plant by type, or nil if unknown
@@ -212,21 +212,16 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 			// Growth: only if weeds < 3 (not fully blocked)
 			if row.Weeds < 3 {
 				advanceStage := false
+				ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
 
 				if isWatered {
-					// Watered: advance 1 stage every 10 ticks
-					row.StageProgress++
-					if row.StageProgress >= 10 {
-						advanceStage = true
-						row.StageProgress = 0
-					}
-				} else {
-					// Normal: advance 1 stage every 20 ticks
-					row.StageProgress++
-					if row.StageProgress >= 20 {
-						advanceStage = true
-						row.StageProgress = 0
-					}
+					ticksPerStage = ticksPerStage / 2
+				}
+
+				row.StageProgress++
+				if row.StageProgress >= ticksPerStage {
+					advanceStage = true
+					row.StageProgress = 0
 				}
 
 				if advanceStage {
@@ -250,9 +245,11 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				if remainingStages <= 0 {
 					row.TicksToMature = 0
 				} else if isWatered {
-					row.TicksToMature = remainingStages*10 - row.StageProgress
+					ticksPerStage := plant.GrowthTicks / (plant.Stages - 1) / 2
+					row.TicksToMature = remainingStages*ticksPerStage - row.StageProgress
 				} else {
-					row.TicksToMature = remainingStages*20 - row.StageProgress
+					ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
+					row.TicksToMature = remainingStages*ticksPerStage - row.StageProgress
 				}
 			}
 

@@ -124,6 +124,7 @@ class GardenBedPlant {
   final List<String> stageNames;
   final double weedCost;
   final double waterCost;
+  final int growthTicks;
 
   GardenBedPlant({
     required this.type,
@@ -136,6 +137,7 @@ class GardenBedPlant {
     required this.stageNames,
     required this.weedCost,
     required this.waterCost,
+    required this.growthTicks,
   });
 
   factory GardenBedPlant.fromJson(Map<String, dynamic> json) {
@@ -150,6 +152,7 @@ class GardenBedPlant {
       stageNames: (json['stage_names'] as List?)?.map((s) => s as String).toList() ?? ['Семя', 'Росток', 'Созрело'],
       weedCost: (json['weed_cost'] as num?)?.toDouble() ?? 0,
       waterCost: (json['water_cost'] as num?)?.toDouble() ?? 0,
+      growthTicks: json['growth_ticks'] as int? ?? 60,
     );
   }
 

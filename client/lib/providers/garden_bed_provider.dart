@@ -40,14 +40,14 @@ class GardenBedProvider extends ChangeNotifier {
 
   // Plant definitions
   Map<String, Map<String, dynamic>> get allPlants => {
-    'wheat': {'type': 'wheat', 'name': 'Пшеница', 'icon': '🌾', 'seedCost': 5, 'moneyReward': 15, 'foodReward': 5, 'unlockLevel': 1, 'weedCost': 2, 'waterCost': 1},
-    'berries': {'type': 'berries', 'name': 'Ягоды', 'icon': '🫐', 'seedCost': 15, 'moneyReward': 45, 'foodReward': 15, 'unlockLevel': 2, 'weedCost': 5, 'waterCost': 3},
-    'raspberry': {'type': 'raspberry', 'name': 'Малина', 'icon': '🪴', 'seedCost': 25, 'moneyReward': 80, 'foodReward': 25, 'unlockLevel': 3, 'weedCost': 15, 'waterCost': 5},
-    'rose': {'type': 'rose', 'name': 'Космическая роза', 'icon': '🌷', 'seedCost': 60, 'moneyReward': 200, 'foodReward': 50, 'unlockLevel': 5, 'weedCost': 25, 'waterCost': 10},
-    'sunflower': {'type': 'sunflower', 'name': 'Космический подсолнух', 'icon': '🌻', 'seedCost': 120, 'moneyReward': 400, 'foodReward': 80, 'unlockLevel': 7, 'weedCost': 20, 'waterCost': 30},
-    'melon': {'type': 'melon', 'name': 'Космическая дыня', 'icon': '🍈', 'seedCost': 250, 'moneyReward': 800, 'foodReward': 120, 'unlockLevel': 9, 'weedCost': 30, 'waterCost': 20},
-    'banana': {'type': 'banana', 'name': 'Лунный банан', 'icon': '🌙', 'seedCost': 500, 'moneyReward': 1700, 'foodReward': 150, 'unlockLevel': 11, 'weedCost': 50, 'waterCost': 50},
-    'blueberry': {'type': 'blueberry', 'name': 'Звёздная голубика', 'icon': '🫐', 'seedCost': 1000, 'moneyReward': 3500, 'foodReward': 300, 'unlockLevel': 13, 'weedCost': 80, 'waterCost': 50},
+    'wheat': {'type': 'wheat', 'name': 'Пшеница', 'icon': '🌾', 'seedCost': 5, 'moneyReward': 15, 'foodReward': 5, 'unlockLevel': 1, 'weedCost': 2, 'waterCost': 1, 'growthTicks': 60},
+    'berries': {'type': 'berries', 'name': 'Ягоды', 'icon': '🫐', 'seedCost': 15, 'moneyReward': 45, 'foodReward': 15, 'unlockLevel': 2, 'weedCost': 5, 'waterCost': 3, 'growthTicks': 120},
+    'raspberry': {'type': 'raspberry', 'name': 'Малина', 'icon': '🪴', 'seedCost': 25, 'moneyReward': 80, 'foodReward': 25, 'unlockLevel': 3, 'weedCost': 15, 'waterCost': 5, 'growthTicks': 180},
+    'rose': {'type': 'rose', 'name': 'Космическая роза', 'icon': '🌷', 'seedCost': 60, 'moneyReward': 200, 'foodReward': 50, 'unlockLevel': 5, 'weedCost': 25, 'waterCost': 10, 'growthTicks': 300},
+    'sunflower': {'type': 'sunflower', 'name': 'Космический подсолнух', 'icon': '🌻', 'seedCost': 120, 'moneyReward': 400, 'foodReward': 80, 'unlockLevel': 7, 'weedCost': 20, 'waterCost': 30, 'growthTicks': 450},
+    'melon': {'type': 'melon', 'name': 'Космическая дыня', 'icon': '🍈', 'seedCost': 250, 'moneyReward': 800, 'foodReward': 120, 'unlockLevel': 9, 'weedCost': 30, 'waterCost': 20, 'growthTicks': 600},
+    'banana': {'type': 'banana', 'name': 'Лунный банан', 'icon': '🌙', 'seedCost': 500, 'moneyReward': 1700, 'foodReward': 150, 'unlockLevel': 11, 'weedCost': 50, 'waterCost': 50, 'growthTicks': 900},
+    'blueberry': {'type': 'blueberry', 'name': 'Звёздная голубика', 'icon': '🫐', 'seedCost': 1000, 'moneyReward': 3500, 'foodReward': 300, 'unlockLevel': 13, 'weedCost': 80, 'waterCost': 50, 'growthTicks': 1500},
   };
 
   Map<String, dynamic>? getPlant(String type) {
@@ -86,6 +86,10 @@ class GardenBedProvider extends ChangeNotifier {
 
   double getWaterCost(String type) {
     return allPlants[type]?['waterCost']?.toDouble() ?? 1;
+  }
+
+  int getGrowthTicks(String type) {
+    return allPlants[type]?['growthTicks'] ?? 60;
   }
 
   Future<void> getGardenBed(String planetId) async {
@@ -302,12 +306,14 @@ class GardenBedProvider extends ChangeNotifier {
   double getRowProgress(GardenBedRow row) {
     if (!row.isPlanted) return 0.0;
     if (row.isMature) return 1.0;
-    const maxStage = 2;
-    const wateredInterval = 10;
-    const normalInterval = 20;
-    final interval = row.isWatered ? wateredInterval : normalInterval;
-    final totalTicks = maxStage * interval;
-    final completed = (row.stage ?? 0) * interval + row.stageProgress;
+    final plantType = row.plantType ?? 'wheat';
+    final growthTicks = getGrowthTicks(plantType);
+    final stages = 3;
+    final ticksPerStage = growthTicks ~/ (stages - 1);
+    final interval = row.isWatered ? ticksPerStage ~/ 2 : ticksPerStage;
+    final maxStage = stages - 1;
+    final totalTicks = maxStage * ticksPerStage;
+    final completed = (row.stage ?? 0) * ticksPerStage + row.stageProgress;
     return (completed / totalTicks).clamp(0.0, 1.0);
   }
 
