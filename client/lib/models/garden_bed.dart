@@ -152,7 +152,7 @@ class GardenBedPlant {
       stageNames: (json['stage_names'] as List?)?.map((s) => s as String).toList() ?? ['Семя', 'Росток', 'Созрело'],
       weedCost: (json['weed_cost'] as num?)?.toDouble() ?? 0,
       waterCost: (json['water_cost'] as num?)?.toDouble() ?? 0,
-      growthTicks: json['growth_ticks'] as int? ?? 60,
+      growthTicks: json['growth_ticks'] as int? ?? 36,
     );
   }
 
