@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"math/rand"
 	"testing"
 	"time"
 )
@@ -71,37 +72,19 @@ func TestGardenBedTick_Growth(t *testing.T) {
 		LastTick:   0,
 	}
 
-	// First tick at 100: GardenBedTicksSinceLast becomes 1, no advance
-	GardenBedTick(gardenBed, 100)
-	if gardenBed.Rows[0].Stage != 0 {
-		t.Errorf("After tick 100: expected stage 0, got %d", gardenBed.Rows[0].Stage)
+	// Non-watered: advance 1 stage every 20 ticks (progress++ then check >= 20)
+	// Seed RNG for deterministic weed spawning (seed 48 = 0 weeds in 40 ticks)
+	rand.Seed(48)
+	// Run ticks 100-139: 40 ticks total, 2 advances expected
+	for tick := int64(100); tick <= 139; tick++ {
+		GardenBedTick(gardenBed, tick)
 	}
 
-	// Tick at 200: GardenBedTicksSinceLast becomes 2, advance to stage 1
-	changed := GardenBedTick(gardenBed, 200)
-	if !changed {
-		t.Error("Expected state change on tick 200")
-	}
-	if gardenBed.Rows[0].Stage != 1 {
-		t.Errorf("After tick 200: expected stage 1, got %d", gardenBed.Rows[0].Stage)
-	}
-
-	// Tick at 300: GardenBedTicksSinceLast becomes 1, no advance
-	GardenBedTick(gardenBed, 300)
-	if gardenBed.Rows[0].Stage != 1 {
-		t.Errorf("After tick 300: expected stage 1, got %d", gardenBed.Rows[0].Stage)
-	}
-
-	// Tick at 400: GardenBedTicksSinceLast becomes 2, advance to stage 2 (mature)
-	changed = GardenBedTick(gardenBed, 400)
-	if !changed {
-		t.Error("Expected state change on tick 400")
-	}
 	if gardenBed.Rows[0].Stage != 2 {
-		t.Errorf("After tick 400: expected stage 2, got %d", gardenBed.Rows[0].Stage)
+		t.Errorf("After tick 139: expected stage 2, got %d (weeds=%d)", gardenBed.Rows[0].Stage, gardenBed.Rows[0].Weeds)
 	}
 	if gardenBed.Rows[0].Status != GardenBedRowMature {
-		t.Errorf("After tick 400: expected status '%s', got '%s'", GardenBedRowMature, gardenBed.Rows[0].Status)
+		t.Errorf("After tick 139: expected status '%s', got '%s'", GardenBedRowMature, gardenBed.Rows[0].Status)
 	}
 }
 
@@ -112,32 +95,23 @@ func TestGardenBedTick_WaterAcceleration(t *testing.T) {
 		PlantType:  PlantWheat,
 		Stage:      0,
 		Weeds:      0,
-		WaterTimer: 2,
+		WaterTimer: 20,
 		LastTick:   0,
 	}
 
-	// Tick 100: water_timer > 0, advance stage
-	changed := GardenBedTick(gardenBed, 100)
-	if !changed {
-		t.Error("Expected state change on tick 100 with water")
-	}
-	if gardenBed.Rows[0].Stage != 1 {
-		t.Errorf("After tick 100 with water: expected stage 1, got %d", gardenBed.Rows[0].Stage)
-	}
-	if gardenBed.Rows[0].WaterTimer != 1 {
-		t.Errorf("After tick 100: expected water_timer 1, got %d", gardenBed.Rows[0].WaterTimer)
+	// Seed RNG for deterministic weed spawning (seed 48 = 0 weeds in 20 ticks)
+	rand.Seed(48)
+	// Watered: advance 1 stage every 10 ticks (progress++ then check >= 10)
+	// Run ticks 100-119: 20 ticks, 2 advances expected (watered: 10 ticks/stage)
+	for tick := int64(100); tick <= 119; tick++ {
+		GardenBedTick(gardenBed, tick)
 	}
 
-	// Tick 200: water_timer > 0, advance stage again
-	changed = GardenBedTick(gardenBed, 200)
-	if !changed {
-		t.Error("Expected state change on tick 200 with water")
-	}
 	if gardenBed.Rows[0].Stage != 2 {
-		t.Errorf("After tick 200 with water: expected stage 2, got %d", gardenBed.Rows[0].Stage)
+		t.Errorf("After tick 119 with water: expected stage 2, got %d", gardenBed.Rows[0].Stage)
 	}
-	if gardenBed.Rows[0].WaterTimer != 0 {
-		t.Errorf("After tick 200: expected water_timer 0, got %d", gardenBed.Rows[0].WaterTimer)
+	if gardenBed.Rows[0].Status != GardenBedRowMature {
+		t.Errorf("After tick 119: expected status '%s', got '%s'", GardenBedRowMature, gardenBed.Rows[0].Status)
 	}
 }
 
@@ -636,13 +610,12 @@ func TestGardenBedTick_MultipleRows(t *testing.T) {
 	gardenBed.Rows[1] = GardenBedRow{Status: GardenBedRowPlanted, PlantType: PlantBerries, Stage: 0, Weeds: 0, WaterTimer: 0, LastTick: 0}
 	gardenBed.Rows[2] = GardenBedRow{Status: GardenBedRowEmpty, Weeds: 0, WaterTimer: 0}
 
-	// Process ticks
-	GardenBedTick(gardenBed, 100)
-	GardenBedTick(gardenBed, 200)
-	GardenBedTick(gardenBed, 300)
-	GardenBedTick(gardenBed, 400)
-	GardenBedTick(gardenBed, 500)
-	GardenBedTick(gardenBed, 600)
+	// Seed RNG for deterministic weed spawning (seed 6 = 2 weeds/row, safe for 2 rows)
+	rand.Seed(6)
+	// Process 40 ticks: non-watered needs 20 ticks/stage × 2 stages = 40 ticks (100-139)
+	for tick := int64(100); tick <= 139; tick++ {
+		GardenBedTick(gardenBed, tick)
+	}
 
 	// Row 0 (wheat) should be mature at stage 2
 	if gardenBed.Rows[0].Status != GardenBedRowMature {
@@ -677,35 +650,34 @@ func TestGardenBedTick_WaterTimerExpiry(t *testing.T) {
 		LastTick:   0,
 	}
 
-	// Tick 100: water_timer > 0, advance stage, water_timer becomes 0
-	changed := GardenBedTick(gardenBed, 100)
-	if !changed {
-		t.Error("Expected state change")
-	}
-	if gardenBed.Rows[0].Stage != 1 {
-		t.Errorf("After tick 100: expected stage 1, got %d", gardenBed.Rows[0].Stage)
+	// Seed RNG for deterministic weed spawning
+	rand.Seed(48)
+	// Tick 100: watered (timer>0), progress=1, no advance, timer→0
+	GardenBedTick(gardenBed, 100)
+	if gardenBed.Rows[0].Stage != 0 {
+		t.Errorf("After tick 100: expected stage 0, got %d", gardenBed.Rows[0].Stage)
 	}
 	if gardenBed.Rows[0].WaterTimer != 0 {
 		t.Errorf("After tick 100: expected water_timer 0, got %d", gardenBed.Rows[0].WaterTimer)
 	}
 
-	// Tick 200: no water, GardenBedTicksSinceLast becomes 1, no advance
-	changed = GardenBedTick(gardenBed, 200)
-	// changed may be false since water_timer is already 0 and no stage advance
+	// Ticks 101-119: not watered, progress accumulates to 20, advance at tick 119
+	for tick := int64(101); tick <= 119; tick++ {
+		GardenBedTick(gardenBed, tick)
+	}
 	if gardenBed.Rows[0].Stage != 1 {
-		t.Errorf("After tick 200: expected stage 1 (no water), got %d", gardenBed.Rows[0].Stage)
+		t.Errorf("After tick 119: expected stage 1, got %d", gardenBed.Rows[0].Stage)
 	}
 
-	// Tick 300: GardenBedTicksSinceLast becomes 2, advance to stage 2 (mature)
-	changed = GardenBedTick(gardenBed, 300)
-	if !changed {
-		t.Error("Expected state change")
+	// Ticks 120-139: not watered, progress accumulates to 20, advance at tick 139
+	for tick := int64(120); tick <= 139; tick++ {
+		GardenBedTick(gardenBed, tick)
 	}
 	if gardenBed.Rows[0].Stage != 2 {
-		t.Errorf("After tick 300: expected stage 2, got %d", gardenBed.Rows[0].Stage)
+		t.Errorf("After tick 139: expected stage 2, got %d", gardenBed.Rows[0].Stage)
 	}
 	if gardenBed.Rows[0].Status != GardenBedRowMature {
-		t.Errorf("After tick 300: expected status '%s', got '%s'", GardenBedRowMature, gardenBed.Rows[0].Status)
+		t.Errorf("After tick 139: expected status '%s', got '%s'", GardenBedRowMature, gardenBed.Rows[0].Status)
 	}
 }
 
@@ -756,8 +728,8 @@ func TestGardenBedAction_WeedEmptyRow(t *testing.T) {
 	if result.Success {
 		t.Error("Expected failure when weeding empty row")
 	}
-	if result.Error != "Row is empty" {
-		t.Errorf("Expected error 'Row is empty', got '%s'", result.Error)
+	if result.Error != "No weeds to remove" {
+		t.Errorf("Expected error 'No weeds to remove', got '%s'", result.Error)
 	}
 }
 

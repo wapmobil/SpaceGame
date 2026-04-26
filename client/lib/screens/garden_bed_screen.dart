@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/garden_bed_provider.dart';
@@ -15,14 +17,25 @@ class GardenBedScreen extends StatefulWidget {
 }
 
 class _GardenBedScreenState extends State<GardenBedScreen> {
+  Timer? _ticker;
+
   @override
   void initState() {
     super.initState();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final fp = context.read<GameProvider>().gardenBedProvider;
       fp.clearError();
       fp.getGardenBed(widget.planetId);
     });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   @override
@@ -562,6 +575,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
   }
 
   Future<void> _handleAction(BuildContext context, GardenBedProvider gardenBedProvider, String action, int rowIndex) async {
+    gardenBedProvider.clearError();
     if (action == 'plant') {
       final selectedPlant = await _showPlantSelectionDialog(context);
       if (selectedPlant != null) {
@@ -572,7 +586,6 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
     } else {
       await gardenBedProvider.gardenBedAction(widget.planetId, action, rowIndex);
     }
-    gardenBedProvider.clearError();
   }
 
   Future<String?> _showPlantSelectionDialog(BuildContext context) async {

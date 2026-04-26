@@ -68,16 +68,17 @@ func handleGardenBedAction(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		wsBroadcast.BroadcastGardenBedUpdate(ownerID, map[string]interface{}{
-			"planet_id":    planetID,
-			"rows":         result.Rows,
-			"food_gain":    result.FoodGain,
-			"money_gain":   result.MoneyGain,
-			"food_cost":    result.FoodCost,
-			"seed_cost":    result.SeedCost,
-			"unlock_level": result.UnlockLevel,
-			"wither_timer": result.WitherTimer,
-		})
+wsBroadcast.BroadcastGardenBedUpdate(ownerID, map[string]interface{}{
+		"planet_id":    planetID,
+		"rows":         result.Rows,
+		"food_gain":    result.FoodGain,
+		"money_gain":   result.MoneyGain,
+		"food_cost":    result.FoodCost,
+		"seed_cost":    result.SeedCost,
+		"unlock_level": result.UnlockLevel,
+		"wither_timer": result.WitherTimer,
+		"cooldown_end": result.CooldownEnd,
+	})
 
 		JSON(w, http.StatusOK, result)
 	}
