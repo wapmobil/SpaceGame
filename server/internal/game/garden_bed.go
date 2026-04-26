@@ -529,17 +529,18 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 			result.FoodGain = plant.FoodReward
 			result.MoneyGain = plant.MoneyReward
 		}
-		// Reset row to empty
+		// Reset row to empty (preserve weeds)
 		row.Status = GardenBedRowEmpty
 		row.PlantType = ""
 		row.Stage = 0
-		row.Weeds = 0
+		savedWeeds := row.Weeds
 		row.WaterTimer = 0
 		row.WitherTimer = 0
 		row.LastTick = 0
 		row.GardenBedTicksSinceLast = 0
 		row.StageProgress = 0
 		row.TicksToMature = 0
+		row.Weeds = savedWeeds
 		result.Success = true
 
 	case "clear":
@@ -559,13 +560,14 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		row.Status = GardenBedRowEmpty
 		row.PlantType = ""
 		row.Stage = 0
-		row.Weeds = 0
+		savedWeeds := row.Weeds
 		row.WaterTimer = 0
 		row.WitherTimer = 0
 		row.LastTick = 0
 		row.GardenBedTicksSinceLast = 0
 		row.StageProgress = 0
 		row.TicksToMature = 0
+		row.Weeds = savedWeeds
 		result.Success = true
 
 	default:
