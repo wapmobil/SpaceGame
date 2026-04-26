@@ -304,9 +304,15 @@ class GardenBedProvider extends ChangeNotifier {
   }
 
   double getRowProgress(GardenBedRow row) {
-    if (!row.isPlanted || row.isMature) return 1.0;
-    final stage = row.stage ?? 0;
-    return (stage + 1) / 3.0;
+    if (!row.isPlanted) return 0.0;
+    if (row.isMature) return 1.0;
+    const maxStage = 2;
+    const wateredInterval = 10;
+    const normalInterval = 20;
+    final interval = row.isWatered ? wateredInterval : normalInterval;
+    final totalTicks = maxStage * interval;
+    final completed = (row.stage ?? 0) * interval + row.stageProgress;
+    return (completed / totalTicks).clamp(0.0, 1.0);
   }
 
   String getTicksToMatureText(int ticks) {

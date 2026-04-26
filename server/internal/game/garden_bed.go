@@ -79,7 +79,7 @@ type GardenBedRow struct {
 	LastTick         int64   // internal: dedup within a tick call
 	GardenBedTicksSinceLast int   `json:"-"` // internal: garden bed ticks since last growth check
 	WitherTimer      int     `json:"wither_timer,omitempty"`
-	StageProgress    int     `json:"-"` // internal: progress within current stage (0 or 1)
+	StageProgress    int     `json:"stage_progress"` // internal: progress within current stage
 	TicksToMature    int     `json:"ticks_to_mature,omitempty"`
 }
 
@@ -159,9 +159,9 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 
 		// --- Empty rows: weed growth ---
 		if row.Status == GardenBedRowEmpty {
-			weedChance := 0.05 // 5% for empty rows
+			weedChance := 0.025 // 2.5% for empty rows
 			if row.WaterTimer > 0 {
-				weedChance = 0.06 // 6% for watered empty rows
+				weedChance = 0.03 // 3% for watered empty rows
 			}
 			if rand.Float64() < weedChance && row.Weeds < 3 {
 				row.Weeds++
@@ -193,8 +193,8 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				continue
 			}
 
-			// Weed spawn: 10% chance per tick, up to 3 weeds
-			if rand.Float64() < 0.10 && row.Weeds < 3 {
+			// Weed spawn: 5% chance per tick, up to 3 weeds
+			if rand.Float64() < 0.05 && row.Weeds < 3 {
 				row.Weeds++
 				changed = true
 			}
@@ -276,23 +276,23 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 			}
 
 			// Calculate wither time based on water status
-			witherTicks := int64(30) // default 30 ticks (5 min)
+			witherTicks := int64(300) // default 300 ticks (50 min)
 			if row.WaterTimer > 0 {
-				witherTicks = 50 // watered: 50 ticks (8.3 min)
+				witherTicks = 500 // watered: 500 ticks (83 min)
 			}
 			if row.Weeds >= 1 {
-				if witherTicks > 15 {
-					witherTicks = 15
+				if witherTicks > 150 {
+					witherTicks = 150
 				}
 			}
 			if row.Weeds >= 2 {
-				if witherTicks > 10 {
-					witherTicks = 10
+				if witherTicks > 100 {
+					witherTicks = 100
 				}
 			}
 			if row.Weeds >= 3 {
-				if witherTicks > 5 {
-					witherTicks = 5
+				if witherTicks > 50 {
+					witherTicks = 50
 				}
 			}
 
@@ -475,7 +475,7 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
 			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
-				weedCost = plant.WeedCost * float64(farmLevel)
+				weedCost = plant.WeedCost * float64(farmLevel) * 10
 			}
 		}
 		// Check food
@@ -501,7 +501,7 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
 			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
-				waterCost = plant.WaterCost * float64(farmLevel)
+				waterCost = plant.WaterCost * float64(farmLevel) * 10
 			}
 		}
 		// Check food
@@ -513,7 +513,7 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		// Deduct food and set water timer
 		planet.Resources.Food -= waterCost
 		result.FoodCost = waterCost
-		row.WaterTimer = 10
+		row.WaterTimer = 100
 		result.Success = true
 
 	case "harvest":

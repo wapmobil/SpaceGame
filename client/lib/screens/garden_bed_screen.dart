@@ -296,7 +296,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                       '🌿',
                       'Прополоть',
                       AppTheme.dangerColor,
-                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat') * farmLevel,
+                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat') * farmLevel * 10,
                     ),
                   _buildActionChip(
                     context,
@@ -306,7 +306,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                     '💧',
                     'Полить',
                     AppTheme.accentColor,
-                    waterCost: gardenBedProvider.getWaterCost(row.plantType ?? 'wheat') * farmLevel,
+                    waterCost: gardenBedProvider.getWaterCost(row.plantType ?? 'wheat') * farmLevel * 10,
                   ),
                   if (row.isMature)
                     _buildActionChip(
@@ -433,14 +433,21 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: gardenBedProvider.getRowProgress(row),
-                    minHeight: 4,
-                    color: row.isMature ? AppTheme.successColor : AppTheme.accentColor,
-                    backgroundColor: Colors.white.withValues(alpha: 0.1),
-                  ),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: gardenBedProvider.getRowProgress(row)),
+                  duration: const Duration(seconds: 1),
+                  curve: Curves.easeInOut,
+                  builder: (context, value, _) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: LinearProgressIndicator(
+                        value: value,
+                        minHeight: 4,
+                        color: row.isMature ? AppTheme.successColor : AppTheme.accentColor,
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

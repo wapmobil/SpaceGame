@@ -7,6 +7,7 @@ class GardenBedRow {
   final int lastTick;
   final int witherTimer;
   final int ticksToMature;
+  final int stageProgress;
 
   GardenBedRow({
     required this.status,
@@ -17,6 +18,7 @@ class GardenBedRow {
     this.lastTick = 0,
     this.witherTimer = 0,
     this.ticksToMature = 0,
+    this.stageProgress = 0,
   });
 
   factory GardenBedRow.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class GardenBedRow {
       lastTick: json['last_tick'] as int? ?? 0,
       witherTimer: json['wither_timer'] as int? ?? 0,
       ticksToMature: json['ticks_to_mature'] as int? ?? 0,
+      stageProgress: json['stage_progress'] as int? ?? 0,
     );
   }
 
@@ -64,6 +67,7 @@ class GardenBedRow {
     int? waterTimer,
     int? lastTick,
     int? witherTimer,
+    int? stageProgress,
   }) {
     return GardenBedRow(
       status: status ?? this.status,
@@ -73,6 +77,7 @@ class GardenBedRow {
       waterTimer: waterTimer ?? this.waterTimer,
       lastTick: lastTick ?? this.lastTick,
       witherTimer: witherTimer ?? this.witherTimer,
+      stageProgress: stageProgress ?? this.stageProgress,
     );
   }
 }
