@@ -3,21 +3,18 @@
 ## Quick Start
 
 ### Prerequisites
-- Go 1.23+
-- Flutter 3.41+
+- Go 1.22+
+- Flutter 3.x (WASM target for web builds)
 - PostgreSQL 16+
 
-### 1. Setup PostgreSQL
+### 1. PostgreSQL
+
+PostgreSQL must be running. Ensure the `spacegame` database exists:
 
 ```bash
-# Install PostgreSQL
-sudo apt install postgresql
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-
-# Create database and user
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';"
-sudo -u postgres createdb spacegame
+psql -h localhost -U postgres -c "SELECT 1 FROM pg_database WHERE datname='spacegame'"
+# If not found, create it:
+createdb -h localhost -U postgres spacegame
 ```
 
 ### 2. Deploy (builds frontend, backend, starts server)
@@ -26,30 +23,21 @@ sudo -u postgres createdb spacegame
 ./deploy.sh
 ```
 
-This script stops any running server, builds Flutter web, copies frontend to `server/web/`, builds the Go binary, and starts the server in the background with logs written to `spacegame.log`.
+Stops any running server, builds Flutter web (`--release --wasm`), copies frontend to `server/web/`, builds Go binary, starts server in background. Logs to `spacegame.log`.
 
-Environment variables (optional, defaults shown):
-`DB_HOST=localhost`, `DB_PORT=5432`, `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=spacegame`, `DB_SSLMODE=disable`, `PORT=8088`.
+Env vars (defaults): `DB_HOST=localhost`, `DB_PORT=5432`, `DB_USER=postgres`, `DB_PASSWORD=postgres`, `DB_NAME=spacegame`, `DB_SSLMODE=disable`, `PORT=8088`.
 
-### 3. Open in browser
+### 3. Dev mode
+
+```bash
+# Backend only (needs server/web/ populated from a prior deploy)
+cd server && go run ./cmd/server/
+```
+
+### 4. Open
 
 ```
 http://localhost:8088/
-```
-
-Public address: `http://home.signalmodelling.ru:8088/`
-
-### Useful commands
-
-```bash
-# View logs
-tail -f spacegame.log
-
-# Deploy (full rebuild + restart)
-./deploy.sh
-
-# Dev mode — run backend directly (hot reload not available, rebuild manually)
-cd server && go run ./cmd/server/
 ```
 
 ## Repo layout
@@ -58,59 +46,65 @@ cd server && go run ./cmd/server/
 server/          Go backend (module `spacegame`)
   cmd/server/main.go          entrypoint
   internal/api/               HTTP router (chi), handlers, WebSocket
-  internal/db/                PostgreSQL, embedded migrations (auto-apply on startup)
-  internal/game/              Core game engine + subpackages (building, ship, research, battle, expedition, mining)
+  internal/db/                PostgreSQL, embedded migrations
+  internal/game/              Core game engine + subpackages
   internal/scheduler/         Ticked background tasks
-  migrations/                 .up/.down SQL files (kept in sync with internal/db/migrations/)
+  internal/web/               Runtime FS loader for server/web/
 client/          Flutter app
   lib/main.dart               entrypoint
-  lib/core/websocket_manager.dart
-  lib/providers/              state providers (Provider package)
-  lib/screens/                UI screens
-  lib/models/                 Data models
-  lib/services/api_service.dart
-  lib/widgets/                Reusable widgets
 ```
+
+Handler files in `internal/api/` are split by domain:
+- `auth_handlers.go` — health, register, login, planets CRUD
+- `building_handlers.go` — buildings, toggle, confirm
+- `research_handlers.go` — research
+- `fleet_handlers.go` — fleet, ship building
+- `expedition_handlers.go` — expeditions
+- `market_handlers.go` — market orders, global market, sell food
+- `drill_handlers.go` — drill mini-game
+- `garden_bed_handlers.go` — garden bed
+- `other_handlers.go` — ratings, stats, events
 
 ## Commands
 
 **Backend (run from `server/`):**
 ```
-go run ./cmd/server/          # start dev server (depends on PostgreSQL)
-go test -timeout 10s ./...    # all tests (always use -timeout 10s to catch infinite loops)
-go test -timeout 10s ./internal/game/...   # a single package
-go build -o SpaceGameServer ./cmd/server/        # build binary to server/SpaceGameServer
+go run ./cmd/server/                     # dev server (needs PostgreSQL + server/web/)
+go test -timeout 10s ./...               # all tests (always use -timeout 10s)
+go test -timeout 10s ./internal/game/... # single package
+go build -o SpaceGameServer ./cmd/server/
 ```
 
 **Frontend (run from `client/`):**
 ```
-flutter test                  # unit / widget tests
-flutter run                   # dev run
-flutter build linux           # release build
+flutter test
+flutter build web --release --wasm       # production web build
 ```
 
-**Environment variables (server):**
-`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSLMODE` (defaults: localhost, 5432, postgres, postgres, spacegame, disable). Server port: `PORT` (default 8088).
+## Architecture
 
-## Architecture notes
-
-- **Game engine** (`internal/game/game.go`): in-memory singleton (`game.Instance()`), manages planets. Each planet ticks every second via `scheduler`.
-- **Persistence**: Planet state saved to PostgreSQL every 10 ticks. Migrations are `//go:embed` in `internal/db/database.go` — add `.up.sql` files there, not in the top-level `migrations/` directory (the top-level copies are for reference).
-- **Scheduler** (`internal/scheduler/scheduler.go`): three goroutines — game tick (1s), ratings update (5 min), random events (checked every 1s).
-- **WebSocket**: `internal/api/websocket.go` — per-player connections, broadcast channel for state updates.
-- **Migrations**: auto-apply on server startup via `schema_migrations` table. Naming convention: `NNN_description.up.sql`.
+- **Game engine** (`internal/game/game.go`): in-memory singleton via `SetInstance()`/`Instance()`. Manages planets. Each planet ticks every second.
+- **Persistence**: Planet state saved to PostgreSQL every 10 ticks. Save covers resources, buildings, research, fleet, shipyard, energy buffer, garden bed.
+- **Scheduler** (`internal/scheduler/scheduler.go`): four goroutines — game tick (1s), ratings update (5 min), random events (1s), market NPC refresh (20 min).
+- **WebSocket** (`internal/api/websocket.go`): per-player connections, message queue for offline players (5 min retention, 50 msg cap), rate limiting, ping/pong heartbeat (30s).
+- **Frontend serving**: NOT `//go:embed`. The `internal/web/` package loads `server/web/` from disk at runtime (relative to executable). Deploy copies Flutter build output there.
+- **Auth**: Custom UUID v7 + session tokens. WebSocket auth via `?token=` query param. DB lookups against `players.auth_token`.
+- **Migrations**: `//go:embed migrations/*.up.sql` in `internal/db/database.go`. Auto-apply on startup via `schema_migrations` table. Naming: `NNN_description.up.sql`. Add `.up.sql` files to `server/internal/db/migrations/`.
 
 ## Testing
 
-- Tests are pure unit tests, no fixtures, no integration tests.
-- Tests that need `Game` call `game.New()` directly (no DB).
-- `ratings_test.go`, `battle_test.go`, `marketplace_test.go`, `mining_test.go`, `research_test.go`, `ship_test.go`, `expedition_test.go`, `planet_test.go` are the test files.
+- Pure unit tests, no fixtures, no integration tests.
+- Tests needing `Game` call `game.New()` directly (no DB).
+- Test files: `planet_test.go`, `ratings_test.go`, `marketplace_test.go`, `drill_test.go`, `garden_bed_test.go`, `battle/battle_test.go`, `api/handler_test.go`, `api/websocket_test.go`.
+- Garden bed tests call `ClearGardenBedCooldown()` between assertions.
 
 ## Gotchas
 
-- **deploy.sh** — single command to build frontend, backend, and start the server (`./deploy.sh`).
-- **No Makefile / no CI / no pre-commit** — everything else is raw `go` / `flutter` commands.
-- **Circular import guard**: `game` package cannot import `api` — uses callback pattern (`RegisterBroadcastHandler`) for WebSocket broadcast.
-- **Battle cooldown**: auto-battle checks `battleCooldownTicks = 60` (1 minute). The `getBattleTick()` stub always returns true; per-planet cooldown logic is in `processAutoBattle`.
-- **Mining mini-game**: cooldown is 30s in production, 5 min in development (check `mining.go` for the flag).
-- **Marketplace matching**: NPC traders refresh every 15 seconds.
+- **No Makefile / no CI / no pre-commit** — raw `go` / `flutter` commands only.
+- **Circular import guard**: `game` package cannot import `api`. Uses callback pattern (`RegisterBroadcastHandler`) for WebSocket broadcast.
+- **TriggerRandomEvents() called twice**: once in `game.Tick()` and once in scheduler's `randomEventsTick()`. Be careful modifying either.
+- **Drill mini-game**: cooldown is flat 30s (`GetDrillCooldown()` in `drill.go`). Active sessions cleaned up on WebSocket disconnect.
+- **Garden bed**: 5s cooldown between actions (`GardenBedActionCooldown` in `garden_bed.go`). State persisted to both `garden_bed` table and `planets.garden_bed_grid`.
+- **Marketplace**: NPC traders refresh every 20 minutes. NPC order count scales with total market building level across all planets.
+- **Energy system**: `calculateEnergy()` returns (production, consumption). Solar buildings produce negative consumption. Auto-disable logic turns off non-essential buildings when energy is insufficient.
+- **`server/web/` is gitignored**: must be populated by deploy or manual Flutter build. Running `go run` without it means no frontend served.

@@ -123,7 +123,7 @@ func NewServer(db *sql.DB) *http.Server {
 	r := SetupRouter(db)
 
 	return &http.Server{
-		Addr:         ":" + getEnv("PORT", "8080"),
+		Addr:         ":" + getEnv("PORT", "8088"),
 		Handler:      r,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
