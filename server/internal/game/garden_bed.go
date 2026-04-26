@@ -159,10 +159,7 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 
 		// --- Empty rows: weed growth ---
 		if row.Status == GardenBedRowEmpty {
-			weedChance := 0.025 // 2.5% for empty rows
-			if row.WaterTimer > 0 {
-				weedChance = 0.03 // 3% for watered empty rows
-			}
+			weedChance := 0.02 // 2% for empty rows
 			if rand.Float64() < weedChance && row.Weeds < 3 {
 				row.Weeds++
 				changed = true
@@ -193,14 +190,18 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				continue
 			}
 
-			// Weed spawn: 5% chance per tick, up to 3 weeds
-			if rand.Float64() < 0.05 && row.Weeds < 3 {
+			// Check if watered BEFORE decrementing
+			isWatered := row.WaterTimer > 0
+
+			// Weed spawn: 3% without water, 5% with water, up to 3 weeds
+			weedChance := 0.03
+			if isWatered {
+				weedChance = 0.05
+			}
+			if rand.Float64() < weedChance && row.Weeds < 3 {
 				row.Weeds++
 				changed = true
 			}
-
-			// Check if watered BEFORE decrementing
-			isWatered := row.WaterTimer > 0
 
 			// Water timer decrements
 			if row.WaterTimer > 0 {
