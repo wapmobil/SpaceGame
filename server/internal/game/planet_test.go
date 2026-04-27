@@ -50,20 +50,6 @@ func TestSolarProductionScalesWithLevel(t *testing.T) {
 	}
 }
 
-func TestFactoryProducesResource(t *testing.T) {
-	planet := NewPlanet("test-13", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("factory", 1)
-
-	prod := planet.GetProductionResult()
-	total := prod.Composite + prod.Mechanisms + prod.Reagents
-	if total != 0.5 {
-		t.Errorf("expected factory at level 1 to produce 0.5 total resource, got %f (composite=%f mechanisms=%f reagents=%f)",
-			total, prod.Composite, prod.Mechanisms, prod.Reagents)
-	}
-}
-
 func TestBaseConsumesFood(t *testing.T) {
 	planet := NewPlanet("test-14", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("solar", 1)
@@ -73,42 +59,6 @@ func TestBaseConsumesFood(t *testing.T) {
 	prod := planet.GetProductionResult()
 	if prod.Food != -1 {
 		t.Errorf("expected base at level 1 to consume 1 food (-1), got %f", prod.Food)
-	}
-}
-
-func TestCompositeDroneProducesComposite(t *testing.T) {
-	planet := NewPlanet("test-composite", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("composite_drone", 1)
-
-	prod := planet.GetProductionResult()
-	if prod.Composite != 0.5 {
-		t.Errorf("expected composite_drone at level 1 to produce 0.5 composite, got %f", prod.Composite)
-	}
-}
-
-func TestMechanismFactoryProducesMechanisms(t *testing.T) {
-	planet := NewPlanet("test-mech", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("mechanism_factory", 1)
-
-	prod := planet.GetProductionResult()
-	if prod.Mechanisms != 0.5 {
-		t.Errorf("expected mechanism_factory at level 1 to produce 0.5 mechanisms, got %f", prod.Mechanisms)
-	}
-}
-
-func TestReagentLabProducesReagents(t *testing.T) {
-	planet := NewPlanet("test-reagent", "owner-1", "Test Planet", nil)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("solar", 1)
-	planet.AddBuildingDirect("reagent_lab", 1)
-
-	prod := planet.GetProductionResult()
-	if prod.Reagents != 0.5 {
-		t.Errorf("expected reagent_lab at level 1 to produce 0.5 reagents, got %f", prod.Reagents)
 	}
 }
 
@@ -505,15 +455,10 @@ func TestTickMultiBuildingProduction(t *testing.T) {
 	planet := NewPlanet("test-multi-prod", "owner-1", "Test Planet", nil)
 	planet.AddBuildingDirect("solar", 2) // 30 energy
 	planet.AddBuildingDirect("farm", 2)  // 2 food
-	planet.AddBuildingDirect("factory", 1) // 0.5 composite
 
 	prod := planet.GetProductionResult()
 	if prod.Food != 2 {
 		t.Errorf("expected 2 food from 2 farms, got %f", prod.Food)
-	}
-	total := prod.Composite + prod.Mechanisms + prod.Reagents
-	if total != 0.5 {
-		t.Errorf("expected 0.5 composite from factory, got %f", total)
 	}
 }
 

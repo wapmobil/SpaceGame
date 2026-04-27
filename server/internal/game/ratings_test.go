@@ -248,8 +248,8 @@ func TestAllRatingCategories(t *testing.T) {
 func TestAllStatsKeys(t *testing.T) {
 	keys := AllStatsKeys()
 
-	if len(keys) < 30 {
-		t.Errorf("Expected at least 30 stats keys, got %d", len(keys))
+	if len(keys) < 29 {
+		t.Errorf("Expected at least 29 stats keys, got %d", len(keys))
 	}
 
 	// Check for expected keys

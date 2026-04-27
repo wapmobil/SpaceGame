@@ -83,10 +83,8 @@ func (st *StatsTracker) GetStatsSummary(playerID string) (map[string]interface{}
 				"solar_panels":   stats[string(StatSolarBuilt)],
 				"storage":        stats[string(StatStorageBuilt)],
 				"bases":          stats[string(StatBaseBuilt)],
-				"factories":      stats[string(StatFactoryBuilt)],
 				"energy_storages": stats[string(StatEnergyStorageBuilt)],
 				"shipyards":      stats[string(StatShipyardBuilt)],
-				"comcenters":     stats[string(StatComcenterBuilt)],
 			},
 			"ships_built": map[string]interface{}{
 				"total":        stats[string(StatShipScoutBuilt)] + stats[string(StatShipFrigateBuilt)] +

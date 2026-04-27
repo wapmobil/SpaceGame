@@ -477,10 +477,8 @@ const (
 	StatSolarBuilt  StatsKey = "buildings_solar"
 	StatStorageBuilt StatsKey = "buildings_storage"
 	StatBaseBuilt   StatsKey = "buildings_base"
-	StatFactoryBuilt StatsKey = "buildings_factory"
 	StatEnergyStorageBuilt StatsKey = "buildings_energy_storage"
 	StatShipyardBuilt StatsKey = "buildings_shipyard"
-	StatComcenterBuilt StatsKey = "buildings_comcenter"
 
 	// Per-ship-type stats
 	StatShipScoutBuilt   StatsKey = "ships_scout"
@@ -516,10 +514,8 @@ func AllStatsKeys() []StatsKey {
 		StatSolarBuilt,
 		StatStorageBuilt,
 		StatBaseBuilt,
-		StatFactoryBuilt,
 		StatEnergyStorageBuilt,
 		StatShipyardBuilt,
-		StatComcenterBuilt,
 		StatShipScoutBuilt,
 		StatShipFrigateBuilt,
 		StatShipCruiserBuilt,
@@ -548,14 +544,10 @@ func (g *Game) TrackBuildingCompleted(planetID, playerID, buildingType string) {
 		statKey = StatStorageBuilt
 	case "base":
 		statKey = StatBaseBuilt
-	case "factory":
-		statKey = StatFactoryBuilt
 	case "energy_storage":
 		statKey = StatEnergyStorageBuilt
 	case "shipyard":
 		statKey = StatShipyardBuilt
-	case "comcenter":
-		statKey = StatComcenterBuilt
 	default:
 		return
 	}

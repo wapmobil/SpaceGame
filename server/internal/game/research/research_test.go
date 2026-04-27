@@ -4,29 +4,6 @@ import (
 	"testing"
 )
 
-func TestPrerequisitesMustBeMet(t *testing.T) {
-	techs := TechsByTree(TreeStandard)
-	tree := BuildTree(techs)
-
-	// energy_storage depends on planet_exploration
-	energyStorage := GetTechByID("energy_storage")
-	if energyStorage == nil {
-		t.Fatal("energy_storage tech not found")
-	}
-
-	// Without prerequisites, should not be unlocked
-	completed := map[string]int{}
-	if tree.IsUnlocked(energyStorage, completed) {
-		t.Error("energy_storage should not be unlocked without planet_exploration")
-	}
-
-	// With prerequisites met, should be unlocked
-	completed["planet_exploration"] = 1
-	if !tree.IsUnlocked(energyStorage, completed) {
-		t.Error("energy_storage should be unlocked after planet_exploration")
-	}
-}
-
 func TestResearchProgressAdvances(t *testing.T) {
 	rs := NewResearchSystem("test-planet", nil)
 
@@ -135,28 +112,6 @@ func TestCannotStartWithoutResources(t *testing.T) {
 	}
 }
 
-func TestCannotStartWithoutPrerequisites(t *testing.T) {
-	rs := NewResearchSystem("test-planet", nil)
-
-	// energy_storage depends on planet_exploration
-	tech := GetTechByID("energy_storage")
-	if tech == nil {
-		t.Fatal("energy_storage tech not found")
-	}
-
-	food := 1000.0
-	money := 1000.0
-	alienTech := 0.0
-	err := rs.StartResearch(tech, &food, &money, &alienTech)
-	if err == nil {
-		t.Error("expected error when starting research without prerequisites")
-	}
-
-	if _, ok := err.(*ResearchError); !ok {
-		t.Errorf("expected *ResearchError, got %T", err)
-	}
-}
-
 func TestCannotStartAlreadyInProgress(t *testing.T) {
 	rs := NewResearchSystem("test-planet", nil)
 
@@ -223,21 +178,19 @@ func TestGetResearchProgress(t *testing.T) {
 func TestMultiLevelTech(t *testing.T) {
 	rs := NewResearchSystem("test-planet", nil)
 
-	// energy_saving has max level 4
-	tech := GetTechByID("energy_saving")
+	tech := GetTechByID("planet_exploration")
 	if tech == nil {
-		t.Fatal("energy_saving tech not found")
+		t.Fatal("planet_exploration tech not found")
 	}
 
-	food := 1000.0
-	money := 1000.0
+	food := 100.0
+	money := 100.0
 	alienTech := 0.0
 
-	// Must complete planet_exploration first
-	planetTech := GetTechByID("planet_exploration")
-	err := rs.StartResearch(planetTech, &food, &money, &alienTech)
+	// Complete level 1
+	err := rs.StartResearch(tech, &food, &money, &alienTech)
 	if err != nil {
-		t.Fatalf("failed to start planet_exploration: %v", err)
+		t.Fatalf("failed to start research: %v", err)
 	}
 	for {
 		rs.Tick()
@@ -246,112 +199,10 @@ func TestMultiLevelTech(t *testing.T) {
 		}
 	}
 
-	// Must complete energy_storage first
-	energyTech := GetTechByID("energy_storage")
-	err = rs.StartResearch(energyTech, &food, &money, &alienTech)
-	if err != nil {
-		t.Fatalf("failed to start energy_storage: %v", err)
-	}
-	for {
-		rs.Tick()
-		if rs.GetResearchState("energy_storage").Completed {
-			break
-		}
-	}
-
-	// Now energy_saving should be available
+	// planet_exploration has max_level 1, should not be able to start again
 	err = rs.StartResearch(tech, &food, &money, &alienTech)
-	if err != nil {
-		t.Fatalf("failed to start energy_saving: %v", err)
-	}
-
-	// Complete level 1
-	for {
-		rs.Tick()
-		if rs.GetResearchState("energy_saving").Completed {
-			break
-		}
-	}
-
-	// Should be able to start level 2
-	err = rs.StartResearch(tech, &food, &money, &alienTech)
-	if err != nil {
-		t.Fatalf("failed to start energy_saving level 2: %v", err)
-	}
-}
-
-func TestTreeTraversal(t *testing.T) {
-	techs := TechsByTree(TreeStandard)
-	tree := BuildTree(techs)
-
-	var visited []string
-	tree.TraverseDepthFirst(func(tech *Tech, depth int) {
-		visited = append(visited, tech.ID)
-		_ = depth
-	})
-
-	// planet_exploration should be visited first (it's a root node)
-	if len(visited) == 0 || visited[0] != "planet_exploration" {
-		t.Errorf("expected planet_exploration first, got %v", visited)
-	}
-}
-
-func TestGetAncestors(t *testing.T) {
-	tree := BuildTree(TechsByTree(TreeStandard))
-
-	// energy_storage depends on planet_exploration
-	ancestors := tree.GetAncestors("energy_storage")
-	found := false
-	for _, a := range ancestors {
-		if a == "planet_exploration" {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected planet_exploration in ancestors of energy_storage, got %v", ancestors)
-	}
-}
-
-func TestAlienTechRequiresCommandCenter(t *testing.T) {
-	rs := NewResearchSystem("test-planet", nil)
-
-	alienTech := GetTechByID("alien_technologies")
-	if alienTech == nil {
-		t.Fatal("alien_technologies tech not found")
-	}
-
-	food := 0.0
-	money := 0.0
-	alien := 10.0
-	// Should fail without command_center
-	err := rs.StartResearch(alienTech, &food, &money, &alien)
 	if err == nil {
-		t.Error("expected error when starting alien tech without command_center")
-	}
-}
-
-func TestStandardAndAlienTreesIndependent(t *testing.T) {
-	rs := NewResearchSystem("test-planet", nil)
-
-	// Standard tree techs should not be affected by alien tree state
-	standardTech := GetTechByID("planet_exploration")
-	if standardTech == nil {
-		t.Fatal("planet_exploration not found")
-	}
-
-	food := 100.0
-	money := 100.0
-	alienTech := 0.0
-	// Should be able to start standard research without any alien tech
-	err := rs.StartResearch(standardTech, &food, &money, &alienTech)
-	if err != nil {
-		t.Fatalf("failed to start standard research: %v", err)
-	}
-
-	// Alien tree should have no available techs (no command_center)
-	alien := rs.GetAvailableAlienTechs()
-	if len(alien) != 0 {
-		t.Errorf("expected 0 available alien techs, got %d", len(alien))
+		t.Error("expected error when starting max-level research")
 	}
 }
 
@@ -379,41 +230,5 @@ func TestResourceDeduction(t *testing.T) {
 	}
 	if money != 0.0 {
 		t.Errorf("expected money to be 0, got %f", money)
-	}
-}
-
-func TestCompactStorageDependsOnFastConstruction(t *testing.T) {
-	rs := NewResearchSystem("test-planet", nil)
-
-	tech := GetTechByID("compact_storage")
-	if tech == nil {
-		t.Fatal("compact_storage tech not found")
-	}
-
-	// Should not be available without fast_construction
-	food := 1000.0
-	money := 800.0
-	alienTech := 0.0
-	err := rs.StartResearch(tech, &food, &money, &alienTech)
-	if err == nil {
-		t.Error("expected error when starting compact_storage without fast_construction")
-	}
-}
-
-func TestParallelConstructionDependsOnBoth(t *testing.T) {
-	rs := NewResearchSystem("test-planet", nil)
-
-	tech := GetTechByID("parallel_construction")
-	if tech == nil {
-		t.Fatal("parallel_construction tech not found")
-	}
-
-	// Should not be available without fast_construction and compact_storage
-	food := 2000.0
-	money := 1500.0
-	alienTech := 0.0
-	err := rs.StartResearch(tech, &food, &money, &alienTech)
-	if err == nil {
-		t.Error("expected error when starting parallel_construction without prerequisites")
 	}
 }

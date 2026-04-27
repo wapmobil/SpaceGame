@@ -21,9 +21,9 @@ type CostInfo = building.CostMulti
 
 // BuildingsOrder defines the display order of building types.
 var BuildingsOrder = []string{
-	"base", "farm", "solar", "storage", "mine", "factory",
-	"energy_storage", "shipyard", "comcenter", "market",
-	"composite_drone", "mechanism_factory", "reagent_lab", "dynamo",
+	"base", "farm", "solar", "storage", "mine",
+	"energy_storage", "shipyard", "market",
+	"dynamo",
 }
 
 // BuildingResearchRequirements maps building types to their required research tech ID.
@@ -31,12 +31,11 @@ var BuildingsOrder = []string{
 var BuildingResearchRequirements = map[string]string{
 	"energy_storage": "energy_storage",
 	"shipyard":       "ships",
-	"comcenter":      "expeditions",
 	"market":         "trade",
 }
 
 // RandomUnlockBuildings lists buildings that are randomly unlocked by planet_exploration.
-var RandomUnlockBuildings = []string{"composite_drone", "mechanism_factory", "reagent_lab"}
+var RandomUnlockBuildings = []string{}
 
 // IsBuildingUnlocked checks if a building type is unlocked by research.
 // researchUnlocks is the building type unlocked by planet_exploration (for random unlocks).

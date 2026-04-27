@@ -100,9 +100,8 @@ func handleBuildBuilding(db *sql.DB) http.HandlerFunc {
 
 		validBuildings := map[string]bool{
 			"farm": true, "solar": true, "storage": true, "base": true,
-			"factory": true, "energy_storage": true, "shipyard": true,
-			"comcenter": true, "market": true, "composite_drone": true, "mechanism_factory": true,
-			"reagent_lab": true, "dynamo": true, "mine": true,
+			"energy_storage": true, "shipyard": true,
+			"market": true, "dynamo": true, "mine": true,
 		}
 		if !validBuildings[req.Type] {
 			Error(w, http.StatusBadRequest, "Unknown building type")

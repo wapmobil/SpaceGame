@@ -23,9 +23,6 @@ func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) 
 
 	// Check max concurrent expeditions
 	maxExpeditions := 1
-	if _, ok := p.Research.GetCompleted()["additional_expedition"]; ok {
-		maxExpeditions = 2
-	}
 
 	activeCount := 0
 	for _, exp := range p.Expeditions {
@@ -311,11 +308,7 @@ func (p *Planet) GetActiveExpeditionsCount() int {
 
 // GetMaxExpeditions returns the maximum number of concurrent expeditions.
 func (p *Planet) GetMaxExpeditions() int {
-	max := 1
-	if _, ok := p.Research.GetCompleted()["additional_expedition"]; ok {
-		max = 2
-	}
-	return max
+	return 1
 }
 
 // GetExpeditionState returns the expedition state as a JSON-serializable map.

@@ -70,10 +70,10 @@ class BuildDialog extends StatelessWidget {
                     border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: Text(
-                    'Исследование планет: доступен ${Constants.buildingNames[gameProvider.researchUnlocks] ?? gameProvider.researchUnlocks}',
-                    style: const TextStyle(fontSize: 11, color: Colors.green),
-                  ),
+child: Text(
+                      'Исследование планет: доступно',
+                      style: const TextStyle(fontSize: 11, color: Colors.green),
+                    ),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -90,13 +90,7 @@ class BuildDialog extends StatelessWidget {
                        false;
                    if (!isUnlocked) return false;
                  }
-                 if (Constants.researchRandomUnlockBuildings.contains(key)) {
-                   if (gameProvider.researchUnlocks.isEmpty ||
-                       gameProvider.researchUnlocks != key) {
-                     return false;
-                   }
-                 }
-                 return true;
+return true;
                }).toList().map((key) => _buildItem(context, key, allBuildingsList)),
             ],
           ),

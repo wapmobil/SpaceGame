@@ -337,7 +337,7 @@ class _TechNode extends StatelessWidget {
 class Constants {
   static const techList = [
     {'id': 'planet_exploration', 'name': '🌍Разведка планеты', 'description': 'Открывает здание Фабрики', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
-    {'id': 'energy_storage', 'name': '🔋Аккумуляторы', 'description': 'Открывает здание Аккумулятора', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 5, 'depends_on': ['planet_exploration']},
+    {'id': 'energy_storage', 'name': '🔋Аккумуляторы', 'description': 'Открывает здание Аккумулятора', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 5, 'depends_on': []},
     {'id': 'energy_saving', 'name': '🔌Экономия энергии', 'description': '-10% расхода энергии за уровень', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
     {'id': 'upgraded_energy_storage', 'name': '🔋Улучшенные аккумуляторы', 'description': '+20% вместимости энергии за уровень', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
     {'id': 'upgraded_energy_storage_2', 'name': '🔋Улучшенные аккумуляторы 2', 'description': 'Максимальный буст энергии', 'cost_food': 800, 'cost_money': 700, 'build_time': 200, 'max_level': 1, 'depends_on': ['upgraded_energy_storage']},

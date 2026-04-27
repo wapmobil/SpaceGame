@@ -20,20 +20,10 @@ func BuildTime(bt string, level int) float64 {
 		return float64(level*level+1) * 5
 	case "base":
 		return math.Pow(2, float64(level+2)) + 6
-	case "factory":
-		return float64(level*2+1) * 10 + 10
 	case "energy_storage":
 		return float64(level*level) * 5 + 8
 	case "shipyard":
 		return math.Pow(2, float64(level+4)) + 10
-	case "comcenter":
-		return float64(level+1) * 30
-	case "composite_drone":
-		return float64(level*level+1) * 5
-	case "mechanism_factory":
-		return float64(level*level+1) * 5
-	case "reagent_lab":
-		return float64(level*level+1) * 5
 	case "dynamo":
 		return float64(level*level+1) * 5 + 10
 	case "mine":
@@ -115,12 +105,6 @@ func Cost(bt string, level int) CostMulti {
 			Iron:  float64(400 * int(math.Pow(2, float64(level-1)))),
 			Money: math.Pow(2, float64(level-1)),
 		}
-	case "factory":
-		return CostMulti{
-			Food:  float64(level*2+1) * 2500,
-			Iron:  float64(level*2+1) * 4000,
-			Money: float64(level*2+1) * 20,
-		}
 	case "energy_storage":
 		return CostMulti{
 			Food:  float64(level*level) * 500,
@@ -132,18 +116,6 @@ func Cost(bt string, level int) CostMulti {
 			Food:  math.Pow(2, float64(level+5)) * 0.5,
 			Iron:  math.Pow(2, float64(level)) * 20,
 			Money: math.Pow(2, float64(level-1)),
-		}
-	case "comcenter":
-		return CostMulti{
-			Food:  float64(level+1) * 4000,
-			Iron:  float64(level+1) * 8000,
-			Money: float64(level+1) * 100,
-		}
-	case "composite_drone", "mechanism_factory", "reagent_lab":
-		return CostMulti{
-			Food:  float64(level*level+1) * 60 + 1000,
-			Iron:  float64(level*level+1) * 80 + 1000,
-			Money: float64(level*level+1) * 2 + 100,
 		}
 	case "dynamo":
 		return CostMulti{
@@ -198,20 +170,10 @@ func EnergyConsumption(bt string, level int) float64 {
 		return 0
 	case "base":
 		return float64(level) * 20
-	case "factory":
-		return float64(level) * 25
 	case "energy_storage":
 		return float64(level) * 2
 	case "shipyard":
 		return float64(level) * 16
-	case "comcenter":
-		return float64(level) * 100
-	case "composite_drone":
-		return float64(level) * 10
-	case "mechanism_factory":
-		return float64(level) * 10
-	case "reagent_lab":
-		return float64(level) * 10
 	case "dynamo":
 		return float64(level) * -12
 	case "mine":
@@ -236,14 +198,6 @@ func Production(bt string, level int) ProductionResult {
 		prod.Energy = float64(level) * 15
 	case "base":
 		prod.Food = -float64(level)
-	case "factory":
-		prod.Composite = float64(level) * 0.5
-	case "composite_drone":
-		prod.Composite = float64(level) * 0.5
-	case "mechanism_factory":
-		prod.Mechanisms = float64(level) * 0.5
-	case "reagent_lab":
-		prod.Reagents = float64(level) * 0.5
 	case "dynamo":
 		prod.Food = -float64(level)
 	case "mine":

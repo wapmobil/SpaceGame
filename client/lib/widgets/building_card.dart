@@ -419,10 +419,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
       case 'shipyard':
         chips.add({'icon': Icons.rocket_launch, 'label': 'Верфь', 'action': 'shipyard'});
         break;
-      case 'comcenter':
-        chips.add({'icon': Icons.explore, 'label': 'Экспедиция', 'action': 'expedition'});
-        break;
-            case 'mine':
+      case 'mine':
         chips.add({'icon': Icons.dns_outlined, 'label': 'Бурение', 'action': 'drill'});
         break;
       case 'market':
