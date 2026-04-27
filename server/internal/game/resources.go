@@ -67,7 +67,8 @@ func ResourceTypes() []ResourceName {
 type StorageResourceType string
 
 const (
-	StorageFood     StorageResourceType = "food"
+	StorageFood      StorageResourceType = "food"
+	StorageIron      StorageResourceType = "iron"
 	StorageComposite StorageResourceType = "composite"
 	StorageMechanisms StorageResourceType = "mechanisms"
 	StorageReagents  StorageResourceType = "reagents"
@@ -75,16 +76,17 @@ const (
 
 // AllStorageResources returns the list of storable resource types.
 func AllStorageResources() []StorageResourceType {
-	return []StorageResourceType{StorageFood, StorageComposite, StorageMechanisms, StorageReagents}
+	return []StorageResourceType{StorageFood, StorageIron, StorageComposite, StorageMechanisms, StorageReagents}
 }
 
 // StorageResourceEmojis maps storage resource types to their emojis.
 func StorageResourceEmojis() map[StorageResourceType]string {
 	return map[StorageResourceType]string{
-		StorageFood:     "🍍",
+		StorageFood:      "🍍",
+		StorageIron:      "🪨",
 		StorageComposite: "🧱",
 		StorageMechanisms: "⚙️",
-		StorageReagents:  "🛢",
+		StorageReagents:   "🛢",
 	}
 }
 

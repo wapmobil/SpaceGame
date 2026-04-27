@@ -446,8 +446,8 @@ func TestResourceEmojis(t *testing.T) {
 func TestStorageResourceTypes(t *testing.T) {
 	types := AllStorageResources()
 
-	if len(types) != 4 {
-		t.Errorf("Expected 4 storage resource types, got %d", len(types))
+	if len(types) != 5 {
+		t.Errorf("Expected 5 storage resource types, got %d", len(types))
 	}
 }
 
