@@ -184,7 +184,7 @@ class _ShipBuildTile extends StatelessWidget {
                 spacing: 4,
                 runSpacing: 2,
                 children: [
-                  if (shipType.cost.food > 0) _ResourceCost('🍖', shipType.cost.food),
+                  if (shipType.cost.food > 0) _ResourceCost('🍍', shipType.cost.food),
                   if (shipType.cost.composite > 0) _ResourceCost('🧬', shipType.cost.composite),
                   if (shipType.cost.mechanisms > 0) _ResourceCost('⚙️', shipType.cost.mechanisms),
                   if (shipType.cost.reagents > 0) _ResourceCost('🧪', shipType.cost.reagents),

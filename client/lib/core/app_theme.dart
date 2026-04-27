@@ -20,7 +20,7 @@ class AppTheme {
   };
 
   static const resourceIcons = {
-    'food': '🍖',
+    'food': '🍍',
     'composite': '🧬',
     'mechanisms': '⚙️',
     'reagents': '🧪',

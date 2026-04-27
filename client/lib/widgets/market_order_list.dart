@@ -89,7 +89,7 @@ class _OrderRow extends StatelessWidget {
 
 class Constants {
   static const resourceIcons = {
-    'food': '🍖',
+    'food': '🍍',
     'composite': '🧬',
     'mechanisms': '⚙️',
     'reagents': '🧪',

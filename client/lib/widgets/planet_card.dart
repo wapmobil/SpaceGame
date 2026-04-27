@@ -64,7 +64,7 @@ class PlanetCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        _ResourceDot('🍖', (planet.resources['food'] ?? 0).toInt()),
+                        _ResourceDot('🍍', (planet.resources['food'] ?? 0).toInt()),
                         _ResourceDot('⚡', (planet.resources['energy'] ?? 0).toInt()),
                         _ResourceDot('💰', (planet.resources['money'] ?? 0).toInt()),
                       ],

@@ -21,8 +21,8 @@ class Constants {
   };
 
   static const resourceIcons = {
-    'food': '🍖',
-    'iron': '⛏️',
+    'food': '🍍',
+    'iron': '🪨',
     'composite': '🧬',
     'mechanisms': '⚙️',
     'reagents': '🧪',

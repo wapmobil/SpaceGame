@@ -30,7 +30,7 @@ type ResourceInfo struct {
 func AllResources() []ResourceInfo {
 	return []ResourceInfo{
 		{Food, "food", "🍍"},
-		{Iron, "iron", "⛏️"},
+		{Iron, "iron", "🪨"},
 		{Composite, "composite", "🧱"},
 		{Mechanisms, "mechanisms", "⚙️"},
 		{Reagents, "reagents", "🛢"},

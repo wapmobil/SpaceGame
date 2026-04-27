@@ -180,12 +180,12 @@ class BuildDialog extends StatelessWidget {
     numVal = prod['food'];
     if (numVal != null) {
       final v = numVal.toDouble();
-      if (v.abs() > 0.01) prodParts.add('${v >= 0 ? '+' : ''}🍖${v.toInt()}');
+      if (v.abs() > 0.01) prodParts.add('${v >= 0 ? '+' : ''}🍍${v.toInt()}');
     }
     numVal = prod['iron'];
     if (numVal != null) {
       final v = numVal.toDouble();
-      if (v.abs() > 0.01) prodParts.add('${v >= 0 ? '+' : ''}⛏️${v.toInt()}');
+      if (v.abs() > 0.01) prodParts.add('${v >= 0 ? '+' : ''}🪨${v.toInt()}');
     }
     numVal = prod['energy'];
     if (numVal != null) {
@@ -235,7 +235,7 @@ class BuildDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (food > 0) ...[
-            const Text('🍖', style: TextStyle(fontSize: 14)),
+            const Text('🍍', style: TextStyle(fontSize: 14)),
             const SizedBox(width: 4),
             Text(
               food.toInt().toString(),
@@ -244,7 +244,7 @@ class BuildDialog extends StatelessWidget {
           ],
           if (food > 0 && iron > 0) const SizedBox(width: 12),
           if (iron > 0) ...[
-            const Text('⛏️', style: TextStyle(fontSize: 14)),
+            const Text('🪨', style: TextStyle(fontSize: 14)),
             const SizedBox(width: 4),
             Text(
               iron.toInt().toString(),
@@ -268,10 +268,10 @@ class BuildDialog extends StatelessWidget {
   List<Map<String, dynamic>> _getDeltas(Building building) {
     final result = <Map<String, dynamic>>[];
     if (building.deltaFood.abs() > 0.01) {
-      result.add({'text': '${building.deltaFood > 0 ? '+' : ''}🍖${building.deltaFood.toInt()}', 'value': building.deltaFood});
+      result.add({'text': '${building.deltaFood > 0 ? '+' : ''}🍍${building.deltaFood.toInt()}', 'value': building.deltaFood});
     }
     if (building.deltaIron.abs() > 0.01) {
-      result.add({'text': '${building.deltaIron > 0 ? '+' : ''}⛏️${building.deltaIron.toInt()}', 'value': building.deltaIron});
+      result.add({'text': '${building.deltaIron > 0 ? '+' : ''}🪨${building.deltaIron.toInt()}', 'value': building.deltaIron});
     }
     if (building.deltaEnergy.abs() > 0.01) {
       result.add({'text': '${building.deltaEnergy > 0 ? '+' : ''}⚡${building.deltaEnergy.toInt()}', 'value': building.deltaEnergy});

@@ -90,10 +90,10 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
   List<Widget> get prodLines {
     final lines = <Widget>[];
     if (widget.building.productionFood.abs() > 0.01) {
-      lines.add(_prodChip('🍖', widget.building.productionFood));
+      lines.add(_prodChip('🍍', widget.building.productionFood));
     }
     if (widget.building.productionIron.abs() > 0.01) {
-      lines.add(_prodChip('⛏️', widget.building.productionIron));
+      lines.add(_prodChip('🪨', widget.building.productionIron));
     }
     if (widget.building.productionEnergy.abs() > 0.01) {
       lines.add(_prodChip('⚡', widget.building.productionEnergy));
@@ -176,8 +176,8 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
               child: Text(
                 [
                   'Lv.${widget.building.level + 1}',
-                  if (nextCostFood > 0) '🍖$nextCostFood',
-                  if (nextCostIron > 0) '⛏️$nextCostIron',
+                  if (nextCostFood > 0) '🍍$nextCostFood',
+                  if (nextCostIron > 0) '🪨$nextCostIron',
                   if (nextCostMoney > 0) '💰$nextCostMoney',
                 ].join('  '),
                 style: const TextStyle(fontSize: 10, color: Colors.white),
@@ -195,10 +195,10 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
     final result = <Map<String, dynamic>>[];
 
     if (widget.building.deltaFood.abs() > 0.01) {
-      result.add({'text': '${widget.building.deltaFood > 0 ? '+' : ''}🍖${widget.building.deltaFood.toInt()}', 'value': widget.building.deltaFood});
+      result.add({'text': '${widget.building.deltaFood > 0 ? '+' : ''}🍍${widget.building.deltaFood.toInt()}', 'value': widget.building.deltaFood});
     }
     if (widget.building.deltaIron.abs() > 0.01) {
-      result.add({'text': '${widget.building.deltaIron > 0 ? '+' : ''}⛏️${widget.building.deltaIron.toInt()}', 'value': widget.building.deltaIron});
+      result.add({'text': '${widget.building.deltaIron > 0 ? '+' : ''}🪨${widget.building.deltaIron.toInt()}', 'value': widget.building.deltaIron});
     }
     if (widget.building.deltaEnergy.abs() > 0.01) {
       result.add({'text': '${widget.building.deltaEnergy > 0 ? '+' : ''}⚡${widget.building.deltaEnergy.toInt()}', 'value': widget.building.deltaEnergy});

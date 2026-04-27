@@ -220,7 +220,7 @@ class _TechNode extends StatelessWidget {
 
   String _formatCost() {
     final parts = <String>[];
-    if (costFood > 0) parts.add('🍞${costFood.toInt()}');
+    if (costFood > 0) parts.add('🍍${costFood.toInt()}');
     if (costMoney > 0) parts.add('💰${costMoney.toInt()}');
     if (costAlien > 0) parts.add('👽${costAlien.toInt()}');
     return parts.join(' ');
