@@ -543,13 +543,6 @@ func TestDrillDirectionString(t *testing.T) {
 	}
 }
 
-func TestGetDrillCooldown(t *testing.T) {
-	cooldown := GetDrillCooldown()
-	if cooldown != 30*time.Second {
-		t.Errorf("Expected cooldown 30s, got %v", cooldown)
-	}
-}
-
 func TestDisplayWorld(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 	display := game.GetDisplayWorld()

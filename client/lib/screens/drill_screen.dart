@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../models/drill.dart';
@@ -21,14 +22,19 @@ class _DrillScreenState extends State<DrillScreen> {
   bool _extracting = false;
   String _lastMessage = '';
   bool _resultShown = false;
+  final _keyboardFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _keyboardFocusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
+    _keyboardFocusNode.dispose();
     if (_extracting) {
       _stopExtracting();
     }
@@ -137,6 +143,13 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Widget _buildStartScreen() {
+    final provider = context.watch<GameProvider>();
+    final mineLevel = provider.getBuildingLevelForPlanet(widget.planetId, 'mine');
+    final cost = 100 * mineLevel;
+    final ironAvailable = (provider.selectedPlanet?.resources['iron'] ?? 0) as num? ?? 0;
+    final canAfford = ironAvailable >= cost;
+    final color = canAfford ? Colors.amber : Colors.red;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Бурение'),
@@ -164,7 +177,7 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _startDrill,
+                onPressed: canAfford ? _startDrill : null,
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Начать бурение'),
                 style: ElevatedButton.styleFrom(
@@ -172,6 +185,28 @@ class _DrillScreenState extends State<DrillScreen> {
                   textStyle: const TextStyle(fontSize: 18),
                 ),
               ),
+              if (cost > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('⛏️', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 4),
+                      Text(
+                        cost.toString(),
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),
@@ -189,9 +224,9 @@ class _DrillScreenState extends State<DrillScreen> {
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const SizedBox(height: 8),
-                    _buildInstructionRow(Icons.arrow_back, 'Влево'),
-                    _buildInstructionRow(Icons.arrow_forward, 'Вправо'),
-                    _buildInstructionRow(Icons.build, 'Добыча (удерживать)'),
+                    _buildInstructionRow(Icons.arrow_back, '← Влево'),
+                    _buildInstructionRow(Icons.arrow_forward, 'Вправо →'),
+                    _buildInstructionRow(Icons.keyboard, 'Пробел — добыча (удерживать)'),
                     const SizedBox(height: 8),
                     const Text(
                       'Бур спускается автоматически каждые 1 сек.\nНаправления и добыча применяются при спуске.',
@@ -288,36 +323,58 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Widget _buildGameScreen(DrillState state) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Бурение'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            if (state.isActive || state.isGameEnded) {
-              if (_extracting) {
-                _stopExtracting();
+    return FocusScope(
+      canRequestFocus: true,
+      child: KeyboardListener(
+        focusNode: _keyboardFocusNode,
+      onKeyEvent: (event) {
+        if (state.isActive != true) return;
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+            _move('left');
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+            _move('right');
+          } else if (event.logicalKey == LogicalKeyboardKey.space && !_extracting) {
+            _startExtracting();
+          }
+        } else if (event is KeyUpEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.space && _extracting) {
+            _stopExtracting();
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Бурение'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (state.isActive || state.isGameEnded) {
+                if (_extracting) {
+                  _stopExtracting();
+                }
+                context.read<GameProvider>().clearDrillState();
               }
-              context.read<GameProvider>().clearDrillState();
-            }
-            Navigator.of(context).pop();
-          },
+              Navigator.of(context).pop();
+            },
+          ),
+          actions: [
+            if (state.isActive)
+              IconButton(
+                icon: const Icon(Icons.exit_to_app),
+                onPressed: _cancelDrill,
+                tooltip: 'Выйти',
+              ),
+          ],
         ),
-        actions: [
-          if (state.isActive)
-            IconButton(
-              icon: const Icon(Icons.exit_to_app),
-              onPressed: _cancelDrill,
-              tooltip: 'Выйти',
-            ),
-        ],
+        body: Column(
+          children: [
+            _buildHUD(state),
+            Expanded(child: _buildWorld(state)),
+            _buildControls(state),
+          ],
+        ),
       ),
-      body: Column(
-        children: [
-          _buildHUD(state),
-          Expanded(child: _buildWorld(state)),
-          _buildControls(state),
-        ],
       ),
     );
   }

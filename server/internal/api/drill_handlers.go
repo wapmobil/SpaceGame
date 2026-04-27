@@ -32,13 +32,19 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 			mineLevel = 0
 		}
 
-		var lastCompleted *time.Time
-		err = db.QueryRow("SELECT drill_last_completed FROM players WHERE id = $1", playerID).Scan(&lastCompleted)
-		if err == nil && lastCompleted != nil && time.Since(*lastCompleted) < game.GetDrillCooldown() {
-			remaining := game.GetDrillCooldown() - time.Since(*lastCompleted)
-			Error(w, http.StatusConflict, fmt.Sprintf("Drill cooldown active. Try again in %v", remaining.Round(time.Second)))
+		cost := 100 * mineLevel
+
+		p := game.Instance().GetPlanet(planetID)
+		if p == nil {
+			Error(w, http.StatusNotFound, "Planet not found")
 			return
 		}
+		if p.Resources.Iron < float64(cost) {
+			Error(w, http.StatusConflict, fmt.Sprintf("Insufficient iron. Need %d, have %.0f", cost, p.Resources.Iron))
+			return
+		}
+		p.Resources.Iron -= float64(cost)
+		game.Instance().SavePlanet(p)
 
 		dg := game.NewDrillGame(planetID, playerID, mineLevel)
 		session := dg.GetSession()
@@ -185,8 +191,6 @@ func handleCompleteDrill(db *sql.DB) http.HandlerFunc {
 		totalEarned := dg.Complete()
 		sess := dg.GetSession()
 
-		db.Exec("UPDATE players SET drill_last_completed = NOW() WHERE id = $1", playerID)
-
 		if totalEarned > 0 {
 			p := game.Instance().GetPlanet(planetID)
 			if p != nil {
@@ -269,8 +273,6 @@ func handleDestroyDrill(db *sql.DB) http.HandlerFunc {
 		}
 
 		dg.Destroy()
-
-		db.Exec("UPDATE players SET drill_last_completed = NOW() WHERE id = $1", playerID)
 
 		totalEarned := dg.GetSession().TotalEarned
 		if totalEarned > 0 {

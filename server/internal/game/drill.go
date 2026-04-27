@@ -679,11 +679,6 @@ func (g *DrillGame) GetSeed() int64 {
 	return g.config.Seed
 }
 
-// GetDrillCooldown returns the cooldown between drill sessions
-func GetDrillCooldown() time.Duration {
-	return 30 * time.Second
-}
-
 // Destroy sets drill HP to 0 triggering game over
 func (g *DrillGame) Destroy() {
 	if g.session.Status != "active" {
