@@ -662,3 +662,73 @@ func TestGetStatePopulatesProduction(t *testing.T) {
 		t.Errorf("expected solar production in GetState to be 15, got %f", solar.Production.Energy)
 	}
 }
+
+func TestFarmUpgrade_InitializesNewGardenBedRows(t *testing.T) {
+	planet := NewPlanet("test-farm-upgrade", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 2)
+
+	if planet.GardenBedState == nil {
+		t.Fatal("expected garden bed state to be initialized")
+	}
+	if planet.GardenBedState.RowCount != 2 {
+		t.Errorf("expected 2 rows, got %d", planet.GardenBedState.RowCount)
+	}
+
+	planet.GardenBedState.Rows[0] = GardenBedRow{Status: GardenBedRowPlanted, PlantType: PlantWheat, Stage: 1, Weeds: 1, WaterTimer: 50}
+
+	planet.ensureGardenBedState()
+
+	planet.AddBuildingDirect("farm", 4)
+	planet.ensureGardenBedState()
+
+	if planet.GardenBedState.RowCount != 4 {
+		t.Errorf("expected 4 rows after upgrade, got %d", planet.GardenBedState.RowCount)
+	}
+	if len(planet.GardenBedState.Rows) != 4 {
+		t.Errorf("expected 4 row entries, got %d", len(planet.GardenBedState.Rows))
+	}
+	if planet.GardenBedState.Rows[0].Status != GardenBedRowPlanted {
+		t.Error("expected row 0 to be preserved as planted")
+	}
+	if planet.GardenBedState.Rows[0].PlantType != PlantWheat {
+		t.Error("expected row 0 plant type to be wheat")
+	}
+	if planet.GardenBedState.Rows[0].Weeds != 1 {
+		t.Errorf("expected row 0 weeds to be 1, got %d", planet.GardenBedState.Rows[0].Weeds)
+	}
+	if planet.GardenBedState.Rows[1].Status != GardenBedRowEmpty {
+		t.Errorf("expected row 1 to be empty, got '%s'", planet.GardenBedState.Rows[1].Status)
+	}
+	if planet.GardenBedState.Rows[2].Status != GardenBedRowEmpty {
+		t.Errorf("expected row 2 (new) to be empty, got '%s'", planet.GardenBedState.Rows[2].Status)
+	}
+	if planet.GardenBedState.Rows[3].Status != GardenBedRowEmpty {
+		t.Errorf("expected row 3 (new) to be empty, got '%s'", planet.GardenBedState.Rows[3].Status)
+	}
+}
+
+func TestFarmUpgrade_NewRowUsable(t *testing.T) {
+	planet := NewPlanet("test-farm-upgrade-usable", "owner-1", "Test Planet", nil)
+	planet.AddBuildingDirect("farm", 1)
+
+	planet.GardenBedState.Rows[0] = GardenBedRow{Status: GardenBedRowPlanted, PlantType: PlantWheat, Stage: 1, Weeds: 0, WaterTimer: 0}
+
+	planet.ensureGardenBedState()
+
+	planet.AddBuildingDirect("farm", 2)
+	planet.ensureGardenBedState()
+
+	result, err := GardenBedActionInternal(planet, "plant", 1, PlantWheat)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.Success {
+		t.Errorf("expected success planting in new row, got error: %s", result.Error)
+	}
+	if result.Rows[1].Status != GardenBedRowPlanted {
+		t.Errorf("expected row 1 to be planted, got '%s'", result.Rows[1].Status)
+	}
+	if result.Rows[1].PlantType != PlantWheat {
+		t.Errorf("expected row 1 plant type to be wheat, got '%s'", result.Rows[1].PlantType)
+	}
+}

@@ -467,13 +467,12 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 			result.Error = "No weeds to remove"
 			return result, nil
 		}
-		farmLevel := planet.GetBuildingLevel("farm")
 		// Get weed cost
-		weedCost := float64(farmLevel) * 10.0
+		weedCost := 10.0
 		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
 			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
-				weedCost = plant.WeedCost * float64(farmLevel) * 10
+				weedCost = plant.WeedCost * 10
 			}
 		}
 		// Check food
@@ -493,13 +492,12 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 			result.Error = "Row is empty"
 			return result, nil
 		}
-		farmLevel := planet.GetBuildingLevel("farm")
 		// Get water cost
-		waterCost := float64(farmLevel) * 10.0
+		waterCost := 10.0
 		if row.Status == GardenBedRowPlanted || row.Status == GardenBedRowMature || row.Status == GardenBedRowWithered {
 			plant := gardenBedPlants[row.PlantType]
 			if plant != nil {
-				waterCost = plant.WaterCost * float64(farmLevel) * 10
+				waterCost = plant.WaterCost * 10
 			}
 		}
 		// Check food
@@ -545,8 +543,7 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 			result.Error = "Only withered plants can be cleared"
 			return result, nil
 		}
-		farmLevel := planet.GetBuildingLevel("farm")
-		clearCost := float64(farmLevel) * 10.0
+		clearCost := 10.0
 		if planet.Resources.Food < clearCost {
 			result.Error = "Not enough food. Need " + itoaF(clearCost) + "🍍, have " + itoaF(planet.Resources.Food) + "🍍"
 			result.FoodCost = clearCost

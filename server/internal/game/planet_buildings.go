@@ -95,21 +95,36 @@ func (p *Planet) AddBuilding(bt string) (float64, float64, error) {
 
 	// Initialize or update garden bed state when farm building is added/upgraded
 	if bt == "farm" {
-		farmLevel := p.GetBuildingLevel("farm")
-		if farmLevel > 0 && p.GardenBedState == nil {
-			p.GardenBedState = NewGardenBedState(farmLevel)
-		} else if farmLevel > 0 && p.GardenBedState != nil && p.GardenBedState.RowCount != farmLevel {
-			rows := make([]GardenBedRow, farmLevel)
-			copy(rows, p.GardenBedState.Rows)
-			for i := len(rows); i < farmLevel; i++ {
-				rows[i] = GardenBedRow{Status: GardenBedRowEmpty, Weeds: 0, WaterTimer: 0, Stage: 0}
-			}
-			p.GardenBedState.Rows = rows
-			p.GardenBedState.RowCount = farmLevel
-		}
+		p.ensureGardenBedState()
 	}
 
 	return cost.Food, cost.Iron, nil
+}
+
+// ensureGardenBedState initializes or expands garden bed state to match farm building level.
+func (p *Planet) ensureGardenBedState() {
+	farmLevel := p.GetBuildingLevel("farm")
+	if farmLevel <= 0 {
+		return
+	}
+	if p.GardenBedState == nil {
+		p.GardenBedState = NewGardenBedState(farmLevel)
+		return
+	}
+	if p.GardenBedState.RowCount == farmLevel {
+		return
+	}
+	rows := make([]GardenBedRow, farmLevel)
+	oldRowCount := p.GardenBedState.RowCount
+	if oldRowCount > farmLevel {
+		oldRowCount = farmLevel
+	}
+	copy(rows, p.GardenBedState.Rows[:oldRowCount])
+	for i := oldRowCount; i < farmLevel; i++ {
+		rows[i] = GardenBedRow{Status: GardenBedRowEmpty, Weeds: 0, WaterTimer: 0, Stage: 0}
+	}
+	p.GardenBedState.Rows = rows
+	p.GardenBedState.RowCount = farmLevel
 }
 
 // AddBuildingDirect sets a building level without any checks (for testing).
@@ -128,6 +143,9 @@ func (p *Planet) AddBuildingDirect(bt string, level int) {
 			Enabled:       true,
 		})
 		p.PopulateBuildingEntry(len(p.Buildings) - 1)
+	}
+	if bt == "farm" {
+		p.ensureGardenBedState()
 	}
 }
 
