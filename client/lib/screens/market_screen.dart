@@ -77,7 +77,6 @@ class MarketScreen extends StatelessWidget {
     if (planet == null) return const SizedBox.shrink();
 
     final money = (planet.resources['money'] as num?)?.toDouble() ?? 0.0;
-    final foodAvailable = (planet.resources['food'] as num?)?.toDouble() ?? 0.0;
 
     return Card(
       child: Padding(
@@ -88,14 +87,28 @@ class MarketScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                const Text('Быстрая продажа', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 Text('💰 ${money.toInt()}', style: const TextStyle(fontSize: 14, color: Colors.white)),
               ],
             ),
             const SizedBox(height: 4),
-            Text('Курс: 100 еды = 1 деньги · Доступно: ${foodAvailable ~/ 100 * 100} еды', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            const Text('Курс: 100 = 1 деньги', style: TextStyle(fontSize: 12, color: Colors.white54)),
             const SizedBox(height: 12),
-            _QuickSellForm(planet: planet, gameProvider: gameProvider),
+            _QuickSellSection(
+              planet: planet,
+              gameProvider: gameProvider,
+              resourceKey: 'food',
+              resourceName: 'Еда',
+              icon: '🍍',
+            ),
+            const SizedBox(height: 12),
+            _QuickSellSection(
+              planet: planet,
+              gameProvider: gameProvider,
+              resourceKey: 'iron',
+              resourceName: 'Железо',
+              icon: '🪨',
+            ),
           ],
         ),
       ),
@@ -237,69 +250,91 @@ class MarketScreen extends StatelessWidget {
   }
 }
 
-class _QuickSellForm extends StatefulWidget {
+class _QuickSellSection extends StatefulWidget {
   final Planet planet;
   final GameProvider gameProvider;
+  final String resourceKey;
+  final String resourceName;
+  final String icon;
 
-  const _QuickSellForm({required this.planet, required this.gameProvider});
+  const _QuickSellSection({
+    required this.planet,
+    required this.gameProvider,
+    required this.resourceKey,
+    required this.resourceName,
+    required this.icon,
+  });
 
   @override
-  State<_QuickSellForm> createState() => _QuickSellFormState();
+  State<_QuickSellSection> createState() => _QuickSellSectionState();
 }
 
-class _QuickSellFormState extends State<_QuickSellForm> {
+class _QuickSellSectionState extends State<_QuickSellSection> {
   void _onSell(BuildContext context, double amount) async {
-    final snackBarSuccess = SnackBar(
-      content: Text('Продано $amount еды за ${(amount / 100).toStringAsFixed(0)} денег'),
-      backgroundColor: AppTheme.successColor,
-      duration: const Duration(seconds: 2),
-    );
-    final snackBarError = SnackBar(
-      content: const Text('Не удалось продать еду'),
-      backgroundColor: Colors.red,
-      duration: const Duration(seconds: 3),
-    );
-    final success = await widget.gameProvider.sellFood(widget.planet.id, amount);
+    final success = await _doSell(amount);
     if (!context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     if (success) {
-      messenger.showSnackBar(snackBarSuccess);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Продано $amount ${widget.resourceName.toLowerCase()} за ${(amount / 100).toStringAsFixed(0)} денег'),
+        backgroundColor: AppTheme.successColor,
+        duration: const Duration(seconds: 2),
+      ));
     } else {
-      messenger.showSnackBar(snackBarError);
+      messenger.showSnackBar(SnackBar(
+        content: Text('Не удалось продать ${widget.resourceName.toLowerCase()}'),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ));
       widget.gameProvider.clearError();
+    }
+  }
+
+  Future<bool> _doSell(double amount) async {
+    if (widget.resourceKey == 'food') {
+      return widget.gameProvider.sellFood(widget.planet.id, amount);
+    } else {
+      return widget.gameProvider.sellIron(widget.planet.id, amount);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final foodAvailable = (widget.planet.resources['food'] as num?)?.toDouble() ?? 0.0;
-    final sellAll = (foodAvailable ~/ 100) * 100;
+    final resourceAvailable = (widget.planet.resources[widget.resourceKey] as num?)?.toDouble() ?? 0.0;
+    final sellAll = (resourceAvailable ~/ 100) * 100;
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (foodAvailable >= 100)
-          _QuickSellButton(
-            label: 'Продать 100',
-            amount: 100.0,
-            foodAvailable: foodAvailable,
-            onSell: () => _onSell(context, 100.0),
-          ),
-        if (foodAvailable >= 1000)
-          _QuickSellButton(
-            label: 'Продать 1000',
-            amount: 1000.0,
-            foodAvailable: foodAvailable,
-            onSell: () => _onSell(context, 1000.0),
-          ),
-        if (sellAll >= 100)
-          _QuickSellButton(
-            label: 'Продать всё',
-            amount: sellAll.toDouble(),
-            foodAvailable: foodAvailable,
-            onSell: () => _onSell(context, sellAll.toDouble()),
-          ),
+        Text('${widget.icon} ${widget.resourceName}', style: const TextStyle(fontSize: 13, color: Colors.white70)),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (resourceAvailable >= 100)
+              _QuickSellButton(
+                label: 'Продать 100',
+                amount: 100.0,
+                foodAvailable: resourceAvailable,
+                onSell: () => _onSell(context, 100.0),
+              ),
+            if (resourceAvailable >= 1000)
+              _QuickSellButton(
+                label: 'Продать 1000',
+                amount: 1000.0,
+                foodAvailable: resourceAvailable,
+                onSell: () => _onSell(context, 1000.0),
+              ),
+            if (sellAll >= 100)
+              _QuickSellButton(
+                label: 'Продать всё',
+                amount: sellAll.toDouble(),
+                foodAvailable: resourceAvailable,
+                onSell: () => _onSell(context, sellAll.toDouble()),
+              ),
+          ],
+        ),
       ],
     );
   }

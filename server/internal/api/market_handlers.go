@@ -383,44 +383,108 @@ func handleSellFood(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		bestSellPrice := 0.0
-		for _, order := range mp.GetVisibleOrders("") {
-			if order.Resource == "food" && order.OrderType == game.OrderBuy && order.Status == "active" {
-				if order.Price > bestSellPrice {
-					bestSellPrice = order.Price
-				}
-			}
-		}
-
+		bestSellPrice := _findBestSellPrice(mp, "food")
 		if bestSellPrice <= 0 {
 			bestSellPrice = 0.01
 		}
 
-		var req struct {
-			Amount float64 `json:"amount"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Amount <= 0 {
-			Error(w, http.StatusBadRequest, "Invalid amount")
+		sellAmount, revenue := _sellResource(w, p, "food", "Food", bestSellPrice, r)
+		if sellAmount == nil {
 			return
 		}
-
-		sellAmount := math.Min(req.Amount, p.Resources.Food)
-		if sellAmount <= 0 {
-			Error(w, http.StatusBadRequest, "No food to sell")
-			return
-		}
-
-		revenue := sellAmount * bestSellPrice
-		p.Resources.Food -= sellAmount
-		p.Resources.Money += revenue
 
 		JSON(w, http.StatusOK, map[string]interface{}{
-			"status":     "sold",
-			"amount":     sellAmount,
-			"price":      bestSellPrice,
-			"revenue":    revenue,
-			"food_left":  p.Resources.Food,
-			"money":      p.Resources.Money,
+			"status":    "sold",
+			"amount":    sellAmount,
+			"price":     bestSellPrice,
+			"revenue":   revenue,
+			"food_left": p.Resources.Food,
+			"money":     p.Resources.Money,
 		})
 	}
+}
+
+func handleSellIron(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		planetID := PlanetIDFromContext(r)
+		_ = AuthPlayerFromContext(r)
+
+		p := ensurePlanetLoaded(planetID)
+		if p == nil {
+			Error(w, http.StatusInternalServerError, "Failed to load planet")
+			return
+		}
+
+		mp := getMarketplace()
+		if mp == nil {
+			Error(w, http.StatusInternalServerError, "Marketplace not initialized")
+			return
+		}
+
+		bestSellPrice := _findBestSellPrice(mp, "iron")
+		if bestSellPrice <= 0 {
+			bestSellPrice = 0.01
+		}
+
+		sellAmount, revenue := _sellResource(w, p, "iron", "Iron", bestSellPrice, r)
+		if sellAmount == nil {
+			return
+		}
+
+		JSON(w, http.StatusOK, map[string]interface{}{
+			"status":    "sold",
+			"amount":    sellAmount,
+			"price":     bestSellPrice,
+			"revenue":   revenue,
+			"iron_left": p.Resources.Iron,
+			"money":     p.Resources.Money,
+		})
+	}
+}
+
+func _findBestSellPrice(mp *game.Marketplace, resource string) float64 {
+	bestSellPrice := 0.0
+	for _, order := range mp.GetVisibleOrders("") {
+		if order.Resource == resource && order.OrderType == game.OrderBuy && order.Status == "active" {
+			if order.Price > bestSellPrice {
+				bestSellPrice = order.Price
+			}
+		}
+	}
+	return bestSellPrice
+}
+
+func _sellResource(w http.ResponseWriter, p *game.Planet, resourceField, resourceName string, bestSellPrice float64, r *http.Request) (*float64, float64) {
+	var req struct {
+		Amount float64 `json:"amount"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Amount <= 0 {
+		Error(w, http.StatusBadRequest, "Invalid amount")
+		return nil, 0
+	}
+
+	var resourceAmount float64
+	switch resourceField {
+	case "food":
+		resourceAmount = p.Resources.Food
+	case "iron":
+		resourceAmount = p.Resources.Iron
+	}
+
+	sellAmount := math.Min(req.Amount, resourceAmount)
+	if sellAmount <= 0 {
+		Error(w, http.StatusBadRequest, fmt.Sprintf("No %s to sell", strings.ToLower(resourceName)))
+		return nil, 0
+	}
+
+	revenue := sellAmount * bestSellPrice
+	switch resourceField {
+	case "food":
+		p.Resources.Food -= sellAmount
+	case "iron":
+		p.Resources.Iron -= sellAmount
+	}
+	p.Resources.Money += revenue
+
+	return &sellAmount, revenue
 }

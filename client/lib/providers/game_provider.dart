@@ -1014,6 +1014,28 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> sellIron(String planetId, double amount) async {
+    if (_player == null) return false;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/$planetId/sell-iron'),
+        headers: {'X-Auth-Token': _player!.authToken},
+        body: jsonEncode({'amount': amount}),
+      );
+
+      if (response.statusCode == 200) {
+        await loadPlanetDetail(planetId);
+        return true;
+      } else {
+        _setError('Не удалось продать железо: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      _setError('Ошибка продажи железа: $e');
+      return false;
+    }
+  }
+
 
 
   Future<void> loadRatings({String category = 'score'}) async {
