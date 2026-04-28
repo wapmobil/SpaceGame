@@ -2,8 +2,8 @@ class DrillResource {
   final String type;
   final String name;
   final String icon;
-  final double amount;
-  final double value;
+  final int amount;
+  final int value;
 
   DrillResource({
     required this.type,
@@ -18,8 +18,8 @@ class DrillResource {
       type: json['type'] as String? ?? '',
       name: json['name'] as String? ?? '',
       icon: json['icon'] as String? ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
-      value: (json['value'] as num?)?.toDouble() ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+      value: (json['value'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -39,8 +39,8 @@ class DrillCell {
   final int y;
   final String cellType;
   final String? resourceType;
-  final double resourceAmount;
-  final double resourceValue;
+  final int resourceAmount;
+  final int resourceValue;
   final bool extracted;
 
   DrillCell({
@@ -59,8 +59,8 @@ class DrillCell {
       y: json['y'] as int? ?? 0,
       cellType: json['cell_type'] as String? ?? 'empty',
       resourceType: json['resource_type'] as String?,
-      resourceAmount: (json['resource_amount'] as num?)?.toDouble() ?? 0,
-      resourceValue: (json['resource_value'] as num?)?.toDouble() ?? 0,
+      resourceAmount: (json['resource_amount'] as num?)?.toInt() ?? 0,
+      resourceValue: (json['resource_value'] as num?)?.toInt() ?? 0,
       extracted: json['extracted'] as bool? ?? false,
     );
   }
@@ -82,8 +82,8 @@ class DrillHitResource {
   final String type;
   final String name;
   final String icon;
-  final double amount;
-  final double value;
+  final int amount;
+  final int value;
 
   DrillHitResource({
     required this.type,
@@ -98,8 +98,8 @@ class DrillHitResource {
       type: json['type'] as String? ?? '',
       name: json['name'] as String? ?? '',
       icon: json['icon'] as String? ?? '',
-      amount: (json['amount'] as num?)?.toDouble() ?? 0,
-      value: (json['value'] as num?)?.toDouble() ?? 0,
+      amount: (json['amount'] as num?)?.toInt() ?? 0,
+      value: (json['value'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -125,7 +125,7 @@ class DrillState {
   final List<List<DrillCell>> world;
   final List<DrillResource> resources;
   final String status;
-  final double totalEarned;
+  final int totalEarned;
   final String createdAt;
   final String? completedAt;
   final int? seed;
@@ -175,7 +175,7 @@ class DrillState {
       world: world,
       resources: resources,
       status: json['status'] as String? ?? 'no_session',
-      totalEarned: (json['total_earned'] as num?)?.toDouble() ?? 0,
+      totalEarned: (json['total_earned'] as num?)?.toInt() ?? 0,
       createdAt: json['created_at'] as String? ?? '',
       completedAt: json['completed_at'] as String?,
       seed: json['seed'] as int?,
@@ -291,12 +291,12 @@ class DrillUpdate {
   final int drillX;
   final List<List<DrillCell>> world;
   final List<DrillResource> resources;
-  final double totalEarned;
+  final int totalEarned;
   final String status;
   final bool gameEnded;
   final String? endReason;
   final DrillHitResource? newResource;
-  final double extracted;
+  final int extracted;
 
   DrillUpdate({
     required this.sessionId,
@@ -340,12 +340,12 @@ class DrillUpdate {
       drillX: json['drill_x'] as int? ?? 0,
       world: world,
       resources: resources,
-      totalEarned: (json['total_earned'] as num?)?.toDouble() ?? 0,
+      totalEarned: (json['total_earned'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'active',
       gameEnded: json['game_ended'] as bool? ?? false,
       endReason: json['end_reason'] as String?,
       newResource: newResource,
-      extracted: (json['extracted'] as num?)?.toDouble() ?? 0,
+      extracted: (json['extracted'] as num?)?.toInt() ?? 0,
     );
   }
 }

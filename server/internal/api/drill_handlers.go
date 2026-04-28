@@ -191,10 +191,10 @@ func handleCompleteDrill(db *sql.DB) http.HandlerFunc {
 		totalEarned := dg.Complete()
 		sess := dg.GetSession()
 
-		if totalEarned > 0 {
+if totalEarned > 0 {
 			p := game.Instance().GetPlanet(planetID)
 			if p != nil {
-				p.Resources.Money += totalEarned
+				p.Resources.Money += float64(totalEarned)
 				game.Instance().SavePlanet(p)
 			}
 		}
@@ -278,7 +278,7 @@ func handleDestroyDrill(db *sql.DB) http.HandlerFunc {
 		if totalEarned > 0 {
 			p := game.Instance().GetPlanet(planetID)
 			if p != nil {
-				p.Resources.Money += totalEarned
+				p.Resources.Money += float64(totalEarned)
 				game.Instance().SavePlanet(p)
 			}
 		}
@@ -337,14 +337,14 @@ func handleCleanupDrill(db *sql.DB) http.HandlerFunc {
 		if dg != nil {
 			sess := dg.GetSession()
 			if sess.Status == "failed" || sess.Status == "completed" {
-				var totalEarned float64
+				var totalEarned int
 				for _, r := range sess.Resources {
 					totalEarned += r.Value
 				}
 				if totalEarned > 0 {
 					p := game.Instance().GetPlanet(planetID)
 					if p != nil {
-						p.Resources.Money += totalEarned
+						p.Resources.Money += float64(totalEarned)
 						game.Instance().SavePlanet(p)
 					}
 				}

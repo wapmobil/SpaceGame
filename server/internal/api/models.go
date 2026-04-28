@@ -265,48 +265,48 @@ type DrillCommandRequest struct {
 
 // DrillResourceResponse represents a collected resource.
 type DrillResourceResponse struct {
-	Type    string  `json:"type"`
-	Name    string  `json:"name"`
-	Icon    string  `json:"icon"`
-	Amount  float64 `json:"amount"`
-	Value   float64 `json:"value"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Amount int    `json:"amount"`
+	Value  int    `json:"value"`
 }
 
 // DrillHitResource represents a newly encountered resource.
 type DrillHitResource struct {
-	Type     string  `json:"type"`
-	Name     string  `json:"name"`
-	Icon     string  `json:"icon"`
-	Amount   float64 `json:"amount"`
-	Value    float64 `json:"value"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Amount int    `json:"amount"`
+	Value  int    `json:"value"`
 }
 
 // DrillMoveResponse represents the result of a drill move action.
 type DrillMoveResponse struct {
-	Success       bool                    `json:"success"`
-	Message       string                  `json:"message,omitempty"`
-	DrillHP       int                     `json:"drill_hp"`
-	DrillMaxHP    int                     `json:"drill_max_hp"`
-	Depth         int                     `json:"depth"`
-	DrillX        int                     `json:"drill_x"`
-	World         [][]DrillCellResponse   `json:"world"`
-	Resources     []DrillResourceResponse `json:"resources"`
-	TotalEarned   float64                 `json:"total_earned"`
-	GameEnded     bool                    `json:"game_ended"`
-	EndReason     string                  `json:"end_reason,omitempty"`
-	NewResource   *DrillHitResource       `json:"new_resource,omitempty"`
-	Extracted     float64                 `json:"extracted,omitempty"`
+	Success     bool                    `json:"success"`
+	Message     string                  `json:"message,omitempty"`
+	DrillHP     int                     `json:"drill_hp"`
+	DrillMaxHP  int                     `json:"drill_max_hp"`
+	Depth       int                     `json:"depth"`
+	DrillX      int                     `json:"drill_x"`
+	World       [][]DrillCellResponse   `json:"world"`
+	Resources   []DrillResourceResponse `json:"resources"`
+	TotalEarned int                     `json:"total_earned"`
+	GameEnded   bool                    `json:"game_ended"`
+	EndReason   string                  `json:"end_reason,omitempty"`
+	NewResource *DrillHitResource       `json:"new_resource,omitempty"`
+	Extracted   int                     `json:"extracted,omitempty"`
 }
 
 // DrillCellResponse represents a cell in the drill world.
 type DrillCellResponse struct {
-	X              int     `json:"x"`
-	Y              int     `json:"y"`
-	CellType       string  `json:"cell_type"`
-	ResourceType   string  `json:"resource_type,omitempty"`
-	ResourceAmount float64 `json:"resource_amount,omitempty"`
-	ResourceValue  float64 `json:"resource_value,omitempty"`
-	Extracted      bool    `json:"extracted"`
+	X              int    `json:"x"`
+	Y              int    `json:"y"`
+	CellType       string `json:"cell_type"`
+	ResourceType   string `json:"resource_type,omitempty"`
+	ResourceAmount int    `json:"resource_amount,omitempty"`
+	ResourceValue  int    `json:"resource_value,omitempty"`
+	Extracted      bool   `json:"extracted"`
 }
 
 // DrillStartResponse is the response for starting a drill session.
@@ -332,7 +332,7 @@ type DrillCompleteResponse struct {
 	World       [][]DrillCellResponse   `json:"world"`
 	Resources   []DrillResourceResponse `json:"resources"`
 	Status      string                  `json:"status"`
-	TotalEarned float64                 `json:"total_earned"`
+	TotalEarned int                     `json:"total_earned"`
 	CreatedAt   string                  `json:"created_at"`
 	CompletedAt string                  `json:"completed_at"`
 }

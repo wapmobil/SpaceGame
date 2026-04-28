@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"sort"
 	"sync"
@@ -38,8 +37,7 @@ type ResourceDef struct {
 	Type        string
 	Name        string
 	Icon        string
-	Value       float64 // base value in money
-	DigTime     float64 // seconds to fully extract
+	Value       int     // base value in money
 	DepthStart  int     // minimum depth to appear
 	DepthEnd    int     // maximum depth to appear
 	SpawnChance float64 // base chance to spawn per cell (0-1)
@@ -47,15 +45,15 @@ type ResourceDef struct {
 }
 
 var resourceDefinitions = map[string]*ResourceDef{
-	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 1, DigTime: 3.0, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.08, Damage: 3},
-	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 2, DigTime: 3.5, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.03, Damage: 3},
-	ResourceCopper:   {Type: ResourceCopper, Name: "Медь", Icon: "🟠", Value: 10, DigTime: 4.0, DepthStart: 50, DepthEnd: 100, SpawnChance: 0.07, Damage: 5},
-	ResourceCoal:     {Type: ResourceCoal, Name: "Уголь", Icon: "⬛", Value: 5, DigTime: 3.5, DepthStart: 50, DepthEnd: 150, SpawnChance: 0.08, Damage: 5},
-	ResourceSilver:   {Type: ResourceSilver, Name: "Серебро", Icon: "⚪", Value: 15, DigTime: 5.0, DepthStart: 100, DepthEnd: 200, SpawnChance: 0.05, Damage: 8},
-	ResourceGold:     {Type: ResourceGold, Name: "Золото", Icon: "🟡", Value: 25, DigTime: 6.0, DepthStart: 150, DepthEnd: 300, SpawnChance: 0.04, Damage: 10},
-	ResourcePlatinum: {Type: ResourcePlatinum, Name: "Платина", Icon: "🔘", Value: 30, DigTime: 7.0, DepthStart: 200, DepthEnd: 400, SpawnChance: 0.03, Damage: 12},
-	ResourceDiamond:  {Type: ResourceDiamond, Name: "Алмазы", Icon: "💎", Value: 60, DigTime: 8.0, DepthStart: 300, DepthEnd: 500, SpawnChance: 0.02, Damage: 15},
-	ResourceExotic:   {Type: ResourceExotic, Name: "Экзотика", Icon: "🔮", Value: 200, DigTime: 10.0, DepthStart: 500, DepthEnd: 9999, SpawnChance: 0.01, Damage: 20},
+	ResourceOil:      {Type: ResourceOil, Name: "Нефть", Icon: "🛢️", Value: 1, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.08, Damage: 3},
+	ResourceGas:      {Type: ResourceGas, Name: "Газ", Icon: "💨", Value: 2, DepthStart: 0, DepthEnd: 1000, SpawnChance: 0.03, Damage: 3},
+	ResourceCopper:   {Type: ResourceCopper, Name: "Медь", Icon: "🟠", Value: 10, DepthStart: 50, DepthEnd: 100, SpawnChance: 0.07, Damage: 5},
+	ResourceCoal:     {Type: ResourceCoal, Name: "Уголь", Icon: "⬛", Value: 5, DepthStart: 50, DepthEnd: 150, SpawnChance: 0.08, Damage: 5},
+	ResourceSilver:   {Type: ResourceSilver, Name: "Серебро", Icon: "⚪", Value: 15, DepthStart: 100, DepthEnd: 200, SpawnChance: 0.05, Damage: 8},
+	ResourceGold:     {Type: ResourceGold, Name: "Золото", Icon: "🟡", Value: 25, DepthStart: 150, DepthEnd: 300, SpawnChance: 0.04, Damage: 10},
+	ResourcePlatinum: {Type: ResourcePlatinum, Name: "Платина", Icon: "🔘", Value: 30, DepthStart: 200, DepthEnd: 400, SpawnChance: 0.03, Damage: 12},
+	ResourceDiamond:  {Type: ResourceDiamond, Name: "Алмазы", Icon: "💎", Value: 60, DepthStart: 300, DepthEnd: 500, SpawnChance: 0.02, Damage: 15},
+	ResourceExotic:   {Type: ResourceExotic, Name: "Экзотика", Icon: "🔮", Value: 200, DepthStart: 500, DepthEnd: 9999, SpawnChance: 0.01, Damage: 20},
 }
 
 // DrillCommand represents a player command
@@ -65,13 +63,13 @@ type DrillCommand struct {
 
 // Cell represents a single cell in the drill world
 type Cell struct {
-	X              int     `json:"x"`
-	Y              int     `json:"y"`
-	CellType       string  `json:"cell_type"`
-	ResourceType   string  `json:"resource_type,omitempty"`
-	ResourceAmount float64 `json:"resource_amount,omitempty"`
-	ResourceValue  float64 `json:"resource_value,omitempty"`
-	Extracted      bool    `json:"extracted"`
+	X              int    `json:"x"`
+	Y              int    `json:"y"`
+	CellType       string `json:"cell_type"`
+	ResourceType   string `json:"resource_type,omitempty"`
+	ResourceAmount int    `json:"resource_amount,omitempty"`
+	ResourceValue  int    `json:"resource_value,omitempty"`
+	Extracted      bool   `json:"extracted"`
 }
 
 // DrillSession represents the current state of a drill session
@@ -86,52 +84,52 @@ type DrillSession struct {
 	DrillX         int               `json:"drill_x"`
 	WorldWidth     int               `json:"world_width"`
 	Resources      []DrillResource   `json:"resources"`
-	Status         string            `json:"status"`
-	TotalEarned    float64           `json:"total_earned"`
+	Status         string          `json:"status"`
+	TotalEarned    int             `json:"total_earned"`
 	World          [][]Cell          `json:"world"`
 	ViewTop        int               `json:"-"`
 	ViewHeight     int               `json:"-"`
 	CreatedAt      time.Time         `json:"created_at"`
 	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
 	LastMoveTime   time.Time         `json:"last_move_time"`
-	ExtractedCells map[string]float64 `json:"-"` // tracks (x,y) -> remaining resource amount
+	ExtractedCells map[string]bool `json:"-"` // tracks (x,y) -> extracted
 	PendingDirection string           `json:"-"` // last direction from client, reset after apply
 	PendingExtract   bool             `json:"-"` // extract flag, persists until explicitly disabled
 }
 
 // DrillResource represents a collected resource in the session
 type DrillResource struct {
-	Type    string  `json:"type"`
-	Name    string  `json:"name"`
-	Icon    string  `json:"icon"`
-	Amount  float64 `json:"amount"`
-	Value   float64 `json:"value"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Amount int    `json:"amount"`
+	Value  int    `json:"value"`
 }
 
 // MoveResult represents the result of a drill move action
 type MoveResult struct {
-	Success       bool            `json:"success"`
-	Message       string          `json:"message,omitempty"`
-	DrillHP       int             `json:"drill_hp"`
-	DrillMaxHP    int             `json:"drill_max_hp"`
-	Depth         int             `json:"depth"`
-	DrillX        int             `json:"drill_x"`
-	Resources     []DrillResource `json:"resources"`
-	TotalEarned   float64         `json:"total_earned"`
-	GameEnded     bool            `json:"game_ended"`
-	EndReason     string          `json:"end_reason,omitempty"`
-	NewResource   *ResourceHit    `json:"new_resource,omitempty"`
-	Extracted     float64         `json:"extracted,omitempty"`
-	World         [][]Cell        `json:"world,omitempty"`
+	Success     bool            `json:"success"`
+	Message     string          `json:"message,omitempty"`
+	DrillHP     int             `json:"drill_hp"`
+	DrillMaxHP  int             `json:"drill_max_hp"`
+	Depth       int             `json:"depth"`
+	DrillX      int             `json:"drill_x"`
+	Resources   []DrillResource `json:"resources"`
+	TotalEarned int             `json:"total_earned"`
+	GameEnded   bool            `json:"game_ended"`
+	EndReason   string          `json:"end_reason,omitempty"`
+	NewResource *ResourceHit    `json:"new_resource,omitempty"`
+	Extracted   int             `json:"extracted,omitempty"`
+	World       [][]Cell        `json:"world,omitempty"`
 }
 
 // ResourceHit represents hitting a new resource
 type ResourceHit struct {
-	Type   string  `json:"type"`
-	Name   string  `json:"name"`
-	Icon   string  `json:"icon"`
-	Amount float64 `json:"amount"`
-	Value  float64 `json:"value"`
+	Type   string `json:"type"`
+	Name   string `json:"name"`
+	Icon   string `json:"icon"`
+	Amount int    `json:"amount"`
+	Value  int    `json:"value"`
 }
 
 // MoveDirection represents horizontal movement
@@ -223,7 +221,6 @@ func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
 		TotalEarned:    0,
 		ViewHeight:     DefaultViewHeight,
 		CreatedAt:      time.Now(),
-		ExtractedCells: make(map[string]float64),
 	}
 
 	config := DrillConfig{
@@ -386,13 +383,10 @@ func (g *DrillGame) GetChunk(centerX, centerY, width, height int) [][]Cell {
 func (g *DrillGame) getCellWithState(x, y int) Cell {
 	cell := g.getCellAt(x, y)
 	cellKey := fmt.Sprintf("%d,%d", x, y)
-	if remaining, ok := g.session.ExtractedCells[cellKey]; ok {
-		cell.Extracted = remaining <= 0
-		cell.ResourceAmount = remaining
-		if cell.Extracted {
-			cell.ResourceType = ""
-			cell.ResourceValue = 0
-		}
+	if extracted, ok := g.session.ExtractedCells[cellKey]; ok && extracted {
+		cell.Extracted = true
+		cell.ResourceType = ""
+		cell.ResourceValue = 0
 	}
 	return cell
 }
@@ -436,9 +430,8 @@ func (g *DrillGame) getCellAt(x, y int) Cell {
 		resource := g.selectResourceForDepth(depthFactor, resSeed)
 		if resource != nil {
 			cell.ResourceType = resource.Type
-			amountRng := rand.New(rand.NewSource(typeSeed + 1))
-			cell.ResourceAmount = float64(amountRng.Intn(5)+3)
-			cell.ResourceValue = resource.Value * cell.ResourceAmount
+			cell.ResourceAmount = 1
+			cell.ResourceValue = resource.Value
 		}
 	}
 
@@ -568,16 +561,12 @@ func (g *DrillGame) processExtraction(result *MoveResult, extract bool) {
 		return
 	}
 
-	extractRate := currentCell.ResourceAmount / def.DigTime * 0.5
-	if extractRate > currentCell.ResourceAmount {
-		extractRate = currentCell.ResourceAmount
+	if g.session.ExtractedCells == nil {
+		g.session.ExtractedCells = make(map[string]bool)
 	}
-
-	remaining := currentCell.ResourceAmount - extractRate
-	g.session.ExtractedCells[cellKey] = math.Max(0, remaining)
-
-	g.addResource(def, extractRate, def.Value*extractRate)
-	result.Extracted = extractRate
+	g.session.ExtractedCells[cellKey] = true
+	g.addResource(def, 1, def.Value)
+	result.Extracted = 1
 }
 
 // getCellDamage returns the damage a cell type deals to the drill
@@ -597,12 +586,13 @@ func (g *DrillGame) getCellDamage(cellType string) int {
 }
 
 // addResource adds a resource to the session's collected resources
-func (g *DrillGame) addResource(def *ResourceDef, amount float64, value float64) {
+func (g *DrillGame) addResource(def *ResourceDef, amount int, value int) {
 	// Check if resource already exists
 	for i, r := range g.session.Resources {
 		if r.Type == def.Type {
 			g.session.Resources[i].Amount += amount
 			g.session.Resources[i].Value += value
+			g.session.TotalEarned += value
 			return
 		}
 	}
@@ -614,11 +604,12 @@ func (g *DrillGame) addResource(def *ResourceDef, amount float64, value float64)
 		Amount: amount,
 		Value:  value,
 	})
+	g.session.TotalEarned += value
 }
 
 // convertResourcesToMoney converts all resources to money value
 func (g *DrillGame) convertResourcesToMoney() {
-	total := 0.0
+	total := 0
 	for _, r := range g.session.Resources {
 		total += r.Value
 	}
@@ -696,7 +687,7 @@ func (g *DrillGame) Destroy() {
 }
 
 // Complete marks the session as completed and converts resources to money
-func (g *DrillGame) Complete() float64 {
+func (g *DrillGame) Complete() int {
 	if g.session.Status != "active" {
 		return 0
 	}

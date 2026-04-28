@@ -177,7 +177,7 @@ func TestApplyCommand_Extract(t *testing.T) {
 	game := NewDrillGame("planet-1", "player-1", 1)
 
 	// Force a resource at the current position
-	game.session.ExtractedCells = make(map[string]float64)
+	game.session.ExtractedCells = make(map[string]bool)
 
 	game.SetCommand("", boolPtr(true))
 	result := game.ApplyCommand()
@@ -187,7 +187,7 @@ func TestApplyCommand_Extract(t *testing.T) {
 	}
 	// Extracted should be > 0 if there was a resource, or 0 if not
 	if result.Extracted < 0 {
-		t.Errorf("Expected extracted >= 0, got %f", result.Extracted)
+		t.Errorf("Expected extracted >= 0, got %d", result.Extracted)
 	}
 }
 
@@ -571,10 +571,7 @@ func TestResourceDefinitions(t *testing.T) {
 			t.Errorf("Resource %s has empty name", key)
 		}
 		if def.Value <= 0 {
-			t.Errorf("Resource %s has non-positive value: %f", key, def.Value)
-		}
-		if def.DigTime <= 0 {
-			t.Errorf("Resource %s has non-positive dig time: %f", key, def.DigTime)
+			t.Errorf("Resource %s has non-positive value: %d", key, def.Value)
 		}
 		if def.SpawnChance <= 0 || def.SpawnChance > 1 {
 			t.Errorf("Resource %s has invalid spawn chance: %f", key, def.SpawnChance)
@@ -813,7 +810,7 @@ func TestExtractOnNewCell(t *testing.T) {
 	// Result should have extracted > 0 if there was a resource at new cell
 	// (or 0 if no resource, but no error)
 	if result.Extracted < 0 {
-		t.Errorf("Expected extracted >= 0, got %f", result.Extracted)
+		t.Errorf("Expected extracted >= 0, got %d", result.Extracted)
 	}
 }
 
