@@ -22,7 +22,7 @@ type CostInfo = building.CostMulti
 // BuildingsOrder defines the display order of building types.
 var BuildingsOrder = []string{
 	"base", "farm", "solar", "storage", "mine",
-	"energy_storage", "shipyard", "market",
+	"energy_storage", "shipyard", "command_center", "market",
 	"dynamo",
 }
 
@@ -31,6 +31,7 @@ var BuildingsOrder = []string{
 var BuildingResearchRequirements = map[string]string{
 	"energy_storage": "energy_storage",
 	"shipyard":       "ships",
+	"command_center": "space_expeditions",
 	"market":         "trade",
 }
 
