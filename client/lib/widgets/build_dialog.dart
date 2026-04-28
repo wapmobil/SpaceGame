@@ -78,20 +78,18 @@ child: Text(
                 const SizedBox(height: 4),
               ],
               const SizedBox(height: 8),
-              ...allBuildings.where((key) {
-                 if (key != 'farm' && !hasFarm) return false;
-                 if (key != 'farm' && key != 'solar' && !hasSolar) return false;
-                 final existing = allBuildingsList.where((b) => b.type == key).toList();
-                 if (existing.isNotEmpty && existing.first.isBuilding) return false;
-                 final req = Constants.researchRequirements[key];
-                 if (req != null) {
-                   final isUnlocked = gameProvider.researchState?.research
-                           .any((r) => r.techId == req && r.completed) ??
-                       false;
-                   if (!isUnlocked) return false;
-                 }
-return true;
-               }).toList().map((key) => _buildItem(context, key, allBuildingsList)),
+             ...allBuildings.where((key) {
+                  if (key != 'farm' && !hasFarm) return false;
+                  if (key != 'farm' && key != 'solar' && !hasSolar) return false;
+                  final existing = allBuildingsList.where((b) => b.type == key).toList();
+                  if (existing.isNotEmpty && existing.first.isBuilding) return false;
+                  final req = Constants.researchRequirements[key];
+                  if (req != null) {
+                    final completedLevel = gameProvider.completedResearch[req] ?? 0;
+                    if (completedLevel <= 0) return false;
+                  }
+ return true;
+                }).toList().map((key) => _buildItem(context, key, allBuildingsList)),
             ],
           ),
         ),

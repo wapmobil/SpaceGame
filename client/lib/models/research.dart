@@ -56,6 +56,29 @@ class ResearchTech {
     );
   }
 
+  factory ResearchTech.fromMap(Map<String, dynamic> map) {
+    return ResearchTech(
+      techId: map['tech_id'] as String,
+      name: map['name'] as String? ?? '',
+      description: map['description'] as String? ?? '',
+      costFood: (map['cost_food'] as num?)?.toDouble() ?? 0,
+      costMoney: (map['cost_money'] as num?)?.toDouble() ?? 0,
+      costAlienTech: (map['cost_alien_tech'] as num?)?.toDouble() ?? 0,
+      buildTime: (map['build_time'] as num?)?.toDouble() ?? 0,
+      maxLevel: map['max_level'] as int? ?? 1,
+      dependsOn: (map['depends_on'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      level: 0,
+      completed: false,
+      inProgress: false,
+      progress: 0,
+      totalTime: 0,
+      progressPct: 0,
+    );
+  }
+
   double get remainingTime => totalTime - progress;
 
   bool get isUnlocked => dependsOn.isEmpty;

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"encoding/json"
 	"time"
 
 	"spacegame/internal/game/building"
@@ -27,6 +28,19 @@ func (p *Planet) GetState() map[string]interface{} {
 			"total_time":   state.TotalTime,
 			"progress_pct": p.Research.GetResearchProgress(techID),
 		})
+	}
+
+	// Build available research list for WS updates
+	availableBytes, _ := p.GetAvailableResearch()
+	var availableList []map[string]interface{}
+	if err := json.Unmarshal(availableBytes, &availableList); err != nil {
+		availableList = make([]map[string]interface{}, 0)
+	}
+
+	// Build completed research map for WS updates (tech_id -> level)
+	completedResearch := make(map[string]int)
+	for techID, level := range p.Research.GetCompleted() {
+		completedResearch[techID] = level
 	}
 
 	// Build garden bed state for WS updates
@@ -70,6 +84,8 @@ func (p *Planet) GetState() map[string]interface{} {
 		"storage_capacity":   p.CalculateStorageCapacity(),
 		"research_paused":    !p.HasOperationalBase(),
 		"research":           researchStates,
+		"available_research": availableList,
+		"completed_research": completedResearch,
 		"garden_bed_state":   gardenBedState,
 	}
 	return result

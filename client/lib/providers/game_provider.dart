@@ -73,6 +73,9 @@ class GameProvider extends ChangeNotifier {
   // Research paused status
   bool _researchPaused = false;
 
+  // Completed research tech IDs with levels (from WS state updates)
+  Map<String, int> _completedResearch = {};
+
   GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
         _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
@@ -116,6 +119,7 @@ class GameProvider extends ChangeNotifier {
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
   Map<String, Map<String, dynamic>> get buildingCosts => _buildingCosts;
+  Map<String, int> get completedResearch => _completedResearch;
   bool get isLoggedIn => _player != null;
 
   // Energy getters (from planet resources)
@@ -325,6 +329,7 @@ class GameProvider extends ChangeNotifier {
 
       // Update research progress from state
       final researchList = stateData['research'] as List<dynamic>?;
+      final availableResearchList = stateData['available_research'] as List<dynamic>?;
       if (researchList != null && _researchState != null) {
         final updatedResearch = List<ResearchTech>.from(_researchState!.research);
         for (final r in researchList) {
@@ -340,10 +345,23 @@ class GameProvider extends ChangeNotifier {
             );
           }
         }
+        var updatedAvailable = _researchState!.available;
+        if (availableResearchList != null && availableResearchList.isNotEmpty) {
+          updatedAvailable = availableResearchList.map((a) => ResearchTech.fromMap(a as Map<String, dynamic>)).toList();
+        }
         _researchState = ResearchState(
           research: updatedResearch,
-          available: _researchState!.available,
+          available: updatedAvailable,
         );
+      }
+
+      // Update completed research map (tech_id -> level)
+      final completedResearch = stateData['completed_research'] as Map<String, dynamic>?;
+      if (completedResearch != null) {
+        _completedResearch = {};
+        completedResearch.forEach((key, value) {
+          _completedResearch[key] = (value as num).toInt();
+        });
       }
 
       // Update garden bed state
