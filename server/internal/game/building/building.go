@@ -107,9 +107,9 @@ func Cost(bt string, level int) CostMulti {
 		}
 	case "energy_storage":
 		return CostMulti{
-			Food:  float64(level*level) * 500,
-			Iron:  float64(level*level) * 1200,
-			Money: float64(level*level) * 10,
+			Food:  float64(level*level+1) * 500,
+			Iron:  float64(level*level+1) * 1200,
+			Money: float64(level*level+1) * 10,
 		}
 	case "shipyard":
 		return CostMulti{
