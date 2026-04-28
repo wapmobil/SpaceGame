@@ -393,8 +393,7 @@ func handleSellFood(db *sql.DB) http.HandlerFunc {
 		}
 
 		if bestSellPrice <= 0 {
-			Error(w, http.StatusConflict, "No active buy orders for food")
-			return
+			bestSellPrice = 0.01
 		}
 
 		sellAmount := math.Min(p.Resources.Food, 100)

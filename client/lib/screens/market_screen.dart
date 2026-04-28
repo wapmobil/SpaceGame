@@ -84,7 +84,7 @@ class MarketScreen extends StatelessWidget {
           children: [
             const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
             const SizedBox(height: 4),
-            Text('Курс: 10 еды = 1 деньги', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            Text('Курс: 100 еды = 1 деньги', style: const TextStyle(fontSize: 12, color: Colors.white54)),
             const SizedBox(height: 12),
             _QuickSellForm(planet: planet, gameProvider: gameProvider),
           ],
@@ -239,89 +239,58 @@ class _QuickSellForm extends StatefulWidget {
 }
 
 class _QuickSellFormState extends State<_QuickSellForm> {
-  final _amountController = TextEditingController();
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    super.dispose();
+  void _onSell(BuildContext context, double amount) async {
+    final snackBarSuccess = SnackBar(
+      content: Text('Продано $amount еды за ${(amount / 100).toStringAsFixed(0)} денег'),
+      backgroundColor: AppTheme.successColor,
+      duration: const Duration(seconds: 2),
+    );
+    final snackBarError = SnackBar(
+      content: const Text('Не удалось продать еду'),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 3),
+    );
+    final success = await widget.gameProvider.sellFood(widget.planet.id, amount);
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (success) {
+      messenger.showSnackBar(snackBarSuccess);
+    } else {
+      messenger.showSnackBar(snackBarError);
+      widget.gameProvider.clearError();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final foodAvailable = (widget.planet.resources['food'] as num?)?.toDouble() ?? 0.0;
+    final sellAll = (foodAvailable ~/ 100) * 100;
 
-    return Column(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _amountController,
-                decoration: InputDecoration(
-                  labelText: 'Количество (кратно 10)',
-                  hintText: 'Макс: ${(foodAvailable ~/ 10) * 10}',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Вы получите: ${(_amountController.text.isNotEmpty ? (double.tryParse(_amountController.text) ?? 0) / 10 : 0).toStringAsFixed(0)} денег',
-                style: const TextStyle(fontSize: 12, color: Colors.green),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (foodAvailable >= 100)
-              _QuickSellButton(
-                label: 'Продать 100',
-                amount: 100.0,
-                foodAvailable: foodAvailable,
-                onSell: () {
-                  widget.gameProvider.sellFood(widget.planet.id, 100.0);
-                },
-              ),
-            if (foodAvailable >= 1000)
-              _QuickSellButton(
-                label: 'Продать 1000',
-                amount: 1000.0,
-                foodAvailable: foodAvailable,
-                onSell: () {
-                  widget.gameProvider.sellFood(widget.planet.id, 1000.0);
-                },
-              ),
-            if (foodAvailable >= 10)
-              _QuickSellButton(
-                label: 'Продать всё',
-                amount: foodAvailable - (foodAvailable % 10),
-                foodAvailable: foodAvailable,
-                onSell: () {
-                  widget.gameProvider.sellFood(widget.planet.id, foodAvailable - (foodAvailable % 10));
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(_amountController.text);
-              if (amount != null && amount > 0 && amount <= foodAvailable && amount % 10 == 0) {
-                widget.gameProvider.sellFood(widget.planet.id, amount);
-                _amountController.clear();
-              }
-            },
-            child: const Text('Продать еду'),
+        if (foodAvailable >= 100)
+          _QuickSellButton(
+            label: 'Продать 100',
+            amount: 100.0,
+            foodAvailable: foodAvailable,
+            onSell: () => _onSell(context, 100.0),
           ),
-        ),
+        if (foodAvailable >= 1000)
+          _QuickSellButton(
+            label: 'Продать 1000',
+            amount: 1000.0,
+            foodAvailable: foodAvailable,
+            onSell: () => _onSell(context, 1000.0),
+          ),
+        if (sellAll >= 100)
+          _QuickSellButton(
+            label: 'Продать всё',
+            amount: sellAll.toDouble(),
+            foodAvailable: foodAvailable,
+            onSell: () => _onSell(context, sellAll.toDouble()),
+          ),
       ],
     );
   }
@@ -445,12 +414,12 @@ class _QuickSellButton extends StatelessWidget {
         foregroundColor: Colors.black,
       ),
       onPressed: () {
-        final sellAmount = amount <= foodAvailable ? amount : (foodAvailable - (foodAvailable % 10));
-        if (sellAmount >= 10) {
+        final sellAmount = amount <= foodAvailable ? amount : (foodAvailable - (foodAvailable % 100));
+        if (sellAmount >= 100) {
           onSell();
         }
       },
-      child: Text('$label (${(amount / 10).toStringAsFixed(0)}💰)'),
+      child: Text('$label (${(amount / 100).toStringAsFixed(0)}💰)'),
     );
   }
 }

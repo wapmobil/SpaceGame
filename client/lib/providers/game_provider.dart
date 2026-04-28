@@ -992,8 +992,8 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> sellFood(String planetId, double amount) async {
-    if (_player == null) return;
+  Future<bool> sellFood(String planetId, double amount) async {
+    if (_player == null) return false;
     try {
       final response = await http.post(
         Uri.parse('$_baseUrl/api/planets/$planetId/sell-food'),
@@ -1003,11 +1003,14 @@ class GameProvider extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         await loadPlanetDetail(planetId);
+        return true;
       } else {
         _setError('Не удалось продать еду: ${response.body}');
+        return false;
       }
     } catch (e) {
       _setError('Ошибка продажи еды: $e');
+      return false;
     }
   }
 
