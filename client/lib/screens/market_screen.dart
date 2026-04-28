@@ -89,7 +89,7 @@ class MarketScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-                Text('💰 $money', style: const TextStyle(fontSize: 14, color: Colors.white)),
+                Text('💰 ${money.toInt()}', style: const TextStyle(fontSize: 14, color: Colors.white)),
               ],
             ),
             const SizedBox(height: 4),
