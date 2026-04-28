@@ -65,7 +65,9 @@ func (rs *ResearchSystem) LoadFromDB() error {
 				log.Printf("Error scanning research row: %v", err)
 				continue
 			}
-			if completed && level > 0 {
+			if completed && level < 1 {
+				rs.Completed[state.TechID] = 1
+			} else if completed && level > 0 {
 				rs.Completed[state.TechID] = level
 			}
 		} else {
