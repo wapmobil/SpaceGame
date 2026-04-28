@@ -76,15 +76,24 @@ class MarketScreen extends StatelessWidget {
     final planet = gameProvider.selectedPlanet;
     if (planet == null) return const SizedBox.shrink();
 
+    final money = (planet.resources['money'] as num?)?.toDouble() ?? 0.0;
+    final foodAvailable = (planet.resources['food'] as num?)?.toDouble() ?? 0.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Быстрая продажа еды', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+                Text('💰 $money', style: const TextStyle(fontSize: 14, color: Colors.white)),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text('Курс: 100 еды = 1 деньги', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+            Text('Курс: 100 еды = 1 деньги · Доступно: ${foodAvailable ~/ 100 * 100} еды', style: const TextStyle(fontSize: 12, color: Colors.white54)),
             const SizedBox(height: 12),
             _QuickSellForm(planet: planet, gameProvider: gameProvider),
           ],

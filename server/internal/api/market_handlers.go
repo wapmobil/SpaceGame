@@ -396,7 +396,15 @@ func handleSellFood(db *sql.DB) http.HandlerFunc {
 			bestSellPrice = 0.01
 		}
 
-		sellAmount := math.Min(p.Resources.Food, 100)
+		var req struct {
+			Amount float64 `json:"amount"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Amount <= 0 {
+			Error(w, http.StatusBadRequest, "Invalid amount")
+			return
+		}
+
+		sellAmount := math.Min(req.Amount, p.Resources.Food)
 		if sellAmount <= 0 {
 			Error(w, http.StatusBadRequest, "No food to sell")
 			return
