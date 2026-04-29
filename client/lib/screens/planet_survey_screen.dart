@@ -101,6 +101,10 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     final costPerMin = _getCostPerMinForBaseLevel(baseLevel);
     final durations = [300, 600, 1200];
     final availableDurations = durations.where((d) => d <= maxDuration).toList();
+    final resources = gameProvider.selectedPlanet?.resources ?? {};
+    final hasFood = (resources['food'] as num? ?? 0) >= 0;
+    final hasIron = (resources['iron'] as num? ?? 0) >= 0;
+    final hasMoney = (resources['money'] as num? ?? 0) >= 0;
 
     if (baseLevel <= 0) {
       return Card(
@@ -140,29 +144,37 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
               runSpacing: 8,
               children: availableDurations.map((duration) {
                 final minutes = duration ~/ 60;
+                final totalFood = (costPerMin['food']! * minutes).toInt();
+                final totalIron = (costPerMin['iron']! * minutes).toInt();
+                final totalMoney = (costPerMin['money']! * minutes).toInt();
+                final canAfford =
+                    (resources['food'] as num? ?? 0) >= totalFood &&
+                    (resources['iron'] as num? ?? 0) >= totalIron &&
+                    (resources['money'] as num? ?? 0) >= totalMoney;
+                final costLabel = '${Constants.resourceIcons['food']}${totalFood} ${Constants.resourceIcons['iron']}${totalIron} ${Constants.resourceIcons['money']}${totalMoney}';
                 return ElevatedButton.icon(
-                  onPressed: canStart
+                  onPressed: canStart && canAfford
                       ? () async {
                           await gameProvider.startPlanetSurvey(widget.planetId, duration);
                         }
                       : null,
                   icon: const Icon(Icons.explore, size: 18),
-                  label: Text('${minutes} мин'),
+                  label: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${minutes} мин'),
+                      Text(costLabel, style: const TextStyle(fontSize: 9, color: Colors.white70)),
+                    ],
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    foregroundColor: canAfford ? Colors.white : Colors.white38,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 );
               }).toList(),
             ),
-            if (availableDurations.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Стоимость: ${costPerMin['food']!.toInt()} еды, ${costPerMin['iron']!.toInt()} железа, ${costPerMin['money']!.toInt()} денег за минуту',
-                style: const TextStyle(fontSize: 11, color: Colors.white54),
-              ),
-            ],
           ],
         ),
       ),
