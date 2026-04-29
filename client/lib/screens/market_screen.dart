@@ -189,7 +189,7 @@ class MarketScreen extends StatelessWidget {
                     dense: true,
                     leading: CircleAvatar(
                       radius: 12,
-                      backgroundColor: color.withOpacity(0.2),
+                      backgroundColor: color.withValues(alpha: 0.2),
                       child: Text(Constants.resourceIcons[order.resource] ?? '📦'),
                     ),
                     title: Text(
@@ -226,8 +226,8 @@ class MarketScreen extends StatelessWidget {
                     dense: true,
                     leading: CircleAvatar(
                       backgroundColor: order.isBuy
-                          ? AppTheme.accentColor.withOpacity(0.2)
-                          : AppTheme.successColor.withOpacity(0.2),
+                          ? AppTheme.accentColor.withValues(alpha: 0.2)
+                          : AppTheme.successColor.withValues(alpha: 0.2),
                       child: Text(order.isBuy ? 'П' : 'П'),
                     ),
                     title: Text(
@@ -370,7 +370,7 @@ class _OrderFormState extends State<_OrderForm> {
           children: [
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _resource,
+                initialValue: _resource,
                 decoration: const InputDecoration(labelText: 'Ресурс'),
                 items: Constants.resourceNames.keys
                     .where((k) => k != 'energy' && k != 'money' && k != 'alien_tech')
@@ -382,7 +382,7 @@ class _OrderFormState extends State<_OrderForm> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                value: _orderType,
+                initialValue: _orderType,
                 decoration: const InputDecoration(labelText: 'Тип'),
                 items: const [
                   DropdownMenuItem(value: 'buy', child: Text('Купить')),

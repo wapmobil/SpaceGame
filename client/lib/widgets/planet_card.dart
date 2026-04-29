@@ -21,7 +21,7 @@ class PlanetCard extends StatelessWidget {
               Container(
                 width: 60,
                 height: 60,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -72,7 +72,7 @@ class PlanetCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: Colors.white24),
+              const Icon(Icons.chevron_right, color: Colors.white24),
             ],
           ),
         ),

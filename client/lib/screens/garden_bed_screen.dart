@@ -333,7 +333,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
     if (row.isEmpty && row.weeds == 0) {
       return const Text(
         'Пусто',
-        style: const TextStyle(color: Colors.white38, fontSize: 13),
+        style: TextStyle(color: Colors.white38, fontSize: 13),
       );
     }
 
@@ -341,14 +341,14 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Text('🌱', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
+              Text('🌱', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Заросло',
-                  style: const TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -378,23 +378,23 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
     }
 
     if (row.isWithered) {
-      return Column(
+      return const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('🥀', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
+              Text('🥀', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Увядшее',
-                  style: const TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 2),
+          SizedBox(height: 2),
           Text(
             'Нужно очистить',
             style: TextStyle(color: Colors.white54, fontSize: 11),

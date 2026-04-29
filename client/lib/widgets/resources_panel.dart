@@ -56,15 +56,15 @@ class ResourcesPanel extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            border: Border(bottom: BorderSide(color: const Color(0xff2196f3))),
+             color: AppTheme.cardColor,
+             border: const Border(bottom: BorderSide(color: Color(0xff2196f3))),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: Constants.resourceNames.keys.map((key) {
+       child: SingleChildScrollView(
+             scrollDirection: Axis.horizontal,
+             child: Row(
+               children: Constants.resourceNames.keys.map((key) {
                 final value = resources[key] ?? 0;
-                final colorVal = Constants.resourceColors[key] ?? Colors.white.value;
+                final colorVal = (Constants.resourceColors[key] as Color).toARGB32();
                 final icon = Constants.resourceIcons[key] ?? '❓';
 
                 return Padding(
@@ -102,10 +102,10 @@ class ResourcesPanel extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
-              children: [
-                const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 20),
-                const SizedBox(width: 8),
-                const Text(
+              children: const [
+                Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 20),
+                SizedBox(width: 8),
+                Text(
                   'Ресурсы',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
                 ),
@@ -124,7 +124,7 @@ class ResourcesPanel extends StatelessWidget {
                   runSpacing: 8,
                   children: Constants.resourceNames.keys.where((key) => key != 'energy').map((key) {
                     final value = resources[key] ?? 0;
-                    final colorVal = Constants.resourceColors[key] ?? Colors.white.value;
+                    final colorVal = (Constants.resourceColors[key] as Color).toARGB32();
                     final icon = Constants.resourceIcons[key] ?? '❓';
                     final production = _getProduction(key);
                     final prodNum = double.tryParse(production) ?? 0;
@@ -168,7 +168,7 @@ class ResourcesPanel extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '${_formatEnergyProd(gameProvider.productionEnergy)}',
+                            _formatEnergyProd(gameProvider.productionEnergy),
                             style: const TextStyle(fontSize: 10, color: Colors.white70),
                           ),
                         ],

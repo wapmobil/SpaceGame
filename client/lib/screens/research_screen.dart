@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../core/app_theme.dart';
-import '../models/research.dart';
+
 
 class ResearchScreen extends StatelessWidget {
   const ResearchScreen({super.key});
@@ -26,24 +26,24 @@ class ResearchScreen extends StatelessWidget {
                   if (gameProvider.researchPaused) ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.15),
-                        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Исследования приостановлены — Центр исследований отключён',
-                              style: const TextStyle(fontSize: 12, color: Colors.orange),
+             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                 color: Colors.orange.withValues(alpha: 0.15),
+                 border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+                 borderRadius: BorderRadius.circular(8),
+                       ),
+                    child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Исследования приостановлены — Центр исследований отключён',
+                                style: TextStyle(fontSize: 12, color: Colors.orange),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -225,9 +225,9 @@ class _ResearchCard extends StatelessWidget {
     final mins = (seconds / 60).floor();
     final secs = (seconds % 60).floor();
     if (mins > 0) {
-      return '${mins} мин ${secs.toString().padLeft(2, '0')} сек';
+                  return '$mins мин ${secs.toString().padLeft(2, '0')} сек';
     }
-    return '${secs} сек';
+    return '$secs сек';
   }
 
   @override
@@ -236,7 +236,6 @@ class _ResearchCard extends StatelessWidget {
     final textColor = isCompleted ? AppTheme.successColor : (isDimmed ? Colors.white38 : Colors.white);
     final cardColor = isCompleted ? statusColor.withValues(alpha: 0.1) : (isDimmed ? Colors.white.withValues(alpha: 0.03) : statusColor.withValues(alpha: 0.1));
     final borderColor = isCompleted ? statusColor : (isDimmed ? Colors.white24 : statusColor);
-    final iconColor = isCompleted ? Colors.white : (isDimmed ? Colors.white38 : Colors.white);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -274,7 +273,7 @@ class _ResearchCard extends StatelessWidget {
             if (isCompleted) ...[
               const SizedBox(height: 2),
               Text(
-                'Уровень ${currentLevel}/${maxLevel}',
+                'Уровень $currentLevel/$maxLevel',
                 style: TextStyle(fontSize: 11, color: AppTheme.successColor),
               ),
               if (currentLevel > 0 && buildTime > 0) ...[
