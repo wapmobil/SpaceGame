@@ -44,8 +44,7 @@ type Planet struct {
 	Locations          []*planet_survey.Location
 	ExpeditionHistory  []planet_survey.ExpeditionHistoryEntry
 	RangeStats         map[string]*planet_survey.ExpeditionRangeStats
-	ExpeditionCooldown int64
-	MaxLocations       int
+	MaxExpeditions     int
 	game           *Game
 }
 
@@ -79,8 +78,7 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Locations:        make([]*planet_survey.Location, 0),
 		ExpeditionHistory: make([]planet_survey.ExpeditionHistoryEntry, 0),
 		RangeStats:       make(map[string]*planet_survey.ExpeditionRangeStats),
-		ExpeditionCooldown: 0,
-		MaxLocations:     1,
+		MaxExpeditions:   1,
 		game:             g,
 	}
 	types := []PlanetResourceType{ResourceComposite, ResourceMechanisms, ResourceReagents}
@@ -135,7 +133,10 @@ func (p *Planet) RecalculateBuildSpeed() {
 
 // applyResearchEffects applies effects for newly completed research.
 func (p *Planet) applyResearchEffects() {
-	for range p.Research.GetLastCompleted() {
+	for techID := range p.Research.GetLastCompleted() {
+		if techID == "advanced_exploration" {
+			p.MaxExpeditions = p.GetMaxSurfaceExpeditions()
+		}
 	}
 }
 

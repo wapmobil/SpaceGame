@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../core/app_theme.dart';
 import '../../models/planet_survey.dart';
-import '../../providers/planet_survey_provider.dart';
 
 class LocationCard extends StatelessWidget {
   final Location location;
-  final PlanetSurveyProvider provider;
   final VoidCallback? onBuild;
   final VoidCallback? onRemove;
   final VoidCallback? onAbandon;
@@ -13,16 +11,95 @@ class LocationCard extends StatelessWidget {
   const LocationCard({
     super.key,
     required this.location,
-    required this.provider,
     this.onBuild,
     this.onRemove,
     this.onAbandon,
   });
 
+  static Color getRarityColor(String locationType) {
+    final rarity = _getRarityForLocationType(locationType);
+    switch (rarity) {
+      case 'common': return const Color(0xFF9e9e9e);
+      case 'uncommon': return const Color(0xFF4caf50);
+      case 'rare': return const Color(0xFF2196f3);
+      case 'exotic': return const Color(0xFF9c27b0);
+      default: return Colors.white54;
+    }
+  }
+
+  static String getRarityLabel(String locationType) {
+    final rarity = _getRarityForLocationType(locationType);
+    switch (rarity) {
+      case 'common': return 'Обычная';
+      case 'uncommon': return 'Необычная';
+      case 'rare': return 'Редкая';
+      case 'exotic': return 'Экзотическая';
+      default: return 'Неизвестная';
+    }
+  }
+
+  static String getBuildingName(String buildingType) {
+    const names = {
+      'fish_farm': 'Рыбная ферма',
+      'water_purifier': 'Очиститель воды',
+      'irrigation_system': 'Система орошения',
+      'lumber_mill': 'Лесопилка',
+      'herb_garden': 'Травяной сад',
+      'mineral_extractor': 'Экстрактор минералов',
+      'smelter': 'Плавильня',
+      'solar_farm': 'Солнечная ферма',
+      'wind_turbine': 'Ветровая турбина',
+      'hydro_plant': 'Гидроэлектростанция',
+      'turbine_station': 'Турбинная станция',
+      'crystal_mine': 'Кристальная шахта',
+      'cave_lab': 'Лаборатория пещеры',
+      'geothermal_plant': 'Геотермальная станция',
+      'hot_spring_lab': 'Лаборатория источников',
+      'salt_pans': 'Соляные копи',
+      'chemical_plant': 'Химический завод',
+      'wind_farm': 'Ветряная ферма',
+      'storm_collector': 'Сборщик штормов',
+      'crystal_harvester': 'Сборщик кристаллов',
+      'crystal_lab': 'Кристальная лаборатория',
+      'meteor_science_lab': 'Метеоритная лаборатория',
+      'alloy_forge': 'Кузница сплавов',
+      'salvage_station': 'Станция спасения',
+      'ruins_archive': 'Архив руин',
+      'ice_mine': 'Ледниковая шахта',
+      'cryo_lab': 'Криолаборатория',
+      'mushroom_farm': 'Грибная ферма',
+      'spore_extractor': 'Экстрактор спор',
+      'crystal_array': 'Кристальный массив',
+      'resonance_amplifier': 'Резонансный усилитель',
+      'cloud_harvester': 'Сборщик облаков',
+      'aerial_platform': 'Воздушная платформа',
+      'aquaculture_base': 'Аквакультурная база',
+      'underground_irrigation': 'Подземное орошение',
+      'radiation_filter': 'Фильтр радиации',
+      'isotope_plant': 'Изотопный завод',
+      'anomaly_siphon': 'Сифон аномалий',
+      'containment_unit': 'Удержание',
+      'generic_extractor': 'Экстрактор',
+    };
+    return names[buildingType] ?? buildingType;
+  }
+
+  static String _getRarityForLocationType(String locationType) {
+    final common = ['pond', 'river', 'forest', 'mineral_deposit', 'dry_valley'];
+    final uncommon = ['waterfall', 'cave', 'thermal_spring', 'salt_lake', 'wind_pass'];
+    final rare = ['crystal_cave', 'meteor_crater', 'sunken_city', 'glacier', 'mushroom_forest'];
+    final exotic = ['crystal_field', 'cloud_island', 'underground_lake', 'radioactive_zone', 'anomaly_zone'];
+    if (common.contains(locationType)) return 'common';
+    if (uncommon.contains(locationType)) return 'uncommon';
+    if (rare.contains(locationType)) return 'rare';
+    if (exotic.contains(locationType)) return 'exotic';
+    return 'common';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final rarityColor = provider.getRarityColor(location.type);
-    final rarityLabel = provider.getRarityLabel(location.type);
+    final rarityColor = getRarityColor(location.type);
+    final rarityLabel = getRarityLabel(location.type);
     final hasBuilding = location.buildingType != null && location.buildingLevel > 0;
 
     return Card(
@@ -142,7 +219,7 @@ class LocationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            provider.getBuildingName(location.buildingType!),
+                            LocationCard.getBuildingName(location.buildingType!),
                             style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600),
                           ),
                           Text(

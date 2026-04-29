@@ -31,6 +31,7 @@ type Game struct {
 	db            *db.Database
 	Marketplace   *Marketplace
 	broadcastFunc func(planetID, playerID string, state map[string]interface{})
+	notifyFunc    func(playerID, message, notifType string)
 }
 
 // New creates a new Game instance.
@@ -178,12 +179,12 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 		log.Printf("Error loading range stats for planet %s: %v", planet.ID, err)
 	}
 
-	// Load max_locations
-	if maxLoc, _ := g.db.ColumnExists(context.Background(), "planets", "max_locations"); maxLoc {
-		var maxLocVal int
-		_ = g.db.QueryRow(`SELECT max_locations FROM planets WHERE id = $1`, planet.ID).Scan(&maxLocVal)
-		if maxLocVal > 0 {
-			planet.MaxLocations = maxLocVal
+// Load max_expeditions
+	if maxExp, _ := g.db.ColumnExists(context.Background(), "planets", "max_expeditions"); maxExp {
+		var maxExpVal int
+		_ = g.db.QueryRow(`SELECT max_expeditions FROM planets WHERE id = $1`, planet.ID).Scan(&maxExpVal)
+		if maxExpVal > 0 {
+			planet.MaxExpeditions = maxExpVal
 		}
 	}
 
@@ -302,18 +303,9 @@ func (g *Game) LoadPlanetsFromDB() error {
 			log.Printf("Error loading expedition history for planet %s: %v", id, err)
 		}
 
-		// Load range stats
+// Load range stats
 		if err := loadRangeStats(planet); err != nil {
 			log.Printf("Error loading range stats for planet %s: %v", id, err)
-		}
-
-		// Load max_locations
-		if maxLoc, _ := g.db.ColumnExists(context.Background(), "planets", "max_locations"); maxLoc {
-			var maxLocVal int
-			_ = g.db.QueryRow(`SELECT max_locations FROM planets WHERE id = $1`, id).Scan(&maxLocVal)
-			if maxLocVal > 0 {
-				planet.MaxLocations = maxLocVal
-			}
 		}
 
 		g.AddPlanet(planet)
@@ -535,15 +527,15 @@ func (g *Game) savePlanet(p *Planet) {
 		}
 	}
 
-	// Save max_locations
-	if maxLoc, _ := g.db.ColumnExists(context.Background(), "planets", "max_locations"); maxLoc {
+	// Save max_expeditions
+	if maxExp, _ := g.db.ColumnExists(context.Background(), "planets", "max_expeditions"); maxExp {
 		_, err := g.db.Exec(`
 			UPDATE planets 
-			SET max_locations = $1, updated_at = NOW()
+			SET max_expeditions = $1, updated_at = NOW()
 			WHERE id = $2
-		`, p.MaxLocations, p.ID)
+		`, p.MaxExpeditions, p.ID)
 		if err != nil {
-			log.Printf("Error saving max_locations for planet %s: %v", p.ID, err)
+			log.Printf("Error saving max_expeditions for planet %s: %v", p.ID, err)
 		}
 	}
 
@@ -608,6 +600,11 @@ func (g *Planet) broadcastPlanetUpdate() {
 // RegisterBroadcastHandler sets the broadcast callback function.
 func (g *Game) RegisterBroadcastHandler(fn func(planetID, playerID string, state map[string]interface{})) {
 	g.broadcastFunc = fn
+}
+
+// RegisterNotificationHandler sets the notification callback function.
+func (g *Game) RegisterNotificationHandler(fn func(playerID, message, notifType string)) {
+	g.notifyFunc = fn
 }
 
 // SavePlanet saves planet state to the database.

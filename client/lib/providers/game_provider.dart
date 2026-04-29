@@ -15,12 +15,10 @@ import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
 import '../providers/garden_bed_provider.dart';
-import '../providers/planet_survey_provider.dart';
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
   final GardenBedProvider _gardenBedProvider;
-  final PlanetSurveyProvider _planetSurveyProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -68,6 +66,7 @@ class GameProvider extends ChangeNotifier {
   bool _baseOperational = true;
   bool _canResearch = true;
   bool _canExpedition = false;
+  bool _planetSurveyUnlocked = false;
   
   // Research unlocks (planet_exploration random unlock)
   String _researchUnlocks = '';
@@ -78,10 +77,21 @@ class GameProvider extends ChangeNotifier {
   // Completed research tech IDs with levels (from WS state updates)
   Map<String, int> _completedResearch = {};
 
-  GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
+  // Planet survey data (surface expeditions, locations, range stats, history)
+  List<Map<String, dynamic>> _surfaceExpeditions = [];
+  List<Map<String, dynamic>> _locations = [];
+  Map<String, dynamic> _rangeStats = {};
+List<Map<String, dynamic>> _expeditionHistory = [];
+	int? _baseLevel;
+  int? _commandCenterLevel;
+int? _maxSurfaceExpeditions;
+   bool? _canStartPlanetSurvey;
+  bool? _canStartSpaceExpedition;
+   List<Map<String, String>> _notifications = [];
+
+   GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
-        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
-        _planetSurveyProvider = PlanetSurveyProvider(baseUrl: baseUrl ?? _getBaseUri(), authToken: null);
+        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
 
   static String _getBaseUri() {
     final service = createPlatformService();
@@ -104,8 +114,7 @@ class GameProvider extends ChangeNotifier {
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
   GardenBedProvider get gardenBedProvider => _gardenBedProvider;
-  PlanetSurveyProvider get planetSurveyProvider => _planetSurveyProvider;
-    ExpeditionsListResponse? get expeditions => _expeditions;
+  ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
   DrillState? get drillState => _drillState;
@@ -153,11 +162,34 @@ class GameProvider extends ChangeNotifier {
   bool get baseOperational => _baseOperational;
   bool get canResearch => _canResearch;
   bool get canExpedition => _canExpedition;
+  bool get planetSurveyUnlocked => _planetSurveyUnlocked;
     String get researchUnlocks => _researchUnlocks;
   bool get researchPaused => _researchPaused;
   String? get authToken => _player?.authToken;
 
-  int getBuildingLevelForPlanet(String planetId, String buildingType) {
+  // Planet survey getters
+  List<Map<String, dynamic>> get surfaceExpeditions => _surfaceExpeditions;
+  List<Map<String, dynamic>> get locations => _locations;
+  Map<String, dynamic> get rangeStats => _rangeStats;
+List<Map<String, dynamic>> get expeditionHistory => _expeditionHistory;
+	int? get baseLevel => _baseLevel;
+  int? get commandCenterLevel => _commandCenterLevel;
+int? get maxSurfaceExpeditions => _maxSurfaceExpeditions;
+   bool? get canStartPlanetSurvey => _canStartPlanetSurvey;
+bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
+   List<Map<String, String>> get notifications => _notifications;
+
+   void addNotification(String title, String message) {
+     _notifications.add({'title': title, 'message': message});
+     notifyListeners();
+   }
+
+   void clearNotifications() {
+     _notifications.clear();
+     notifyListeners();
+   }
+
+   int getBuildingLevelForPlanet(String planetId, String buildingType) {
     final buildings = planetId == _selectedPlanet?.id ? _buildings : (planets.firstWhere((p) => p.id == planetId, orElse: () => _selectedPlanet!).buildings ?? []);
     for (final b in buildings) {
       if (b.type == buildingType) {
@@ -380,6 +412,23 @@ class GameProvider extends ChangeNotifier {
         _gardenBedProvider.onGardenBedUpdate(farmStateJson);
       }
 
+      // Update planet survey data from state
+      _surfaceExpeditions = (stateData['surface_expeditions'] as List?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList() ?? [];
+      _locations = (stateData['locations'] as List?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList() ?? [];
+      _rangeStats = stateData['range_stats'] as Map<String, dynamic>? ?? {};
+      _expeditionHistory = (stateData['expedition_history'] as List?)
+          ?.map((e) => e as Map<String, dynamic>)
+          .toList() ?? [];
+      _maxSurfaceExpeditions = stateData['max_surface_expeditions'] as int?;
+      _canStartPlanetSurvey = stateData['can_start_planet_survey'] as bool?;
+      _canStartSpaceExpedition = stateData['can_start_space_expedition'] as bool?;
+      _planetSurveyUnlocked = _completedResearch['planet_exploration'] != null;
+      _baseOperational = stateData['base_operational'] as bool? ?? true;
+
       notifyListeners();
     }
   }
@@ -398,8 +447,7 @@ class GameProvider extends ChangeNotifier {
   }
 
     void _handleSpaceExpeditionUpdate(Map<String, dynamic>? data) {
-    if (data != null && _selectedPlanet != null) {
-      loadExpeditions(_selectedPlanet!.id);
+    if (data != null) {
       notifyListeners();
     }
   }
@@ -413,20 +461,44 @@ class GameProvider extends ChangeNotifier {
   }
 
     void _handleNotification(Map<String, dynamic>? data) {
-    // Notifications are handled by the UI layer
-    debugPrint('Notification: ${data?['message']}');
+    if (data == null) return;
+    final message = data['message'] as String?;
+    final type = data['type'] as String?;
+    if (message == null) return;
+    if (type == 'expedition_complete') {
+      addNotification('Экспедиция завершена', message);
+    }
   }
 
   void _handlePlanetSurveyUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
-      _planetSurveyProvider.handlePlanetSurveyUpdate(data);
+      if (data['expedition_id'] != null) {
+        final expId = data['expedition_id'] as String;
+        final idx = _surfaceExpeditions.indexWhere((e) => e['id'] == expId);
+        if (idx >= 0) {
+          _surfaceExpeditions[idx] = {..._surfaceExpeditions[idx], ...data};
+        } else {
+          _surfaceExpeditions.add(data);
+        }
+        if (data['status'] == 'completed' || data['status'] == 'failed' || data['status'] == 'discovered') {
+          loadPlanetSurveyData(_selectedPlanet!.id);
+        }
+      }
       notifyListeners();
     }
   }
 
   void _handleLocationUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
-      _planetSurveyProvider.handleLocationUpdate(data);
+      if (data['location_id'] != null) {
+        final locId = data['location_id'] as String;
+        final idx = _locations.indexWhere((l) => l['id'] == locId);
+        if (idx >= 0) {
+          _locations[idx] = {..._locations[idx], ...data};
+        } else {
+          _locations.add(data);
+        }
+      }
       notifyListeners();
     }
   }
@@ -477,14 +549,11 @@ class GameProvider extends ChangeNotifier {
     loadBuildDetails(planet.id);
     loadShips(planet.id);
     loadResearch(planet.id);
-     loadExpeditions(planet.id);
+     // expedition data comes from WebSocket
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
     _gardenBedProvider.getGardenBed(planet.id);
-    _planetSurveyProvider.loadPlanetSurvey(planet.id);
-    _planetSurveyProvider.loadLocations(planet.id);
-    _planetSurveyProvider.loadExpeditionHistory(planet.id);
-    _planetSurveyProvider.setAuthToken(_player!.authToken);
+    loadPlanetSurveyData(planet.id);
         notifyListeners();
   }
 
@@ -508,6 +577,10 @@ class GameProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to load planet detail: $e');
     }
+  }
+
+  Future<void> loadPlanetSurveyData(String planetId) async {
+    // All data comes from WebSocket state updates
   }
 
   Future<void> loadBuildDetails(String planetId) async {
@@ -592,7 +665,8 @@ class GameProvider extends ChangeNotifier {
     _baseOperational = data['base_operational'] as bool? ?? true;
     _canResearch = data['can_research'] as bool? ?? true;
     _canExpedition = data['can_expedition'] as bool? ?? false;
-    
+    _planetSurveyUnlocked = data['planet_survey_unlocked'] as bool? ?? false;
+
     // Update research unlocks
     _researchUnlocks = data['research_unlocks'] as String? ?? '';
 
@@ -603,11 +677,11 @@ class GameProvider extends ChangeNotifier {
     }
 
     // Update planet survey fields
-    _planetSurveyProvider.canStartPlanetSurvey = data['can_start_planet_survey'] as bool? ?? false;
-    _planetSurveyProvider.canStartSpaceExpedition = data['can_start_space_expedition'] as bool? ?? false;
-    _planetSurveyProvider.baseLevel = data['base_level'] as int?;
-    _planetSurveyProvider.commandCenterLevel = data['command_center_level'] as int?;
-    _planetSurveyProvider.maxLocations = data['max_locations'] as int? ?? 1;
+    _canStartPlanetSurvey = data['can_start_planet_survey'] as bool?;
+    _canStartSpaceExpedition = data['can_start_space_expedition'] as bool?;
+    _baseLevel = data['base_level'] as int?;
+    _commandCenterLevel = data['command_center_level'] as int?;
+    _maxSurfaceExpeditions = data['max_surface_expeditions'] as int? ?? 1;
 
     notifyListeners();
   }
@@ -861,25 +935,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-    Future<void> loadExpeditions(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/expeditions'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        _expeditions = ExpeditionsListResponse.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load expeditions: $e');
-    }
-  }
-
-  Future<void> startExpedition({
+    Future<void> startExpedition({
     required String expeditionType,
     String? target,
     List<String>? shipTypes,
@@ -906,7 +962,7 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 201) {
-        await loadExpeditions(_selectedPlanet!.id);
+        notifyListeners();
       } else {
         _setError('Не удалось начать экспедицию: ${response.body}');
       }
@@ -928,7 +984,7 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await loadExpeditions(_selectedPlanet?.id ?? '');
+        notifyListeners();
       } else {
          _setError('Не удалось выполнить действие экспедиции: ${response.body}');
        }
@@ -1373,7 +1429,6 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await _planetSurveyProvider.loadPlanetSurvey(planetId);
         notifyListeners();
       } else {
         _setError('Не удалось начать разведку: ${response.body}');
@@ -1396,7 +1451,6 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await _planetSurveyProvider.loadLocations(planetId);
         notifyListeners();
       } else {
         _setError('Не удалось построить: ${response.body}');
@@ -1415,7 +1469,6 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await _planetSurveyProvider.loadLocations(planetId);
         notifyListeners();
       } else {
         _setError('Не удалось снести: ${response.body}');
@@ -1437,7 +1490,6 @@ class GameProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await _planetSurveyProvider.loadLocations(planetId);
         notifyListeners();
       } else {
         _setError('Не удалось забрать: ${response.body}');

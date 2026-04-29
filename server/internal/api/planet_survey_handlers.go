@@ -42,10 +42,6 @@ func handleStartPlanetSurvey(db *sql.DB) http.HandlerFunc {
 				Error(w, http.StatusBadRequest, "Planet exploration research not completed")
 				return
 			}
-			if time.Now().Unix() < p.ExpeditionCooldown {
-				Error(w, http.StatusBadRequest, "Survey cooldown active")
-				return
-			}
 			Error(w, http.StatusBadRequest, "Cannot start planet survey")
 			return
 		}
@@ -74,8 +70,7 @@ func handleStartPlanetSurvey(db *sql.DB) http.HandlerFunc {
 			p.Level,
 		)
 
-		p.SurfaceExpeditions = append(p.SurfaceExpeditions, exp)
-		p.ExpeditionCooldown = time.Now().Unix() + 30
+p.SurfaceExpeditions = append(p.SurfaceExpeditions, exp)
 
 		game.Instance().SavePlanet(p)
 
@@ -90,9 +85,8 @@ func handleStartPlanetSurvey(db *sql.DB) http.HandlerFunc {
 			"food_cost":           food,
 			"iron_cost":           iron,
 			"money_cost":          money,
-			"cooldown_end":        p.ExpeditionCooldown,
-			"created_at":          exp.CreatedAt.Format(time.RFC3339),
-			"updated_at":          exp.UpdatedAt.Format(time.RFC3339),
+			"created_at":          exp.CreatedAt.Format("20060102150405"),
+			"updated_at":          exp.UpdatedAt.Format("20060102150405"),
 		}
 
 		JSON(w, http.StatusOK, resp)
@@ -152,7 +146,6 @@ func handleGetPlanetSurvey(db *sql.DB) http.HandlerFunc {
 			"range_stats":      rangeStats,
 			"max_duration":     maxDuration,
 			"cost_per_min":     map[string]float64{"food": costPerMin.Food, "iron": costPerMin.Iron, "money": costPerMin.Money},
-			"cooldown_end":     p.ExpeditionCooldown,
 			"can_start_survey": p.CanStartPlanetSurvey(),
 		}
 
@@ -202,7 +195,7 @@ func handleBuildOnLocation(db *sql.DB) http.HandlerFunc {
 		if authPlayer != nil {
 			ownerID = authPlayer.ID
 		}
-		locationID := chi.URLParam(r, "id")
+		locationID := chi.URLParam(r, "build")
 
 		var req BuildOnLocationRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -320,7 +313,7 @@ func handleRemoveBuilding(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		planetID := PlanetIDFromContext(r)
 		ownerID := AuthPlayerFromContext(r).ID
-		locationID := chi.URLParam(r, "id")
+		locationID := chi.URLParam(r, "build")
 
 		p := ensurePlanetLoaded(planetID)
 		if p == nil {
@@ -364,7 +357,7 @@ func handleAbandonLocation(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		planetID := PlanetIDFromContext(r)
 		ownerID := AuthPlayerFromContext(r).ID
-		locationID := chi.URLParam(r, "id")
+		locationID := chi.URLParam(r, "build")
 
 		p := ensurePlanetLoaded(planetID)
 		if p == nil {

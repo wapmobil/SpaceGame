@@ -17,7 +17,7 @@ class ExpeditionScreen extends StatelessWidget {
           if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
-            onRefresh: () async => gameProvider.loadExpeditions(planet.id),
+            onRefresh: () async {},
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(

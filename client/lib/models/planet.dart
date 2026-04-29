@@ -47,10 +47,9 @@ class Planet {
   final bool canStartPlanetSurvey;
   final bool canStartSpaceExpedition;
   final int? baseLevel;
-  final int? commandCenterLevel;
-  final int maxLocations;
+final int? commandCenterLevel;
 
-  Planet({
+   Planet({
     required this.id,
     required this.playerId,
     required this.name,
@@ -83,7 +82,6 @@ class Planet {
     this.canStartSpaceExpedition = false,
     this.baseLevel,
     this.commandCenterLevel,
-    this.maxLocations = 1,
   }) : resources = {...defaultResources, ...?resources};
 
   static const Map<String, dynamic> defaultResources = {
@@ -137,7 +135,6 @@ class Planet {
       canStartSpaceExpedition: json['can_start_space_expedition'] as bool? ?? false,
       baseLevel: json['base_level'] as int?,
       commandCenterLevel: json['command_center_level'] as int?,
-      maxLocations: json['max_locations'] as int? ?? 1,
     );
   }
 
@@ -182,7 +179,6 @@ class Planet {
     bool? canStartSpaceExpedition,
     int? baseLevel,
     int? commandCenterLevel,
-    int? maxLocations,
   }) {
     return Planet(
       id: id ?? this.id,
@@ -216,7 +212,6 @@ class Planet {
       canStartSpaceExpedition: canStartSpaceExpedition ?? this.canStartSpaceExpedition,
       baseLevel: baseLevel ?? this.baseLevel,
       commandCenterLevel: commandCenterLevel ?? this.commandCenterLevel,
-      maxLocations: maxLocations ?? this.maxLocations,
     );
   }
 }

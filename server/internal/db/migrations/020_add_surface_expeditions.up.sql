@@ -1,5 +1,4 @@
 ALTER TABLE planets ADD COLUMN resource_type TEXT NOT NULL DEFAULT 'composite';
-ALTER TABLE planets ADD COLUMN max_locations INTEGER NOT NULL DEFAULT 1;
 
 ALTER TABLE planets ADD COLUMN surface_expeditions JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE planets ADD COLUMN locations JSONB NOT NULL DEFAULT '[]';

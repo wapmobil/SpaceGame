@@ -1,0 +1,1 @@
+ALTER TABLE planets ADD COLUMN max_expeditions INTEGER NOT NULL DEFAULT 1;

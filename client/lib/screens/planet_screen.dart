@@ -5,7 +5,6 @@ import '../widgets/resources_panel.dart';
 import '../widgets/building_card.dart';
 import '../widgets/build_dialog.dart';
 import '../widgets/quick_stats_section.dart';
-import '../widgets/planet_action_chip.dart';
 import 'shipyard_screen.dart' as ship;
 import 'research_screen.dart' as research;
 import 'expedition_screen.dart' as expedition;
@@ -108,8 +107,6 @@ class _PlanetScreenState extends State<PlanetScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            _buildNavigationChips(gameProvider),
-            const SizedBox(height: 16),
             _buildBuildingsSection(context, gameProvider),
             const SizedBox(height: 16),
             QuickStatsSection(gameProvider: gameProvider),
@@ -174,6 +171,8 @@ class _PlanetScreenState extends State<PlanetScreen> {
         return const research.ResearchScreen();
       case 'shipyard':
         return const ship.ShipyardScreen();
+      case 'planet_survey':
+        return PlanetSurveyScreen(planetId: context.read<GameProvider>().selectedPlanet!.id);
       case 'expedition':
         return const expedition.ExpeditionScreen();
       case 'drill':
@@ -198,45 +197,6 @@ class _PlanetScreenState extends State<PlanetScreen> {
   void _navigateTo(BuildContext context, Widget screen) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => screen),
-    );
-  }
-
-  Widget _buildNavigationChips(GameProvider gameProvider) {
-    final baseLevel = gameProvider.selectedPlanet?.baseLevel ?? 0;
-    final commandCenterLevel = gameProvider.selectedPlanet?.commandCenterLevel ?? 0;
-    final chips = <Widget>[];
-
-    if (baseLevel > 0) {
-      chips.add(
-        PlanetActionChip(
-          icon: Icons.explore,
-          label: 'Разведка',
-          onTap: () => _navigateTo(context, PlanetSurveyScreen(planetId: gameProvider.selectedPlanet!.id)),
-        ),
-      );
-    }
-
-    if (commandCenterLevel > 0) {
-      chips.add(
-        PlanetActionChip(
-          icon: Icons.rocket_launch,
-          label: 'Космические экспедиции',
-          onTap: () => _navigateTo(context, PlanetSurveyScreen(planetId: gameProvider.selectedPlanet!.id)),
-        ),
-      );
-    }
-
-    if (chips.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: chips,
-        ),
-      ),
     );
   }
 }

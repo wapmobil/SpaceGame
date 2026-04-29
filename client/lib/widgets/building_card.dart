@@ -377,7 +377,7 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
                         ),
                       ...prodLines,
                       if (building.isWorking && widget.onNavigateBuilding != null)
-                        ..._buildNavigationChips(building.type),
+                        ..._buildNavigationChips(building.type, widget.gameProvider),
                     ],
                   ),
                 ],
@@ -410,11 +410,17 @@ class _BuildingCardState extends State<BuildingCard> with SingleTickerProviderSt
     );
   }
 
-  List<Widget> _buildNavigationChips(String type) {
+  List<Widget> _buildNavigationChips(String type, GameProvider gameProvider) {
     final chips = <Map<String, dynamic>>[];
     switch (type) {
       case 'base':
         chips.add({'icon': Icons.science, 'label': 'Исследования', 'action': 'research'});
+        if (gameProvider.planetSurveyUnlocked) {
+          chips.add({'icon': Icons.explore, 'label': 'Разведка', 'action': 'planet_survey'});
+        }
+        break;
+      case 'command_center':
+        chips.add({'icon': Icons.rocket_launch, 'label': 'Космические экспедиции', 'action': 'expedition'});
         break;
       case 'shipyard':
         chips.add({'icon': Icons.rocket_launch, 'label': 'Верфь', 'action': 'shipyard'});

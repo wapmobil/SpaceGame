@@ -90,13 +90,13 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Post("/{id}/space-expeditions", handleCreateSpaceExpedition(db))
 		rr.Get("/{id}/space-expeditions", handleGetSpaceExpeditions(db))
 
-		rr.Post("/planet-survey", handleStartPlanetSurvey(db))
-		rr.Get("/planet-survey", handleGetPlanetSurvey(db))
+		rr.Post("/{id}/planet-survey", handleStartPlanetSurvey(db))
+		rr.Get("/{id}/planet-survey", handleGetPlanetSurvey(db))
 
-		rr.Get("/locations", handleGetLocations(db))
-		rr.Post("/locations/:id/build", handleBuildOnLocation(db))
-		rr.Delete("/locations/:id/building", handleRemoveBuilding(db))
-		rr.Post("/locations/:id/abandon", handleAbandonLocation(db))
+		rr.Get("/{id}/locations", handleGetLocations(db))
+		rr.Post("/{id}/locations/{build}/build", handleBuildOnLocation(db))
+		rr.Delete("/{id}/locations/{build}/building", handleRemoveBuilding(db))
+		rr.Post("/{id}/locations/{build}/abandon", handleAbandonLocation(db))
 
 		rr.Get("/expedition-history", handleGetExpeditionHistory(db))
 		rr.Post("/{id}/market/orders", handleCreateMarketOrder(db))

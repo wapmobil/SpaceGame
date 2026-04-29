@@ -235,12 +235,16 @@ type BuildDetailsResponse struct {
 	ResourceProduction ProdDetail                 `json:"production"`
 	ActiveConstruction int                        `json:"active_constructions"`
 	MaxConstruction    int                        `json:"max_constructions"`
-	BaseOperational    bool                       `json:"base_operational"`
-	CanResearch        bool                       `json:"can_research"`
-	CanExpedition      bool                       `json:"can_expedition"`
-	BuildingCosts      map[string]BuildingCostDetail `json:"building_costs"`
-	ResearchUnlocks    string                     `json:"research_unlocks"`
-	GardenBedState       GardenBedStateResponse       `json:"garden_bed_state,omitempty"`
+	BaseOperational         bool                       `json:"base_operational"`
+	BaseLevel               int                        `json:"base_level"`
+	CommandCenterLevel      int                        `json:"command_center_level"`
+	MaxSurfaceExpeditions   int                        `json:"max_surface_expeditions"`
+	CanResearch             bool                       `json:"can_research"`
+	CanExpedition           bool                       `json:"can_expedition"`
+	PlanetSurveyUnlocked    bool                       `json:"planet_survey_unlocked"`
+	BuildingCosts           map[string]BuildingCostDetail `json:"building_costs"`
+	ResearchUnlocks         string                     `json:"research_unlocks"`
+	GardenBedState          GardenBedStateResponse       `json:"garden_bed_state,omitempty"`
 }
 
 // GardenBedStateResponse represents the garden bed state in API responses.

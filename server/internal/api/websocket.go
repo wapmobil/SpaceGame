@@ -689,6 +689,9 @@ func InitWS() {
 		g.RegisterBroadcastHandler(func(planetID, playerID string, state map[string]interface{}) {
 			wsBroadcast.BroadcastStateUpdate(playerID, planetID, state)
 		})
+		g.RegisterNotificationHandler(func(playerID, message, notifType string) {
+			wsBroadcast.BroadcastNotification(playerID, message, notifType)
+		})
 	}
 }
 

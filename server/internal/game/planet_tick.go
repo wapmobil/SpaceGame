@@ -1,7 +1,9 @@
 package game
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"spacegame/internal/game/planet_survey"
@@ -94,9 +96,7 @@ func (p *Planet) TickSurfaceExpeditions() {
 			continue
 		}
 
-		if p.ExpeditionCooldown > 0 && time.Now().Unix() < p.ExpeditionCooldown {
-			continue
-		}
+	
 
 		planet_survey.Tick(exp, 1)
 
@@ -190,7 +190,23 @@ func (p *Planet) TickSurfaceExpeditions() {
 			}
 
 			p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
-			p.ExpeditionCooldown = time.Now().Unix() + 30
+
+			var notifyMsg string
+			if isSuccess {
+				var resParts []string
+				for res, amt := range resourceRecovery {
+					if amt > 0 {
+						resParts = append(resParts, fmt.Sprintf("%s: +%.0f", res, amt))
+					}
+				}
+				notifyMsg = fmt.Sprintf("Экспедиция завершена! Обнаружена локация: %s. Получено: %s", exp.Discovered.Name, strings.Join(resParts, ", "))
+			} else {
+				notifyMsg = "Экспедиция завершена без результатов."
+			}
+			if p.game != nil && p.game.notifyFunc != nil {
+				p.game.notifyFunc(p.OwnerID, notifyMsg, "expedition_complete")
+			}
+
 			p.SurfaceExpeditions = append(p.SurfaceExpeditions[:i], p.SurfaceExpeditions[i+1:]...)
 		}
 	}
