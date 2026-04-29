@@ -46,6 +46,21 @@ func (p *Planet) tickEnergy() {
 	// Calculate energy production and consumption in single pass
 	energyProduction, energyConsumption := p.calculateEnergy()
 
+	// Apply energy_saving research bonus (-10% consumption per level)
+	if lvl, ok := p.Research.GetCompleted()["energy_saving"]; ok && lvl > 0 {
+		energyConsumption *= 1.0 - float64(lvl)*0.10
+	}
+
+	// Apply upgraded_energy_storage research bonus (+20% capacity per level)
+	if lvl, ok := p.Research.GetCompleted()["upgraded_energy_storage"]; ok && lvl > 0 {
+		p.EnergyBuffer.Max *= 1.0 + float64(lvl)*0.20
+	}
+
+	// Apply upgraded_energy_storage_2 research bonus (2x capacity)
+	if _, ok := p.Research.GetCompleted()["upgraded_energy_storage_2"]; ok {
+		p.EnergyBuffer.Max *= 2.0
+	}
+
 	p.EnergyBuffer.Value += energyProduction
 	p.EnergyBuffer.Value -= energyConsumption
 

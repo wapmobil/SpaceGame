@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"log"
+	"math"
 
 	"spacegame/internal/game/building"
 )
@@ -272,7 +273,17 @@ func (p *Planet) CalculateStorageCapacity() float64 {
 	if idx := p.FindBuildingIndex("storage"); idx >= 0 {
 		base += float64(p.Buildings[idx].Level) * 1000
 	}
-	return base
+	capacity := base
+	if lvl, ok := p.Research.GetCompleted()["compact_storage"]; ok && lvl > 0 {
+		capacity *= math.Pow(2, float64(lvl))
+	}
+	if lvl, ok := p.Research.GetCompleted()["compact_storage_2"]; ok && lvl > 0 {
+		capacity *= 4
+	}
+	if lvl, ok := p.Research.GetCompleted()["compact_storage_3"]; ok && lvl > 0 {
+		capacity *= 8
+	}
+	return capacity
 }
 
 // GetTotalBuildingLevels returns the sum of all building levels.
