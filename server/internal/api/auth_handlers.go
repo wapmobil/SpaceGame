@@ -185,6 +185,8 @@ func handleGetPlanet(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		p.SortBuildings()
+
 		resp := map[string]interface{}{
 			"id":          p.ID,
 			"player_id":   p.OwnerID,

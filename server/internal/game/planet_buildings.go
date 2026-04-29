@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 
 	"spacegame/internal/game/building"
 )
@@ -16,6 +17,26 @@ func (p *Planet) FindBuildingIndex(bt string) int {
 		}
 	}
 	return -1
+}
+
+// SortBuildings sorts buildings by their type according to BuildingsOrder.
+func (p *Planet) SortBuildings() {
+	orderIndex := make(map[string]int, len(BuildingsOrder))
+	for i, bt := range BuildingsOrder {
+		orderIndex[bt] = i
+	}
+
+	sort.SliceStable(p.Buildings, func(i, j int) bool {
+		oi, okI := orderIndex[p.Buildings[i].Type]
+		oj, okJ := orderIndex[p.Buildings[j].Type]
+		if !okI {
+			oi = len(BuildingsOrder)
+		}
+		if !okJ {
+			oj = len(BuildingsOrder)
+		}
+		return oi < oj
+	})
 }
 
 // AddBuilding adds or upgrades a building on the planet.

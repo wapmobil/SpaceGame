@@ -24,6 +24,8 @@ func handleGetBuildings(db *sql.DB) http.HandlerFunc {
 			p.PopulateBuildingEntry(i)
 		}
 
+		p.SortBuildings()
+
 		details := p.GetBuildDetails()
 
 		buildings := make([]BuildingDetail, len(details.Buildings))
@@ -245,6 +247,8 @@ func handleGetBuildDetails(db *sql.DB) http.HandlerFunc {
 		for i := range p.Buildings {
 			p.PopulateBuildingEntry(i)
 		}
+
+		p.SortBuildings()
 
 		details := p.GetBuildDetails()
 
