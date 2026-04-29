@@ -9,7 +9,7 @@ class AppTheme {
   static const successColor = Color(0xFF00c853);
   static const warningColor = Color(0xFFFFab00);
   static const dangerColor = Color(0xFFff1744);
-  static const resourceColors = {
+  static const Map<String, Color> resourceColors = {
     'food': Color(0xFFff9800),
     'composite': Color(0xFF8bc34a),
     'mechanisms': Color(0xFF607d8b),
@@ -61,7 +61,7 @@ class AppTheme {
         ),
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: cardColor,
-          indicatorColor: secondaryColor.withOpacity(0.3),
+          indicatorColor: secondaryColor.withValues(alpha: 0.3),
           labelTextStyle: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
               return const TextStyle(color: secondaryColor);

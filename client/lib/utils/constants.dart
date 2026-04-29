@@ -34,14 +34,14 @@ class Constants {
   };
 
   static const resourceColors = {
-    'food': 0xFFff9800,
-    'iron': 0xFFa1887f,
-    'composite': 0xFF8bc34a,
-    'mechanisms': 0xFF607d8b,
-    'reagents': 0xFF9c27b0,
-    'energy': 0xFFFFeb3b,
-    'money': 0xFFffd700,
-    'alien_tech': 0xFF00bcd4,
+    'food': Color(0xFFFF9800),
+    'iron': Color(0xFFA1887F),
+    'composite': Color(0xFF8BC34A),
+    'mechanisms': Color(0xFF607D8B),
+    'reagents': Color(0xFF9C27B0),
+    'energy': Color(0xFFFFEB3B),
+    'money': Color(0xFFFFD700),
+    'alien_tech': Color(0xFF00BCD4),
   };
 
  static const buildingTypes = {

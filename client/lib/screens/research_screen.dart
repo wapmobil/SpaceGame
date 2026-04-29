@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../core/app_theme.dart';
-import '../models/research.dart';
 
 class ResearchScreen extends StatelessWidget {
   const ResearchScreen({super.key});
@@ -236,7 +235,6 @@ class _ResearchCard extends StatelessWidget {
     final textColor = isCompleted ? AppTheme.successColor : (isDimmed ? Colors.white38 : Colors.white);
     final cardColor = isCompleted ? statusColor.withValues(alpha: 0.1) : (isDimmed ? Colors.white.withValues(alpha: 0.03) : statusColor.withValues(alpha: 0.1));
     final borderColor = isCompleted ? statusColor : (isDimmed ? Colors.white24 : statusColor);
-    final iconColor = isCompleted ? Colors.white : (isDimmed ? Colors.white38 : Colors.white);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

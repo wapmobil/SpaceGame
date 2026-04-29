@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import '../core/platform_service.dart';
 import '../core/platform_service_web.dart' if (dart.library.io) '../core/platform_service_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,7 +31,6 @@ class GameProvider extends ChangeNotifier {
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
   DrillState? _drillState;
-  String? _drillSessionId;
   int? _drillSeed;
   String? _drillPendingDirection;
   bool _drillPendingExtracting = false;
@@ -1226,7 +1224,6 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final startResp = DrillStartResponse.fromJson(data);
-        _drillSessionId = startResp.sessionId;
         _drillSeed = startResp.seed;
         _drillState = DrillState(
           sessionId: startResp.sessionId,
@@ -1282,7 +1279,6 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     if (_player == null) return;
     try {
       final update = DrillUpdate.fromJson(data);
-      _drillSessionId = update.sessionId;
       _drillPendingDirection = null;
       _drillState = DrillState(
         sessionId: update.sessionId,

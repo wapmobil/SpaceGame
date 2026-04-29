@@ -64,7 +64,7 @@ class ResourcesPanel extends StatelessWidget {
             child: Row(
               children: Constants.resourceNames.keys.map((key) {
                 final value = resources[key] ?? 0;
-                final colorVal = Constants.resourceColors[key] ?? Colors.white.value;
+                final colorVal = Constants.resourceColors[key] ?? Colors.white;
                 final icon = Constants.resourceIcons[key] ?? '❓';
 
                 return Padding(
@@ -78,7 +78,7 @@ class ResourcesPanel extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: Color(colorVal),
+                          color: colorVal,
                         ),
                       ),
                     ],
@@ -124,7 +124,7 @@ class ResourcesPanel extends StatelessWidget {
                   runSpacing: 8,
                   children: Constants.resourceNames.keys.where((key) => key != 'energy').map((key) {
                     final value = resources[key] ?? 0;
-                    final colorVal = Constants.resourceColors[key] ?? Colors.white.value;
+                    final colorVal = Constants.resourceColors[key] ?? Colors.white;
                     final icon = Constants.resourceIcons[key] ?? '❓';
                     final production = _getProduction(key);
                     final prodNum = double.tryParse(production) ?? 0;
@@ -145,7 +145,7 @@ class ResourcesPanel extends StatelessWidget {
                         '${Constants.resourceNames[key]}: ${value.toStringAsFixed(0)}$capStr$rateText',
                         style: const TextStyle(fontSize: 12),
                       ),
-                      backgroundColor: Color(colorVal).withValues(alpha: 0.2),
+                      backgroundColor: colorVal.withValues(alpha: 0.2),
                       side: BorderSide.none,
                     );
                   }).toList(),

@@ -217,7 +217,7 @@ class _CostChip extends StatelessWidget {
     return Chip(
       label: Text('$label: $value', style: const TextStyle(fontSize: 10)),
       visualDensity: VisualDensity.compact,
-      backgroundColor: AppTheme.primaryColor.withOpacity(0.3),
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.3),
       side: BorderSide.none,
     );
   }

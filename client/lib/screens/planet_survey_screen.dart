@@ -102,9 +102,6 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     final durations = [300, 600, 1200];
     final availableDurations = durations.where((d) => d <= maxDuration).toList();
     final resources = gameProvider.selectedPlanet?.resources ?? {};
-    final hasFood = (resources['food'] as num? ?? 0) >= 0;
-    final hasIron = (resources['iron'] as num? ?? 0) >= 0;
-    final hasMoney = (resources['money'] as num? ?? 0) >= 0;
 
     if (baseLevel <= 0) {
       return Card(
@@ -479,12 +476,12 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
             mainAxisSize: MainAxisSize.min,
             children: buildings.map((LocationBuildingDef b) {
               return ListTile(
-                title: Text(b.name ?? '', style: const TextStyle(color: Colors.white)),
-                subtitle: Text('${(b.costFood ?? 0).toInt()} еды, ${(b.costIron ?? 0).toInt()} железа, ${(b.costMoney ?? 0).toInt()} денег', style: const TextStyle(color: Colors.white54)),
-                trailing: Text('${Constants.formatTime(b.buildTime ?? 0)}', style: const TextStyle(color: AppTheme.accentColor)),
+                title: Text(b.name, style: const TextStyle(color: Colors.white)),
+                subtitle: Text('${b.costFood.toInt()} еды, ${b.costIron.toInt()} железа, ${b.costMoney.toInt()} денег', style: const TextStyle(color: Colors.white54)),
+                trailing: Text('${Constants.formatTime(b.buildTime)}', style: const TextStyle(color: AppTheme.accentColor)),
                 onTap: () {
                   Navigator.pop(context);
-                  context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type ?? '');
+                  context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type);
                 },
               );
             }).toList(),
