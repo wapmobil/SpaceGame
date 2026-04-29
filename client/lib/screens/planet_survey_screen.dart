@@ -104,15 +104,15 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     final resources = gameProvider.selectedPlanet?.resources ?? {};
 
     if (baseLevel <= 0) {
-      return Card(
+      return const Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Разведка планеты', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-              const SizedBox(height: 8),
-              const Text('Постройте и запустите базу, чтобы начать разведку.', style: TextStyle(fontSize: 12, color: Colors.white38)),
+              Text('Разведка планеты', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+              SizedBox(height: 8),
+              Text('Постройте и запустите базу, чтобы начать разведку.', style: TextStyle(fontSize: 12, color: Colors.white38)),
             ],
           ),
         ),
@@ -148,7 +148,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                     (resources['food'] as num? ?? 0) >= totalFood &&
                     (resources['iron'] as num? ?? 0) >= totalIron &&
                     (resources['money'] as num? ?? 0) >= totalMoney;
-                final costLabel = '${Constants.resourceIcons['food']}${totalFood} ${Constants.resourceIcons['iron']}${totalIron} ${Constants.resourceIcons['money']}${totalMoney}';
+                final costLabel = '${Constants.resourceIcons['food']}$totalFood ${Constants.resourceIcons['iron']}$totalIron ${Constants.resourceIcons['money']}$totalMoney';
                 return ElevatedButton.icon(
                   onPressed: canStart && canAfford
                       ? () async {
@@ -160,7 +160,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('${minutes} мин'),
+                      Text('$minutes мин'),
                       Text(costLabel, style: const TextStyle(fontSize: 9, color: Colors.white70)),
                     ],
                   ),
@@ -478,7 +478,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
               return ListTile(
                 title: Text(b.name, style: const TextStyle(color: Colors.white)),
                 subtitle: Text('${b.costFood.toInt()} еды, ${b.costIron.toInt()} железа, ${b.costMoney.toInt()} денег', style: const TextStyle(color: Colors.white54)),
-                trailing: Text('${Constants.formatTime(b.buildTime)}', style: const TextStyle(color: AppTheme.accentColor)),
+                trailing: Text(Constants.formatTime(b.buildTime), style: const TextStyle(color: AppTheme.accentColor)),
                 onTap: () {
                   Navigator.pop(context);
                   context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type);

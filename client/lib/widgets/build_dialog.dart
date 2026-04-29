@@ -32,13 +32,13 @@ class BuildDialog extends StatelessWidget {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 4),
-              Text(
-                'Строительство: ${gameProvider.activeConstructions}/${gameProvider.maxConstructions}',
-                style: TextStyle(fontSize: 12, color: Colors.white54),
-              ),
+              const Text(
+                      'Исследование планет: доступно',
+                      style: TextStyle(fontSize: 11, color: Colors.green),
+                    ),
               if (gameProvider.activeConstructions >= gameProvider.maxConstructions) ...[
                 const SizedBox(height: 4),
-                Text(
+                const Text(
                   'Исследуйте "Параллельное строительство", чтобы открыть больше.',
                   style: TextStyle(fontSize: 10, color: Colors.orange),
                 ),
@@ -70,9 +70,9 @@ class BuildDialog extends StatelessWidget {
                     border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
                     borderRadius: BorderRadius.circular(4),
                   ),
-child: Text(
+                  child: const Text(
                       'Исследование планет: доступно',
-                      style: const TextStyle(fontSize: 11, color: Colors.green),
+                      style: TextStyle(fontSize: 11, color: Colors.green),
                     ),
                 ),
                 const SizedBox(height: 4),

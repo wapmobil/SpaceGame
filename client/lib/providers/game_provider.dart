@@ -85,7 +85,7 @@ List<Map<String, dynamic>> _expeditionHistory = [];
 int? _maxSurfaceExpeditions;
    bool? _canStartPlanetSurvey;
   bool? _canStartSpaceExpedition;
-   List<Map<String, String>> _notifications = [];
+   final List<Map<String, String>> _notifications = [];
 
    GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
@@ -718,18 +718,18 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
   }
 
   BuildingUpgradeInfo getBuildingUpgradeInfo(Building building) {
-    if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
+    if (_selectedPlanet == null) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
 
     final isReady = building.isBuildComplete;
-    if (isReady) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
+    if (isReady) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
 
     final isBuilding = building.isBuilding;
-    if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
+    if (isBuilding) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
 
     final nextCostFood = building.nextCostFood;
     final nextCostIron = building.nextCostIron;
     final nextCostMoney = building.nextCostMoney;
-    if (nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
+    if (nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
 
     final currentFood = (_selectedPlanet!.resources['food'] ?? 0) as num;
     final currentIron = (_selectedPlanet!.resources['iron'] ?? 0) as num;
@@ -745,9 +745,9 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       return BuildingUpgradeInfo(canUpgrade: false, reason: 'Не хватает ${missing.join(" и ")}');
     }
 
-    if (activeConstructions >= maxConstructions) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Достигнут лимит строительства');
+    if (activeConstructions >= maxConstructions) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Достигнут лимит строительства');
 
-    return BuildingUpgradeInfo(canUpgrade: true, reason: null);
+    return const BuildingUpgradeInfo(canUpgrade: true, reason: null);
   }
 
   Future<void> confirmBuilding(String buildingType) async {

@@ -55,9 +55,9 @@ class ResourcesPanel extends StatelessWidget {
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppTheme.cardColor,
-            border: Border(bottom: BorderSide(color: const Color(0xff2196f3))),
+            border: Border(bottom: BorderSide(color: Color(0xff2196f3))),
           ),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -97,22 +97,7 @@ class ResourcesPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Ресурсы',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _ExpandedHeader(onTap: onTap),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -168,7 +153,7 @@ class ResourcesPanel extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            '${_formatEnergyProd(gameProvider.productionEnergy)}',
+                            _formatEnergyProd(gameProvider.productionEnergy),
                             style: const TextStyle(fontSize: 10, color: Colors.white70),
                           ),
                         ],
@@ -201,5 +186,31 @@ class ResourcesPanel extends StatelessWidget {
       return _buildCompactView();
     }
     return _buildExpandedView();
+  }
+}
+
+class _ExpandedHeader extends StatelessWidget {
+  final VoidCallback? onTap;
+
+  const _ExpandedHeader({this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Ресурсы',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

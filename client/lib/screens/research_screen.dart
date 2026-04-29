@@ -31,14 +31,14 @@ class ResearchScreen extends StatelessWidget {
                         border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                          const SizedBox(width: 8),
+                          Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Исследования приостановлены — Центр исследований отключён',
-                              style: const TextStyle(fontSize: 12, color: Colors.orange),
+                              style: TextStyle(fontSize: 12, color: Colors.orange),
                             ),
                           ),
                         ],
@@ -224,9 +224,9 @@ class _ResearchCard extends StatelessWidget {
     final mins = (seconds / 60).floor();
     final secs = (seconds % 60).floor();
     if (mins > 0) {
-      return '${mins} мин ${secs.toString().padLeft(2, '0')} сек';
+      return '$mins мин ${secs.toString().padLeft(2, '0')} сек';
     }
-    return '${secs} сек';
+    return '$secs сек';
   }
 
   @override
@@ -272,8 +272,8 @@ class _ResearchCard extends StatelessWidget {
             if (isCompleted) ...[
               const SizedBox(height: 2),
               Text(
-                'Уровень ${currentLevel}/${maxLevel}',
-                style: TextStyle(fontSize: 11, color: AppTheme.successColor),
+                'Уровень $currentLevel/$maxLevel',
+                style: const TextStyle(fontSize: 11, color: AppTheme.successColor),
               ),
               if (currentLevel > 0 && buildTime > 0) ...[
                 const SizedBox(height: 2),

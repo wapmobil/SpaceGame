@@ -193,9 +193,9 @@ class LocationCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
                 if (location.isDepleted)
-                  Text(
+                  const Text(
                     'Исчерпан',
-                    style: const TextStyle(fontSize: 10, color: AppTheme.dangerColor),
+                    style: TextStyle(fontSize: 10, color: AppTheme.dangerColor),
                   ),
               ],
             ),

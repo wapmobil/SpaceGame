@@ -20,7 +20,7 @@ class DrillScreen extends StatefulWidget {
 
 class _DrillScreenState extends State<DrillScreen> {
   bool _extracting = false;
-  String _lastMessage = '';
+  final String _lastMessage = '';
   bool _resultShown = false;
   final _keyboardFocusNode = FocusNode();
 
@@ -103,11 +103,17 @@ class _DrillScreenState extends State<DrillScreen> {
         actions: [
           TextButton(
             onPressed: () async {
-              await context.read<GameProvider>().cleanupDrill();
-              context.read<GameProvider>().clearDrillState();
+              final dialogContext = ctx;
+              final localContext = context;
+              final dialogNavigator = Navigator.of(dialogContext);
+              final localNavigator = Navigator.of(localContext);
+              final gameProvider = localContext.read<GameProvider>();
+              await gameProvider.cleanupDrill();
+              if (!mounted || !dialogNavigator.canPop() || !localNavigator.canPop()) return;
+              gameProvider.clearDrillState();
               _resultShown = false;
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
+              dialogNavigator.pop();
+              localNavigator.pop();
             },
             child: const Text('Закрыть'),
           ),
@@ -470,7 +476,7 @@ class _DrillScreenState extends State<DrillScreen> {
                         children: [
                           Text(r.icon, style: const TextStyle(fontSize: 14)),
                           const SizedBox(width: 2),
-                          Text('${r.amount.toStringAsFixed(0)}',
+                          Text(r.amount.toStringAsFixed(0),
                               style: const TextStyle(color: Colors.white, fontSize: 10)),
                         ],
                       ),
@@ -660,13 +666,13 @@ class _DrillScreenState extends State<DrillScreen> {
         ),
         child: Column(
           children: [
-            const Icon(Icons.build, size: 24, color: Colors.white),
-            const SizedBox(height: 2),
-            Text(
-              _extracting ? 'Добыча...' : 'Добыча',
-              style: TextStyle(color: Colors.white, fontSize: 10),
-            ),
-          ],
+             const Icon(Icons.build, size: 24, color: Colors.white),
+             const SizedBox(height: 2),
+             Text(
+               _extracting ? 'Добыча...' : 'Добыча',
+               style: const TextStyle(color: Colors.white, fontSize: 10),
+             ),
+           ],
         ),
       ),
     );

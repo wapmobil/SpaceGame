@@ -75,9 +75,13 @@ class ResearchTree extends StatelessWidget {
 
       // Filter by parent or show root nodes
       if (parentId != null) {
-        if (!dependsOn.contains(parentId)) continue;
+        if (!dependsOn.contains(parentId)) {
+          continue;
+        }
       } else {
-        if (dependsOn.isNotEmpty) continue;
+        if (dependsOn.isNotEmpty) {
+          continue;
+        }
       }
 
       final isCompleted = completedIds.contains(techId);
@@ -89,10 +93,15 @@ class ResearchTree extends StatelessWidget {
       if (!isCompleted && !isInProgress && !hasPrerequisites) continue;
 
       Color statusColor;
-      if (isCompleted) statusColor = AppTheme.successColor;
-      else if (isInProgress) statusColor = AppTheme.warningColor;
-      else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
-      else statusColor = Colors.white24;
+      if (isCompleted) {
+        statusColor = AppTheme.successColor;
+      } else if (isInProgress) {
+        statusColor = AppTheme.warningColor;
+      } else if (isAvailable && hasPrerequisites) {
+        statusColor = AppTheme.accentColor;
+      } else {
+        statusColor = Colors.white24;
+      }
 
       final research = researchMap[techId];
       final progressPct = research != null ? research.progressPct : 0.0;
@@ -190,9 +199,9 @@ class _TechNode extends StatelessWidget {
     final mins = (seconds / 60).floor();
     final secs = (seconds % 60).floor();
     if (mins > 0) {
-      return '${mins} мин ${secs.toString().padLeft(2, '0')} сек';
+      return '$mins мин ${secs.toString().padLeft(2, '0')} сек';
     }
-    return '${secs} сек';
+    return '$secs сек';
   }
 
   @override

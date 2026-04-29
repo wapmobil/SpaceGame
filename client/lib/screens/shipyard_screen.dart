@@ -99,7 +99,7 @@ class ShipyardScreen extends StatelessWidget {
                 child: Center(child: Text('Во флоте нет кораблей', style: TextStyle(color: Colors.white38))),
               )
             else
-              ...ships.map((ship) => ShipCard(ship: ship)).toList(),
+              ...ships.map((ship) => ShipCard(ship: ship)),
           ],
         ),
       ),

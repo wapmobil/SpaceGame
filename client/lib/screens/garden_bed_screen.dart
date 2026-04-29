@@ -333,69 +333,41 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
     if (row.isEmpty && row.weeds == 0) {
       return const Text(
         'Пусто',
-        style: const TextStyle(color: Colors.white38, fontSize: 13),
+        style: TextStyle(color: Colors.white38, fontSize: 13),
       );
     }
 
-    if (row.isEmpty && row.weeds > 0) {
-      return Column(
+   if (row.isEmpty && row.weeds > 0) {
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Text('🌱', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
+              Text('🌱', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Заросло',
-                  style: const TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          if (row.weeds > 0) ...[
+         if (row.weeds > 0) ...[
             const SizedBox(height: 2),
-            Row(
+            const Row(
               children: [
                 Text(
-                  List.filled(row.weeds, '🌿').join(),
-                  style: const TextStyle(fontSize: 11),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${row.weeds}/3',
-                  style: TextStyle(
-                    color: row.isAtMaxWeeds ? AppTheme.dangerColor : Colors.orange,
-                    fontSize: 10,
-                  ),
+                  'Увядшее',
+                  style: TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ],
-        ],
-      );
-    }
-
-    if (row.isWithered) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('🥀', style: TextStyle(fontSize: 16)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Увядшее',
-                  style: const TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 2),
-          Text(
+          const Text(
             'Нужно очистить',
             style: TextStyle(color: Colors.white54, fontSize: 11),
           ),
