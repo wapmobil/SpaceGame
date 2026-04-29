@@ -192,11 +192,11 @@ class LocationCard extends StatelessWidget {
                   '${location.sourceRemaining.toInt()}/${location.sourceAmount.toInt()}',
                   style: const TextStyle(fontSize: 10, color: Colors.white54),
                 ),
-              if (location.isDepleted)
-                   const Text(
-                     'Исчерпан',
-                     style: TextStyle(fontSize: 10, color: AppTheme.dangerColor),
-                   ),
+                if (location.isDepleted)
+                  Text(
+                    'Исчерпан',
+                    style: const TextStyle(fontSize: 10, color: AppTheme.dangerColor),
+                  ),
               ],
             ),
             const SizedBox(height: 8),

@@ -308,9 +308,9 @@ class GardenBedProvider extends ChangeNotifier {
     if (row.isMature) return 1.0;
     final plantType = row.plantType ?? 'wheat';
     final growthTicks = getGrowthTicks(plantType);
-    const stages = 3;
+    final stages = 3;
     final ticksPerStage = growthTicks ~/ (stages - 1);
-    const maxStage = stages - 1;
+    final maxStage = stages - 1;
     final totalTicks = maxStage * ticksPerStage;
     final completed = (row.stage ?? 0) * ticksPerStage + row.stageProgress;
     return (completed / totalTicks).clamp(0.0, 1.0);
@@ -323,11 +323,11 @@ class GardenBedProvider extends ChangeNotifier {
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     if (minutes > 0 && seconds > 0) {
-      return '$minutesм $secondsс';
+      return '${minutes}м ${seconds}с';
     } else if (minutes > 0) {
-      return '$minutesм';
+      return '${minutes}м';
     }
-    return '$secondsс';
+    return '${seconds}с';
   }
 
   String getWitherStatusText(GardenBedRow row) {
@@ -338,5 +338,8 @@ class GardenBedProvider extends ChangeNotifier {
     return '⏱ $witherTimer';
   }
 
- 
+  @override
+  void dispose() {
+    super.dispose();
+  }
 }

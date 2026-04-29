@@ -75,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.public, size: 80, color: Colors.white24),
+          Icon(Icons.public, size: 80, color: Colors.white24),
           const SizedBox(height: 16),
           const Text(
             'Планет пока нет',

@@ -21,8 +21,6 @@ class DrillScreen extends StatefulWidget {
 class _DrillScreenState extends State<DrillScreen> {
   bool _extracting = false;
   String _lastMessage = '';
-
-
   bool _resultShown = false;
   final _keyboardFocusNode = FocusNode();
 
@@ -62,6 +60,11 @@ class _DrillScreenState extends State<DrillScreen> {
     if (context.read<GameProvider>().drillState?.isActive != true) return;
     context.read<GameProvider>().drillCommand(direction: direction);
     if (mounted) setState(() {});
+  }
+
+  Future<void> _completeDrill() async {
+    if (context.read<GameProvider>().drillState?.isActive != true) return;
+    await context.read<GameProvider>().completeDrill();
   }
 
   Future<void> _cancelDrill() async {
@@ -106,12 +109,9 @@ class _DrillScreenState extends State<DrillScreen> {
           TextButton(
             onPressed: () async {
               await context.read<GameProvider>().cleanupDrill();
-              if (!mounted) return;
               context.read<GameProvider>().clearDrillState();
               _resultShown = false;
-              if (!mounted) return;
               Navigator.of(ctx).pop();
-              if (!mounted) return;
               Navigator.of(context).pop();
             },
             child: const Text('Закрыть'),
@@ -212,9 +212,9 @@ class _DrillScreenState extends State<DrillScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 32),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                   borderRadius: BorderRadius.circular(12),
-                   border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,7 +417,7 @@ class _DrillScreenState extends State<DrillScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.2),
+                  color: Colors.amber.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -436,7 +436,7 @@ class _DrillScreenState extends State<DrillScreen> {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.3),
+                color: Colors.orange.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: const Text('🛡️ Добыча...',
@@ -447,7 +447,7 @@ class _DrillScreenState extends State<DrillScreen> {
               margin: const EdgeInsets.only(top: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.3),
+                color: Colors.blue.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text('→ ${provider.drillPendingDirection}',
@@ -467,7 +467,7 @@ class _DrillScreenState extends State<DrillScreen> {
                       margin: EdgeInsets.only(right: idx < state.resources.length - 1 ? 4 : 0),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: Colors.white.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Row(
@@ -475,7 +475,7 @@ class _DrillScreenState extends State<DrillScreen> {
                         children: [
                           Text(r.icon, style: const TextStyle(fontSize: 14)),
                           const SizedBox(width: 2),
-                          Text(r.amount.toStringAsFixed(0),
+                          Text('${r.amount.toStringAsFixed(0)}',
                               style: const TextStyle(color: Colors.white, fontSize: 10)),
                         ],
                       ),
@@ -667,9 +667,9 @@ class _DrillScreenState extends State<DrillScreen> {
           children: [
             const Icon(Icons.build, size: 24, color: Colors.white),
             const SizedBox(height: 2),
-             Text(
+            Text(
               _extracting ? 'Добыча...' : 'Добыча',
-              style: const TextStyle(color: Colors.white, fontSize: 10),
+              style: TextStyle(color: Colors.white, fontSize: 10),
             ),
           ],
         ),

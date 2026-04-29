@@ -102,6 +102,9 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     final durations = [300, 600, 1200];
     final availableDurations = durations.where((d) => d <= maxDuration).toList();
     final resources = gameProvider.selectedPlanet?.resources ?? {};
+    final hasFood = (resources['food'] as num? ?? 0) >= 0;
+    final hasIron = (resources['iron'] as num? ?? 0) >= 0;
+    final hasMoney = (resources['money'] as num? ?? 0) >= 0;
 
     if (baseLevel <= 0) {
       return Card(
@@ -109,10 +112,10 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('Разведка планеты', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-              SizedBox(height: 8),
-              Text('Постройте и запустите базу, чтобы начать разведку.', style: TextStyle(fontSize: 12, color: Colors.white38)),
+            children: [
+              const Text('Разведка планеты', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+              const SizedBox(height: 8),
+              const Text('Постройте и запустите базу, чтобы начать разведку.', style: TextStyle(fontSize: 12, color: Colors.white38)),
             ],
           ),
         ),
@@ -148,7 +151,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                     (resources['food'] as num? ?? 0) >= totalFood &&
                     (resources['iron'] as num? ?? 0) >= totalIron &&
                     (resources['money'] as num? ?? 0) >= totalMoney;
-                final costLabel = '${Constants.resourceIcons['food']}$totalFood ${Constants.resourceIcons['iron']}$totalIron ${Constants.resourceIcons['money']}$totalMoney';
+                final costLabel = '${Constants.resourceIcons['food']}${totalFood} ${Constants.resourceIcons['iron']}${totalIron} ${Constants.resourceIcons['money']}${totalMoney}';
                 return ElevatedButton.icon(
                   onPressed: canStart && canAfford
                       ? () async {
@@ -160,7 +163,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('$minutes мин'),
+                      Text('${minutes} мин'),
                       Text(costLabel, style: const TextStyle(fontSize: 9, color: Colors.white70)),
                     ],
                   ),
@@ -476,12 +479,12 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
             mainAxisSize: MainAxisSize.min,
             children: buildings.map((LocationBuildingDef b) {
               return ListTile(
-                title: Text(b.name, style: const TextStyle(color: Colors.white)),
-                subtitle: Text('${b.costFood.toInt()} еды, ${b.costIron.toInt()} железа, ${b.costMoney.toInt()} денег', style: const TextStyle(color: Colors.white54)),
-                trailing: Text(Constants.formatTime(b.buildTime), style: const TextStyle(color: AppTheme.accentColor)),
+                title: Text(b.name ?? '', style: const TextStyle(color: Colors.white)),
+                subtitle: Text('${(b.costFood ?? 0).toInt()} еды, ${(b.costIron ?? 0).toInt()} железа, ${(b.costMoney ?? 0).toInt()} денег', style: const TextStyle(color: Colors.white54)),
+                trailing: Text('${Constants.formatTime(b.buildTime ?? 0)}', style: const TextStyle(color: AppTheme.accentColor)),
                 onTap: () {
                   Navigator.pop(context);
-                  context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type);
+                  context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type ?? '');
                 },
               );
             }).toList(),

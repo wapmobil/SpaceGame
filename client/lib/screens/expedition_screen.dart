@@ -154,7 +154,7 @@ class _ExpeditionCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: expedition.isActive ? AppTheme.successColor.withValues(alpha: 0.2) : AppTheme.warningColor.withValues(alpha: 0.2),
+                    color: expedition.isActive ? AppTheme.successColor.withOpacity(0.2) : AppTheme.warningColor.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

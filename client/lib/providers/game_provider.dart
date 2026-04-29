@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-
+import '../core/platform_service.dart';
 import '../core/platform_service_web.dart' if (dart.library.io) '../core/platform_service_io.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,7 +32,7 @@ class GameProvider extends ChangeNotifier {
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
   DrillState? _drillState;
- 
+  String? _drillSessionId;
   int? _drillSeed;
   String? _drillPendingDirection;
   bool _drillPendingExtracting = false;
@@ -87,7 +87,7 @@ List<Map<String, dynamic>> _expeditionHistory = [];
 int? _maxSurfaceExpeditions;
    bool? _canStartPlanetSurvey;
   bool? _canStartSpaceExpedition;
-  final List<Map<String, String>> _notifications = [];
+   List<Map<String, String>> _notifications = [];
 
    GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
@@ -720,18 +720,18 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
   }
 
   BuildingUpgradeInfo getBuildingUpgradeInfo(Building building) {
-    if (_selectedPlanet == null) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
+    if (_selectedPlanet == null) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Планета не выбрана');
 
     final isReady = building.isBuildComplete;
-    if (isReady) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
+    if (isReady) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Нажмите чтобы открыть');
 
     final isBuilding = building.isBuilding;
-    if (isBuilding) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
+    if (isBuilding) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Уже строится');
 
     final nextCostFood = building.nextCostFood;
     final nextCostIron = building.nextCostIron;
     final nextCostMoney = building.nextCostMoney;
-    if (nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
+    if (nextCostFood <= 0 && nextCostIron <= 0 && nextCostMoney <= 0) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Максимальный уровень');
 
     final currentFood = (_selectedPlanet!.resources['food'] ?? 0) as num;
     final currentIron = (_selectedPlanet!.resources['iron'] ?? 0) as num;
@@ -747,9 +747,9 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       return BuildingUpgradeInfo(canUpgrade: false, reason: 'Не хватает ${missing.join(" и ")}');
     }
 
-    if (activeConstructions >= maxConstructions) return const BuildingUpgradeInfo(canUpgrade: false, reason: 'Достигнут лимит строительства');
+    if (activeConstructions >= maxConstructions) return BuildingUpgradeInfo(canUpgrade: false, reason: 'Достигнут лимит строительства');
 
-    return const BuildingUpgradeInfo(canUpgrade: true, reason: null);
+    return BuildingUpgradeInfo(canUpgrade: true, reason: null);
   }
 
   Future<void> confirmBuilding(String buildingType) async {
@@ -1226,6 +1226,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final startResp = DrillStartResponse.fromJson(data);
+        _drillSessionId = startResp.sessionId;
         _drillSeed = startResp.seed;
         _drillState = DrillState(
           sessionId: startResp.sessionId,
@@ -1281,6 +1282,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     if (_player == null) return;
     try {
       final update = DrillUpdate.fromJson(data);
+      _drillSessionId = update.sessionId;
       _drillPendingDirection = null;
       _drillState = DrillState(
         sessionId: update.sessionId,
