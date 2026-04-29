@@ -189,15 +189,19 @@ func (p *Planet) TickSurfaceExpeditions() {
 				historyEntry.Result = "failed"
 			}
 
-			p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
+		p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
 
-			var notifyMsg string
-			if isSuccess {
-				var resParts []string
-				for res, amt := range resourceRecovery {
-					if amt > 0 {
-						resParts = append(resParts, fmt.Sprintf("%s: +%.0f", res, amt))
-					}
+		if p.game != nil {
+			p.game.SavePlanet(p)
+		}
+
+		var notifyMsg string
+		if isSuccess {
+			var resParts []string
+			for res, amt := range resourceRecovery {
+				if amt > 0 {
+					resParts = append(resParts, fmt.Sprintf("%s: +%.0f", res, amt))
+				}
 				}
 				notifyMsg = fmt.Sprintf("Экспедиция завершена! Обнаружена локация: %s. Получено: %s", exp.Discovered.Name, strings.Join(resParts, ", "))
 			} else {
