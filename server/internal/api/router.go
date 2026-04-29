@@ -87,8 +87,18 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Get("/{id}/fleet", handleGetFleet(db))
 		rr.Post("/{id}/ship/build", handleBuildShip(db))
 		rr.Get("/{id}/ships/available", handleGetAvailableShips(db))
-		rr.Post("/{id}/expeditions", handleCreateExpedition(db))
-		rr.Get("/{id}/expeditions", handleGetExpeditions(db))
+		rr.Post("/{id}/space-expeditions", handleCreateSpaceExpedition(db))
+		rr.Get("/{id}/space-expeditions", handleGetSpaceExpeditions(db))
+
+		rr.Post("/planet-survey", handleStartPlanetSurvey(db))
+		rr.Get("/planet-survey", handleGetPlanetSurvey(db))
+
+		rr.Get("/locations", handleGetLocations(db))
+		rr.Post("/locations/:id/build", handleBuildOnLocation(db))
+		rr.Delete("/locations/:id/building", handleRemoveBuilding(db))
+		rr.Post("/locations/:id/abandon", handleAbandonLocation(db))
+
+		rr.Get("/expedition-history", handleGetExpeditionHistory(db))
 		rr.Post("/{id}/market/orders", handleCreateMarketOrder(db))
 		rr.Get("/{id}/market/orders", handleGetMyOrders(db))
 		rr.Post("/{id}/sell-food", handleSellFood(db))
@@ -112,7 +122,7 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 	// Auth-only routes (auth but no planet ownership check)
 	r.Route("/api", func(rr chi.Router) {
 		rr.Use(requireAuth(db))
-		rr.Post("/expeditions/{id}/action", handleExpeditionAction(db))
+		rr.Post("/space-expeditions/{id}/action", handleSpaceExpeditionAction(db))
 		rr.Delete("/market/orders/{id}", handleDeleteMarketOrder(db))
 	})
 

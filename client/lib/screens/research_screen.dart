@@ -74,10 +74,9 @@ class ResearchScreen extends StatelessWidget {
     final availableTechs = <Widget>[];
     final completedTechs = <Widget>[];
 
-    for (final tech in Constants.techList) {
-      final techMap = Map<String, dynamic>.from(tech);
-      final techId = techMap['id'] as String;
-      final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
+    for (final tech in state.research) {
+      final techId = tech.techId;
+      final dependsOn = tech.dependsOn;
 
       final isCompleted = completedIds.contains(techId);
       final isInProgress = inProgressIds.contains(techId);
@@ -86,12 +85,12 @@ class ResearchScreen extends StatelessWidget {
 
       if (!isCompleted && !isInProgress && !hasPrerequisites) continue;
 
-      final costFood = (techMap['cost_food'] as num?)?.toDouble() ?? 0;
-      final costMoney = (techMap['cost_money'] as num?)?.toDouble() ?? 0;
-      final costAlien = (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0;
-      final buildTime = (techMap['build_time'] as num?)?.toDouble() ?? 0;
+      final costFood = tech.costFood;
+      final costMoney = tech.costMoney;
+      final costAlien = tech.costAlienTech;
+      final buildTime = tech.buildTime;
       final canAfford = currentFood >= costFood && currentMoney >= costMoney && currentAlien >= costAlien;
-      final maxLevel = ((techMap['max_level'] as num?)?.toInt()) ?? 1;
+      final maxLevel = tech.maxLevel;
 
       final research = researchMap[techId];
       final progressPct = research != null ? research.progressPct : 0.0;
@@ -103,8 +102,8 @@ class ResearchScreen extends StatelessWidget {
         completedTechs.add(
           _ResearchCard(
             techId: techId,
-            name: techMap['name'] as String,
-            description: techMap['description'] as String,
+            name: tech.name,
+            description: tech.description,
             statusColor: AppTheme.successColor,
             isCompleted: true,
             currentLevel: currentLevel,
@@ -116,8 +115,8 @@ class ResearchScreen extends StatelessWidget {
         availableTechs.add(
           _ResearchCard(
             techId: techId,
-            name: techMap['name'] as String,
-            description: techMap['description'] as String,
+            name: tech.name,
+            description: tech.description,
             statusColor: AppTheme.warningColor,
             isCompleted: false,
             isInProgress: true,
@@ -132,8 +131,8 @@ class ResearchScreen extends StatelessWidget {
         availableTechs.add(
           _ResearchCard(
             techId: techId,
-            name: techMap['name'] as String,
-            description: techMap['description'] as String,
+            name: tech.name,
+            description: tech.description,
             statusColor: AppTheme.accentColor,
             isCompleted: false,
             isAvailable: true,
@@ -334,29 +333,4 @@ class _ResearchCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class Constants {
-  static const techList = [
-    {'id': 'planet_exploration', 'name': '🌍Разведка планеты', 'description': 'Открывает здание Фабрики', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
-    {'id': 'energy_storage', 'name': '🔋Аккумуляторы', 'description': 'Открывает здание Аккумулятора', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 5, 'depends_on': []},
-    {'id': 'energy_saving', 'name': '🔌Экономия энергии', 'description': '-10% расхода энергии за уровень', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
-    {'id': 'upgraded_energy_storage', 'name': '🔋Улучшенные аккумуляторы', 'description': '+20% вместимости энергии за уровень', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
-    {'id': 'upgraded_energy_storage_2', 'name': '🔋Улучшенные аккумуляторы 2', 'description': 'Максимальный буст энергии', 'cost_food': 800, 'cost_money': 700, 'build_time': 200, 'max_level': 1, 'depends_on': ['upgraded_energy_storage']},
-    {'id': 'trade', 'name': '💸Торговля', 'description': 'Открывает Рынок', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 2, 'depends_on': ['planet_exploration']},
-    {'id': 'trade_connections', 'name': '💵Торговые связи', 'description': 'Открывает расширенные опции торговли', 'cost_food': 600, 'cost_money': 450, 'build_time': 150, 'max_level': 1, 'depends_on': ['trade']},
-    {'id': 'ships', 'name': '🚀Корабли', 'description': 'Открывает Верфь', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'expeditions', 'name': '👣Экспедиции', 'description': 'Открывает систему экспедиций', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
-    {'id': 'command_center', 'name': '🏪Командный центр', 'description': 'Открывает древо инопланетных технологий', 'cost_food': 5000, 'cost_money': 3000, 'build_time': 600, 'max_level': 1, 'depends_on': ['expeditions']},
-    {'id': 'fast_construction', 'name': '🛠Быстрое строительство', 'description': 'Бонус скорости строительства за уровень', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'compact_storage', 'name': '📦Компактное хранение', 'description': '2x вместимость хранилища за уровень', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['fast_construction']},
-    {'id': 'fast_construction_2', 'name': '🛠Быстрое строительство 2', 'description': 'Дополнительный буст скорости', 'cost_food': 1200, 'cost_money': 900, 'build_time': 250, 'max_level': 1, 'depends_on': ['fast_construction']},
-    {'id': 'compact_storage_2', 'name': '📦Компактное хранение 2', 'description': '4x вместимость хранилища', 'cost_food': 1500, 'cost_money': 1200, 'build_time': 300, 'max_level': 1, 'depends_on': ['compact_storage', 'fast_construction_2']},
-    {'id': 'fast_construction_3', 'name': '🛠Быстрое строительство 3', 'description': 'Максимальный буст скорости', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 350, 'max_level': 1, 'depends_on': ['fast_construction_2']},
-    {'id': 'compact_storage_3', 'name': '📦Компактное хранение 3', 'description': '8x вместимость хранилища', 'cost_food': 2500, 'cost_money': 2000, 'build_time': 400, 'max_level': 1, 'depends_on': ['compact_storage_2', 'fast_construction_3']},
-    {'id': 'parallel_construction', 'name': '🔧Параллельное строительство', 'description': '+1 одновременный проект за уровень', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 300, 'max_level': 3, 'depends_on': ['fast_construction', 'compact_storage']},
-    {'id': 'alien_technologies', 'name': '👽Инопланетные технологии', 'description': 'Открывает древо инопланетных технологий', 'cost_alien_tech': 10, 'build_time': 300, 'max_level': 1, 'depends_on': ['command_center']},
-    {'id': 'additional_expedition', 'name': '🛸Дополнительная экспедиция', 'description': '+1 одновременная экспедиция', 'cost_alien_tech': 15, 'build_time': 200, 'max_level': 1, 'depends_on': ['alien_technologies']},
-    {'id': 'super_energy_storage', 'name': '⚡Супер накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_alien_tech': 20, 'build_time': 300, 'max_level': 5, 'depends_on': ['alien_technologies']},
-  ];
 }

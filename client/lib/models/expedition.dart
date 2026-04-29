@@ -44,7 +44,7 @@ class Expedition {
       target: json['target'] as String,
       progress: (json['progress'] as num?)?.toDouble() ?? 0,
       status: json['status'] as String? ?? 'queued',
-      expeditionType: json['expedition_type'] as String? ?? 'exploration',
+      expeditionType: json['expedition_type'] as String? ?? 'space_exploration',
       duration: (json['duration'] as num?)?.toDouble() ?? 3600,
       elapsedTime: (json['elapsed_time'] as num?)?.toDouble() ?? 0,
       fleetShips: (json['fleet_ships'] as Map?)

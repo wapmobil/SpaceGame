@@ -42,6 +42,14 @@ class Planet {
   // Storage
   final double? storageCapacity;
 
+  // Planet survey fields
+  final String? resourceType;
+  final bool canStartPlanetSurvey;
+  final bool canStartSpaceExpedition;
+  final int? baseLevel;
+  final int? commandCenterLevel;
+  final int maxLocations;
+
   Planet({
     required this.id,
     required this.playerId,
@@ -70,6 +78,12 @@ class Planet {
     this.activeConstructions,
     this.maxConstructions,
     this.storageCapacity,
+    this.resourceType,
+    this.canStartPlanetSurvey = false,
+    this.canStartSpaceExpedition = false,
+    this.baseLevel,
+    this.commandCenterLevel,
+    this.maxLocations = 1,
   }) : resources = {...defaultResources, ...?resources};
 
   static const Map<String, dynamic> defaultResources = {
@@ -118,6 +132,12 @@ class Planet {
       activeConstructions: json['active_constructions'] as int?,
       maxConstructions: json['max_constructions'] as int?,
       storageCapacity: (json['storage_capacity'] as num?)?.toDouble(),
+      resourceType: json['resource_type'] as String?,
+      canStartPlanetSurvey: json['can_start_planet_survey'] as bool? ?? false,
+      canStartSpaceExpedition: json['can_start_space_expedition'] as bool? ?? false,
+      baseLevel: json['base_level'] as int?,
+      commandCenterLevel: json['command_center_level'] as int?,
+      maxLocations: json['max_locations'] as int? ?? 1,
     );
   }
 
@@ -157,6 +177,12 @@ class Planet {
         int? activeConstructions,
     int? maxConstructions,
     double? storageCapacity,
+    String? resourceType,
+    bool? canStartPlanetSurvey,
+    bool? canStartSpaceExpedition,
+    int? baseLevel,
+    int? commandCenterLevel,
+    int? maxLocations,
   }) {
     return Planet(
       id: id ?? this.id,
@@ -185,6 +211,12 @@ class Planet {
       activeConstructions: activeConstructions ?? this.activeConstructions,
       maxConstructions: maxConstructions ?? this.maxConstructions,
       storageCapacity: storageCapacity ?? this.storageCapacity,
+      resourceType: resourceType ?? this.resourceType,
+      canStartPlanetSurvey: canStartPlanetSurvey ?? this.canStartPlanetSurvey,
+      canStartSpaceExpedition: canStartSpaceExpedition ?? this.canStartSpaceExpedition,
+      baseLevel: baseLevel ?? this.baseLevel,
+      commandCenterLevel: commandCenterLevel ?? this.commandCenterLevel,
+      maxLocations: maxLocations ?? this.maxLocations,
     );
   }
 }

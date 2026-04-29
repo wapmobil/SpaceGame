@@ -16,7 +16,7 @@ func TestCreateExpedition(t *testing.T) {
 	}
 	fleet.AddShip(interceptor, 3)
 
-	exp := CreateExpedition("test-exp-1", "planet-1", "exploration", TypeExploration, fleet, 3600)
+	exp := CreateExpedition("test-exp-1", "planet-1", "space_exploration", TypeExploration, fleet, 3600)
 
 	if exp.ID != "test-exp-1" {
 		t.Errorf("expected ID 'test-exp-1', got '%s'", exp.ID)
@@ -46,7 +46,7 @@ func TestExpeditionTick(t *testing.T) {
 	}
 	fleet.AddShip(small, 1)
 
-	exp := CreateExpedition("tick-test", "planet-1", "exploration", TypeExploration, fleet, 10)
+	exp := CreateExpedition("tick-test", "planet-1", "space_exploration", TypeExploration, fleet, 10)
 
 	if exp.ElapsedTime != 0 {
 		t.Errorf("expected elapsed time 0, got %f", exp.ElapsedTime)
@@ -288,7 +288,7 @@ func TestExpeditionGetAvailableActions(t *testing.T) {
 		fleet.AddShip(small, 1)
 	}
 
-	exp := CreateExpedition("action-test", "planet-1", "exploration", TypeExploration, fleet, 3600)
+	exp := CreateExpedition("action-test", "planet-1", "space_exploration", TypeExploration, fleet, 3600)
 
 	// No NPC discovered - no actions
 	actions := exp.GetAvailableActions()
@@ -391,5 +391,80 @@ func TestNPCPlanetHasCombatShips(t *testing.T) {
 	}
 	if !npc2.HasCombatShips() {
 		t.Error("expected combat ships for fleet with interceptors")
+	}
+}
+
+func TestExpeditionTypesAreCorrect(t *testing.T) {
+	if TypeExploration != "space_exploration" {
+		t.Errorf("expected TypeExploration to be 'space_exploration', got '%s'", TypeExploration)
+	}
+	if TypeTrade != "space_trade" {
+		t.Errorf("expected TypeTrade to be 'space_trade', got '%s'", TypeTrade)
+	}
+	if TypeSupport != "space_support" {
+		t.Errorf("expected TypeSupport to be 'space_support', got '%s'", TypeSupport)
+	}
+}
+
+func TestCreateExpeditionWithSpaceExploration(t *testing.T) {
+	fleet := ship.NewFleet()
+	interceptor := ship.GetShipType("interceptor")
+	if interceptor == nil {
+		t.Fatal("interceptor ship type not found")
+	}
+	fleet.AddShip(interceptor, 2)
+
+	exp := CreateExpedition("space-exp-1", "planet-1", "space_exploration", TypeExploration, fleet, 1800)
+
+	if exp.ExpeditionType != TypeExploration {
+		t.Errorf("expected TypeExploration, got '%s'", exp.ExpeditionType)
+	}
+	if exp.Target != "space_exploration" {
+		t.Errorf("expected target 'space_exploration', got '%s'", exp.Target)
+	}
+	if exp.Status != StatusActive {
+		t.Errorf("expected StatusActive, got '%s'", exp.Status)
+	}
+}
+
+func TestCreateExpeditionWithSpaceTrade(t *testing.T) {
+	fleet := ship.NewFleet()
+	tradeShip := ship.GetShipType("trade_ship")
+	if tradeShip == nil {
+		t.Fatal("trade_ship ship type not found")
+	}
+	fleet.AddShip(tradeShip, 3)
+
+	exp := CreateExpedition("space-exp-2", "planet-1", "space_trade", TypeTrade, fleet, 2400)
+
+	if exp.ExpeditionType != TypeTrade {
+		t.Errorf("expected TypeTrade, got '%s'", exp.ExpeditionType)
+	}
+	if exp.Target != "space_trade" {
+		t.Errorf("expected target 'space_trade', got '%s'", exp.Target)
+	}
+	if exp.Status != StatusActive {
+		t.Errorf("expected StatusActive, got '%s'", exp.Status)
+	}
+}
+
+func TestCreateExpeditionWithSpaceSupport(t *testing.T) {
+	fleet := ship.NewFleet()
+	corvette := ship.GetShipType("corvette")
+	if corvette == nil {
+		t.Fatal("corvette ship type not found")
+	}
+	fleet.AddShip(corvette, 5)
+
+	exp := CreateExpedition("space-exp-3", "planet-1", "space_support", TypeSupport, fleet, 3000)
+
+	if exp.ExpeditionType != TypeSupport {
+		t.Errorf("expected TypeSupport, got '%s'", exp.ExpeditionType)
+	}
+	if exp.Target != "space_support" {
+		t.Errorf("expected target 'space_support', got '%s'", exp.Target)
+	}
+	if exp.Status != StatusActive {
+		t.Errorf("expected StatusActive, got '%s'", exp.Status)
 	}
 }

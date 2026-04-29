@@ -39,22 +39,10 @@ var BuildingResearchRequirements = map[string]string{
 var RandomUnlockBuildings = []string{}
 
 // IsBuildingUnlocked checks if a building type is unlocked by research.
-// researchUnlocks is the building type unlocked by planet_exploration (for random unlocks).
 func IsBuildingUnlocked(buildingType string, completed map[string]int, researchUnlocks string) bool {
-	// Check fixed research requirements
 	if req, ok := BuildingResearchRequirements[buildingType]; ok {
 		if completed[req] <= 0 {
 			return false
-		}
-	}
-
-	// Check random unlocks (planet_exploration)
-	for _, bt := range RandomUnlockBuildings {
-		if buildingType == bt {
-			if completed["planet_exploration"] <= 0 {
-				return false
-			}
-			return researchUnlocks == bt
 		}
 	}
 

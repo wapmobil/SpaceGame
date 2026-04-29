@@ -13,7 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
+func handleCreateSpaceExpedition(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		planetID := PlanetIDFromContext(r)
 
@@ -30,11 +30,11 @@ func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
 
 		var expType expedition.Type
 		switch req.ExpeditionType {
-		case "exploration":
+		case "space_exploration":
 			expType = expedition.TypeExploration
-		case "trade":
+		case "space_trade":
 			expType = expedition.TypeTrade
-		case "support":
+		case "space_support":
 			expType = expedition.TypeSupport
 		default:
 			Error(w, http.StatusBadRequest, "Invalid expedition_type")
@@ -106,7 +106,7 @@ func handleCreateExpedition(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleGetExpeditions(db *sql.DB) http.HandlerFunc {
+func handleGetSpaceExpeditions(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		planetID := PlanetIDFromContext(r)
 		p := ensurePlanetLoaded(planetID)
@@ -117,7 +117,7 @@ func handleGetExpeditions(db *sql.DB) http.HandlerFunc {
 
 		expeditions := p.GetExpeditions()
 		expeditionsUnlocked := false
-		if _, ok := p.GetResearchCompleted()["expeditions"]; ok {
+		if _, ok := p.GetResearchCompleted()["space_expeditions"]; ok {
 			expeditionsUnlocked = true
 		}
 
@@ -183,7 +183,7 @@ func handleGetExpeditions(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func handleExpeditionAction(db *sql.DB) http.HandlerFunc {
+func handleSpaceExpeditionAction(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		playerID := AuthPlayerFromContext(r).ID
 		expeditionID := chi.URLParam(r, "id")

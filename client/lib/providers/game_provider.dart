@@ -15,10 +15,12 @@ import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
 import '../providers/garden_bed_provider.dart';
+import '../providers/planet_survey_provider.dart';
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
   final GardenBedProvider _gardenBedProvider;
+  final PlanetSurveyProvider _planetSurveyProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -78,7 +80,8 @@ class GameProvider extends ChangeNotifier {
 
   GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
-        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
+        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
+        _planetSurveyProvider = PlanetSurveyProvider(baseUrl: baseUrl ?? _getBaseUri(), authToken: null);
 
   static String _getBaseUri() {
     final service = createPlatformService();
@@ -101,6 +104,7 @@ class GameProvider extends ChangeNotifier {
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
   GardenBedProvider get gardenBedProvider => _gardenBedProvider;
+  PlanetSurveyProvider get planetSurveyProvider => _planetSurveyProvider;
     ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
@@ -256,8 +260,8 @@ class GameProvider extends ChangeNotifier {
       case 'research_update':
         _handleResearchUpdate(data);
         break;
-       case 'expedition_update':
-        _handleExpeditionUpdate(data);
+       case 'space_expedition_update':
+        _handleSpaceExpeditionUpdate(data);
         break;
       case 'market_update':
         _handleMarketUpdate(data);
@@ -268,9 +272,15 @@ class GameProvider extends ChangeNotifier {
       case 'drill_update':
         onDrillUpdate(data ?? {});
         break;
-      case 'garden_bed_update':
+       case 'garden_bed_update':
         _gardenBedProvider.onGardenBedUpdate(data ?? {});
         notifyListeners();
+        break;
+      case 'planet_survey_update':
+        _handlePlanetSurveyUpdate(data);
+        break;
+      case 'location_update':
+        _handleLocationUpdate(data);
         break;
       default:
         if (message['type'] == 'garden_bed_action_result') {
@@ -387,7 +397,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-    void _handleExpeditionUpdate(Map<String, dynamic>? data) {
+    void _handleSpaceExpeditionUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
       loadExpeditions(_selectedPlanet!.id);
       notifyListeners();
@@ -405,6 +415,20 @@ class GameProvider extends ChangeNotifier {
     void _handleNotification(Map<String, dynamic>? data) {
     // Notifications are handled by the UI layer
     debugPrint('Notification: ${data?['message']}');
+  }
+
+  void _handlePlanetSurveyUpdate(Map<String, dynamic>? data) {
+    if (data != null && _selectedPlanet != null) {
+      _planetSurveyProvider.handlePlanetSurveyUpdate(data);
+      notifyListeners();
+    }
+  }
+
+  void _handleLocationUpdate(Map<String, dynamic>? data) {
+    if (data != null && _selectedPlanet != null) {
+      _planetSurveyProvider.handleLocationUpdate(data);
+      notifyListeners();
+    }
   }
 
   Future<void> loadPlanets() async {
@@ -457,6 +481,10 @@ class GameProvider extends ChangeNotifier {
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
     _gardenBedProvider.getGardenBed(planet.id);
+    _planetSurveyProvider.loadPlanetSurvey(planet.id);
+    _planetSurveyProvider.loadLocations(planet.id);
+    _planetSurveyProvider.loadExpeditionHistory(planet.id);
+    _planetSurveyProvider.setAuthToken(_player!.authToken);
         notifyListeners();
   }
 
@@ -573,6 +601,13 @@ class GameProvider extends ChangeNotifier {
     if (farmStateJson != null && farmStateJson.isNotEmpty) {
       _gardenBedProvider.onGardenBedUpdate(farmStateJson);
     }
+
+    // Update planet survey fields
+    _planetSurveyProvider.canStartPlanetSurvey = data['can_start_planet_survey'] as bool? ?? false;
+    _planetSurveyProvider.canStartSpaceExpedition = data['can_start_space_expedition'] as bool? ?? false;
+    _planetSurveyProvider.baseLevel = data['base_level'] as int?;
+    _planetSurveyProvider.commandCenterLevel = data['command_center_level'] as int?;
+    _planetSurveyProvider.maxLocations = data['max_locations'] as int? ?? 1;
 
     notifyListeners();
   }
@@ -1322,6 +1357,93 @@ class GameProvider extends ChangeNotifier {
       );
     } catch (e) {
       // ignore
+    }
+  }
+
+  Future<void> startPlanetSurvey(String planetId, int duration) async {
+    if (_player == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/$planetId/planet-survey'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+        body: jsonEncode({'duration': duration}),
+      );
+
+      if (response.statusCode == 200) {
+        await _planetSurveyProvider.loadPlanetSurvey(planetId);
+        notifyListeners();
+      } else {
+        _setError('Не удалось начать разведку: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка разведки: $e');
+    }
+  }
+
+  Future<void> buildOnLocation(String planetId, String locationId, String buildingType) async {
+    if (_player == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/build'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+        body: jsonEncode({'building_type': buildingType}),
+      );
+
+      if (response.statusCode == 200) {
+        await _planetSurveyProvider.loadLocations(planetId);
+        notifyListeners();
+      } else {
+        _setError('Не удалось построить: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка строительства: $e');
+    }
+  }
+
+  Future<void> removeBuilding(String planetId, String locationId) async {
+    if (_player == null) return;
+    try {
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/building'),
+        headers: {'X-Auth-Token': _player!.authToken},
+      );
+
+      if (response.statusCode == 200) {
+        await _planetSurveyProvider.loadLocations(planetId);
+        notifyListeners();
+      } else {
+        _setError('Не удалось снести: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка: $e');
+    }
+  }
+
+  Future<void> abandonLocation(String planetId, String locationId) async {
+    if (_player == null) return;
+    try {
+      final response = await http.post(
+        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/abandon'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': _player!.authToken,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        await _planetSurveyProvider.loadLocations(planetId);
+        notifyListeners();
+      } else {
+        _setError('Не удалось забрать: ${response.body}');
+      }
+    } catch (e) {
+      _setError('Ошибка: $e');
     }
   }
 }

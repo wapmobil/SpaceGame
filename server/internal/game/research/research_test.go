@@ -232,3 +232,46 @@ func TestResourceDeduction(t *testing.T) {
 		t.Errorf("expected money to be 0, got %f", money)
 	}
 }
+
+func TestLocationBuildingsTechExists(t *testing.T) {
+	tech := GetTechByID("location_buildings")
+	if tech == nil {
+		t.Fatal("expected location_buildings tech to exist")
+	}
+	if tech.Name != "Location Buildings" {
+		t.Errorf("expected name 'Location Buildings', got '%s'", tech.Name)
+	}
+	if tech.MaxLevel != 1 {
+		t.Errorf("expected max level 1, got %d", tech.MaxLevel)
+	}
+}
+
+func TestAdvancedExplorationTechExists(t *testing.T) {
+	tech := GetTechByID("advanced_exploration")
+	if tech == nil {
+		t.Fatal("expected advanced_exploration tech to exist")
+	}
+	if tech.Name != "Advanced Exploration" {
+		t.Errorf("expected name 'Advanced Exploration', got '%s'", tech.Name)
+	}
+	if tech.MaxLevel != 3 {
+		t.Errorf("expected max level 3, got %d", tech.MaxLevel)
+	}
+}
+
+func TestAdvancedExplorationDependsOnLocationBuildings(t *testing.T) {
+	tech := GetTechByID("advanced_exploration")
+	if tech == nil {
+		t.Fatal("expected advanced_exploration tech to exist")
+	}
+	found := false
+	for _, dep := range tech.DependsOn {
+		if dep == "location_buildings" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected advanced_exploration to depend on location_buildings, got %v", tech.DependsOn)
+	}
+}

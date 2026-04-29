@@ -6,10 +6,19 @@ import (
 	"time"
 
 	"spacegame/internal/game/expedition"
+	"spacegame/internal/game/planet_survey"
 	"spacegame/internal/game/research"
 	"spacegame/internal/game/ship"
 )
 
+
+type PlanetResourceType string
+
+const (
+	ResourceComposite  PlanetResourceType = "composite"
+	ResourceMechanisms PlanetResourceType = "mechanisms"
+	ResourceReagents   PlanetResourceType = "reagents"
+)
 
 // Planet manages a single planet's game state.
 type Planet struct {
@@ -30,6 +39,13 @@ type Planet struct {
 	Expeditions      []*expedition.Expedition
 	ExplorationMgr   *expedition.ExplorationManager
 	GardenBedState *GardenBedState
+	ResourceType   PlanetResourceType
+	SurfaceExpeditions []*planet_survey.SurfaceExpedition
+	Locations          []*planet_survey.Location
+	ExpeditionHistory  []planet_survey.ExpeditionHistoryEntry
+	RangeStats         map[string]*planet_survey.ExpeditionRangeStats
+	ExpeditionCooldown int64
+	MaxLocations       int
 	game           *Game
 }
 
@@ -56,11 +72,19 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		LastTick:       time.Now(),
 		Fleet:          ship.NewFleet(),
 		Shipyard:       ship.NewShipyard(),
-		Expeditions:    make([]*expedition.Expedition, 0),
-		ExplorationMgr: expedition.NewExplorationManager(),
-		GardenBedState: nil,
-		game:           g,
+		Expeditions:      make([]*expedition.Expedition, 0),
+		ExplorationMgr:   expedition.NewExplorationManager(),
+		GardenBedState:   nil,
+		SurfaceExpeditions: make([]*planet_survey.SurfaceExpedition, 0),
+		Locations:        make([]*planet_survey.Location, 0),
+		ExpeditionHistory: make([]planet_survey.ExpeditionHistoryEntry, 0),
+		RangeStats:       make(map[string]*planet_survey.ExpeditionRangeStats),
+		ExpeditionCooldown: 0,
+		MaxLocations:     1,
+		game:             g,
 	}
+	types := []PlanetResourceType{ResourceComposite, ResourceMechanisms, ResourceReagents}
+	p.ResourceType = types[rand.Intn(len(types))]
 	p.EnergyBuffer = NewEnergyBuffer()
 	if g != nil {
 		p.Research = research.NewResearchSystem(id, g.db)
@@ -111,13 +135,7 @@ func (p *Planet) RecalculateBuildSpeed() {
 
 // applyResearchEffects applies effects for newly completed research.
 func (p *Planet) applyResearchEffects() {
-	for techID := range p.Research.GetLastCompleted() {
-		switch techID {
-		case "planet_exploration":
-			buildings := []string{"composite_drone", "mechanism_factory", "reagent_lab"}
-			idx := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(len(buildings))
-			p.Resources.ResearchUnlocks = buildings[idx]
-		}
+	for range p.Research.GetLastCompleted() {
 	}
 }
 

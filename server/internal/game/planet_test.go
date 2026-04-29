@@ -677,3 +677,41 @@ func TestFarmUpgrade_NewRowUsable(t *testing.T) {
 		t.Errorf("expected row 1 plant type to be wheat, got '%s'", result.Rows[1].PlantType)
 	}
 }
+
+func TestNewPlanetResourceTypeIsValid(t *testing.T) {
+	validTypes := []PlanetResourceType{ResourceComposite, ResourceMechanisms, ResourceReagents}
+
+	for range 50 {
+		planet := NewPlanet("test-rt", "owner-1", "Test Planet", nil)
+		found := false
+		for _, vt := range validTypes {
+			if planet.ResourceType == vt {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected ResourceType to be one of %v, got %s", validTypes, planet.ResourceType)
+		}
+	}
+}
+
+func TestNewPlanetResourceTypeNotEmpty(t *testing.T) {
+	planet := NewPlanet("test-rt-empty", "owner-1", "Test Planet", nil)
+	if planet.ResourceType == "" {
+		t.Error("expected ResourceType to not be empty")
+	}
+}
+
+func TestGetStateContainsResourceType(t *testing.T) {
+	planet := NewPlanet("test-state-rt", "owner-1", "Test Planet", nil)
+
+	state := planet.GetState()
+	rt, ok := state["resource_type"]
+	if !ok {
+		t.Fatal("expected 'resource_type' key in state")
+	}
+	if rt == "" {
+		t.Error("expected resource_type to not be empty")
+	}
+}

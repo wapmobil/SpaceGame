@@ -512,7 +512,7 @@ func (bs *WSBroadcastService) BroadcastNotification(playerID, message, notifType
 // BroadcastExpeditionUpdate sends an expedition update to the owning player.
 func (bs *WSBroadcastService) BroadcastExpeditionUpdate(playerID, expeditionID string, progress float64) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
-		Type: "expedition_update",
+		Type: "space_expedition_update",
 		Data: json.RawMessage(fmt.Sprintf(`{"expedition_id":"%s","progress":%.4f}`, expeditionID, progress)),
 	})
 }
@@ -586,7 +586,23 @@ func (bs *WSBroadcastService) BroadcastPlayerKilled(playerID string, opponent st
 func (bs *WSBroadcastService) BroadcastExpeditionDiscovered(playerID, expeditionID, npcName, npcType string) {
 	bs.cm.SendToPlayer(playerID, WSMessage{
 		Type: "notification",
-		Data: json.RawMessage(fmt.Sprintf(`{"message":"Expedition discovered %s (%s)","type":"discovery","expedition_id":"%s"}`, escapeJSON(npcName), escapeJSON(npcType), expeditionID)),
+		Data: json.RawMessage(fmt.Sprintf(`{"message":"Expedition discovered %s (%s)","type":"space_discovery","expedition_id":"%s"}`, escapeJSON(npcName), escapeJSON(npcType), expeditionID)),
+	})
+}
+
+// BroadcastPlanetSurveyUpdate sends a planet survey update to the owning player.
+func (bs *WSBroadcastService) BroadcastPlanetSurveyUpdate(playerID, planetID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "planet_survey_update",
+		Data: json.RawMessage(toJSON(data)),
+	})
+}
+
+// BroadcastLocationUpdate sends a location update to the owning player.
+func (bs *WSBroadcastService) BroadcastLocationUpdate(playerID, planetID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "location_update",
+		Data: json.RawMessage(toJSON(data)),
 	})
 }
 

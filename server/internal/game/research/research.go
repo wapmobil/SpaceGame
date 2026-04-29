@@ -254,15 +254,21 @@ func (rs *ResearchSystem) inProgressIDs() map[string]bool {
 // GetResearchJSON returns research state as JSON for API responses.
 func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 	type ResearchEntry struct {
-		TechID      string  `json:"tech_id"`
-		Name        string  `json:"name"`
-		Description string  `json:"description"`
-		Level       int     `json:"level"`
-		Completed   bool    `json:"completed"`
-		InProgress  bool    `json:"in_progress"`
-		Progress    float64 `json:"progress"`
-		TotalTime   float64 `json:"total_time"`
-		ProgressPct float64 `json:"progress_pct"`
+		TechID      string   `json:"tech_id"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		DependsOn   []string `json:"depends_on"`
+		CostFood    float64  `json:"cost_food,omitempty"`
+		CostMoney   float64  `json:"cost_money,omitempty"`
+		CostAlien   float64  `json:"cost_alien,omitempty"`
+		BuildTime   float64  `json:"build_time"`
+		MaxLevel    int      `json:"max_level"`
+		Level       int      `json:"level"`
+		Completed   bool     `json:"completed"`
+		InProgress  bool     `json:"in_progress"`
+		Progress    float64  `json:"progress"`
+		TotalTime   float64  `json:"total_time"`
+		ProgressPct float64  `json:"progress_pct"`
 	}
 
 	var entries []ResearchEntry
@@ -270,12 +276,18 @@ func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 	tree.TraverseDepthFirst(func(tech *Tech, depth int) {
 		state := rs.GetResearchState(tech.ID)
 		entry := ResearchEntry{
-			TechID:    tech.ID,
-			Name:      tech.Name,
+			TechID:      tech.ID,
+			Name:        tech.Name,
 			Description: tech.Description,
-			Level:     rs.Completed[tech.ID],
-			Completed: false,
-			InProgress: false,
+			DependsOn:   tech.DependsOn,
+			CostFood:    tech.CostFood,
+			CostMoney:   tech.CostMoney,
+			CostAlien:   tech.CostAlien,
+			BuildTime:   tech.BuildTime,
+			MaxLevel:    tech.MaxLevel,
+			Level:       rs.Completed[tech.ID],
+			Completed:   false,
+			InProgress:  false,
 		}
 
 		if state != nil {
@@ -296,12 +308,18 @@ func (rs *ResearchSystem) GetResearchJSON() ([]byte, error) {
 	tree2.TraverseDepthFirst(func(tech *Tech, depth int) {
 		state := rs.GetResearchState(tech.ID)
 		entry := ResearchEntry{
-			TechID:    tech.ID,
-			Name:      tech.Name,
+			TechID:      tech.ID,
+			Name:        tech.Name,
 			Description: tech.Description,
-			Level:     rs.Completed[tech.ID],
-			Completed: false,
-			InProgress: false,
+			DependsOn:   tech.DependsOn,
+			CostFood:    tech.CostFood,
+			CostMoney:   tech.CostMoney,
+			CostAlien:   tech.CostAlien,
+			BuildTime:   tech.BuildTime,
+			MaxLevel:    tech.MaxLevel,
+			Level:       rs.Completed[tech.ID],
+			Completed:   false,
+			InProgress:  false,
 		}
 
 		if state != nil {

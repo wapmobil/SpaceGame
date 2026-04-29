@@ -13,9 +13,9 @@ import (
 type Type string
 
 const (
-	TypeExploration Type = "exploration" // Discovers NPC planets
-	TypeTrade       Type = "trade"       // Trade via marketplace
-	TypeSupport     Type = "support"      // Help other players
+	TypeExploration Type = "space_exploration" // Discovers NPC planets
+	TypeTrade       Type = "space_trade"       // Trade via marketplace
+	TypeSupport     Type = "space_support"      // Help other players
 )
 
 // Status represents the current status of an expedition.
@@ -47,7 +47,7 @@ type Expedition struct {
 	ID            string        `json:"id"`
 	PlanetID      string        `json:"planet_id"`
 	Fleet         *ship.Fleet   `json:"fleet"`
-	Target        string        `json:"target"` // "exploration", "trade", "support", or NPC planet ID
+	Target        string        `json:"target"` // "space_exploration", "space_trade", "space_support", or NPC planet ID
 	Progress      float64       `json:"progress"`
 	Status        Status        `json:"status"`
 	ExpeditionType Type        `json:"expedition_type"`

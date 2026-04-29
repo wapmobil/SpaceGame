@@ -153,8 +153,8 @@ func TestWSBroadcastService(t *testing.T) {
 		if err := json.Unmarshal(msg, &wsMsg); err != nil {
 			t.Fatalf("failed to unmarshal message: %v", err)
 		}
-		if wsMsg.Type != "expedition_update" {
-			t.Fatalf("expected type 'expedition_update', got '%s'", wsMsg.Type)
+		if wsMsg.Type != "space_expedition_update" {
+			t.Fatalf("expected type 'space_expedition_update', got '%s'", wsMsg.Type)
 		}
 	default:
 		t.Fatal("expected expedition update message in send channel")
@@ -774,5 +774,37 @@ func TestWSClientStartWritePump(t *testing.T) {
 		// Good, write pump exited
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("write pump did not exit promptly for closed client")
+	}
+}
+
+func TestWSBroadcastServiceSpaceExpeditionDiscovered(t *testing.T) {
+	cm := NewWSConnectionManager()
+	bs := NewWSBroadcastService(cm)
+	defer cm.Close()
+
+	client := cm.NewClient(nil, "player1", "planet1", "conn1", "token1")
+	client.send = make(chan []byte, 10)
+	cm.AddClient("player1", "conn1", client)
+
+	bs.BroadcastExpeditionDiscovered("player1", "exp1", "Test Planet", "Unknown Planet X-1")
+
+	select {
+	case msg := <-client.send:
+		var wsMsg WSMessage
+		if err := json.Unmarshal(msg, &wsMsg); err != nil {
+			t.Fatalf("failed to unmarshal message: %v", err)
+		}
+		if wsMsg.Type != "notification" {
+			t.Fatalf("expected type 'notification', got '%s'", wsMsg.Type)
+		}
+		var data map[string]interface{}
+		if err := json.Unmarshal(wsMsg.Data, &data); err != nil {
+			t.Fatalf("failed to unmarshal data: %v", err)
+		}
+		if data["type"] != "space_discovery" {
+			t.Fatalf("expected notification type 'space_discovery', got '%v'", data["type"])
+		}
+	default:
+		t.Fatal("expected notification message in send channel")
 	}
 }

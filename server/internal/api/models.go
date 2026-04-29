@@ -1,6 +1,8 @@
 package api
 
 import (
+	"time"
+
 	"spacegame/internal/game"
 	"spacegame/internal/game/building"
 )
@@ -371,4 +373,46 @@ type GardenBedActionRequest struct {
 	Action    string `json:"action"`     // "plant", "weed", "water", "harvest"
 	RowIndex  int    `json:"row_index"`
 	PlantType string `json:"plant_type,omitempty"` // required for "plant"
+}
+
+// StartPlanetSurveyRequest is the request body for starting a planet survey.
+type StartPlanetSurveyRequest struct {
+	Duration int `json:"duration"`
+}
+
+// BuildOnLocationRequest is the request body for building on a location.
+type BuildOnLocationRequest struct {
+	BuildingType string `json:"building_type"`
+}
+
+// LocationResponse represents a location in API responses.
+type LocationResponse struct {
+	ID              string  `json:"id"`
+	Type            string  `json:"type"`
+	Name            string  `json:"name"`
+	BuildingType    *string `json:"building_type,omitempty"`
+	BuildingLevel   int     `json:"building_level"`
+	BuildingActive  bool    `json:"building_active"`
+	SourceResource  string  `json:"source_resource"`
+	SourceAmount    float64 `json:"source_amount"`
+	SourceRemaining float64 `json:"source_remaining"`
+	Active          bool    `json:"active"`
+	DiscoveredAt    time.Time `json:"discovered_at"`
+}
+
+// ExpeditionRangeStatsResponse represents range statistics for a survey range.
+type ExpeditionRangeStatsResponse struct {
+	TotalExpeditions int `json:"total_expeditions"`
+	LocationsFound   int `json:"locations_found"`
+}
+
+// ExpeditionHistoryResponse represents an expedition history entry.
+type ExpeditionHistoryResponse struct {
+	ID              string            `json:"id"`
+	Status          string            `json:"status"`
+	Result          string            `json:"result"`
+	Discovered      string            `json:"discovered"`
+	ResourcesGained map[string]float64 `json:"resources_gained"`
+	CreatedAt       time.Time         `json:"created_at"`
+	CompletedAt     time.Time         `json:"completed_at"`
 }

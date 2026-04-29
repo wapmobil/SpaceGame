@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class AppConfig {
   static const String appName = 'SpaceGame';
   static const String defaultBaseUrl = 'http://localhost:8080';
@@ -66,6 +68,9 @@ class Constants {
     'ships': 'Корабли',
     'expeditions': 'Экспедиции',
     'fast_construction': 'Быстрое строительство',
+    'location_buildings': 'Здания на локациях',
+    'advanced_exploration': 'Углублённая разведка',
+    'command_center': 'Командный центр',
   };
 
    static const shipIcons = {
@@ -78,24 +83,10 @@ class Constants {
   };
 
   static const expeditionTypes = {
-    'exploration': {'name': 'Разведка', 'icon': '🗺️', 'description': 'Открывает новые системы'},
-    'trade': {'name': 'Торговля', 'icon': '💰', 'description': 'Генерирует доход'},
-    'support': {'name': 'Поддержка', 'icon': '🏥', 'description': 'Помогает союзным силам'},
+    'space_exploration': {'name': 'Разведка', 'icon': '🗺️', 'description': 'Открывает новые системы'},
+    'space_trade': {'name': 'Торговля', 'icon': '💰', 'description': 'Генерирует доход'},
+    'space_support': {'name': 'Поддержка', 'icon': '🏥', 'description': 'Помогает союзным силам'},
   };
-
-  
- static const techList = [
-    {'id': 'planet_exploration', 'name': 'Исследование планет', 'description': 'Открывает случайные здания', 'cost_food': 100, 'cost_money': 100, 'build_time': 60, 'max_level': 1, 'depends_on': []},
-    {'id': 'energy_storage', 'name': 'Аккумулятор', 'description': 'Открывает здание Аккумулятора', 'cost_food': 200, 'cost_money': 150, 'build_time': 90, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'energy_saving', 'name': 'Энергосбережение', 'description': '-10% расхода энергии за уровень', 'cost_food': 300, 'cost_money': 200, 'build_time': 120, 'max_level': 4, 'depends_on': ['energy_storage']},
-    {'id': 'trade', 'name': 'Торговля', 'description': 'Открывает Рынок', 'cost_food': 400, 'cost_money': 300, 'build_time': 120, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'ships', 'name': 'Корабли', 'description': 'Открывает Верфь', 'cost_food': 500, 'cost_money': 400, 'build_time': 150, 'max_level': 1, 'depends_on': ['planet_exploration']},
-    {'id': 'upgraded_energy_storage', 'name': 'Улучшенный накопитель', 'description': '+20% вместимости энергии за уровень', 'cost_food': 600, 'cost_money': 500, 'build_time': 180, 'max_level': 3, 'depends_on': ['energy_saving']},
-    {'id': 'fast_construction', 'name': 'Быстрое строительство', 'description': 'Бонус скорости строительства за уровень', 'cost_food': 800, 'cost_money': 600, 'build_time': 200, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'parallel_construction', 'name': 'Параллельное строительство', 'description': '+1 одновременное строительство за уровень (до 3 уровней)', 'cost_food': 2000, 'cost_money': 1500, 'build_time': 300, 'max_level': 3, 'depends_on': ['fast_construction']},
-    {'id': 'compact_storage', 'name': 'Компактное хранилище', 'description': '2x вместимость хранилища за уровень', 'cost_food': 1000, 'cost_money': 800, 'build_time': 240, 'max_level': 3, 'depends_on': ['ships']},
-    {'id': 'expeditions', 'name': 'Экспедиции', 'description': 'Открывает космические экспедиции', 'cost_food': 1500, 'cost_money': 1000, 'build_time': 300, 'max_level': 1, 'depends_on': ['trade']},
-  ];
 
   static String formatResources(double amount) {
     if (amount >= 1000000) {
@@ -119,5 +110,55 @@ class Constants {
   static String formatDateTime(DateTime? dt) {
     if (dt == null) return 'Н/Д';
     return '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+
+  static const surfaceExpeditionDurations = [300, 600, 1200];
+
+  static const baseLevelConfig = {
+    1: {'maxDuration': 300, 'costPerMin': {'food': 100, 'iron': 100, 'money': 10}},
+    2: {'maxDuration': 600, 'costPerMin': {'food': 200, 'iron': 200, 'money': 20}},
+    3: {'maxDuration': 1200, 'costPerMin': {'food': 400, 'iron': 400, 'money': 40}},
+  };
+
+  static String getDurationLabel(int duration) {
+    switch (duration) {
+      case 300:
+        return '5 мин';
+      case 600:
+        return '10 мин';
+      case 1200:
+        return '20 мин';
+      default:
+        return '$duration с';
+    }
+  }
+
+  static String getLocationRarityLabel(String type) {
+    final common = ['pond', 'river', 'forest', 'mineral_deposit', 'dry_valley'];
+    final uncommon = ['waterfall', 'cave', 'thermal_spring', 'salt_lake', 'wind_pass'];
+    final rare = ['crystal_cave', 'meteor_crater', 'sunken_city', 'glacier', 'mushroom_forest'];
+    final exotic = ['crystal_field', 'cloud_island', 'underground_lake', 'radioactive_zone', 'anomaly_zone'];
+
+    if (common.contains(type)) return 'Обычная';
+    if (uncommon.contains(type)) return 'Необычная';
+    if (rare.contains(type)) return 'Редкая';
+    if (exotic.contains(type)) return 'Экзотическая';
+    return 'Неизвестная';
+  }
+
+  static Color getLocationRarityColor(String type) {
+    final rarity = getLocationRarityLabel(type);
+    switch (rarity) {
+      case 'Обычная':
+        return const Color(0xFF9e9e9e);
+      case 'Необычная':
+        return const Color(0xFF4caf50);
+      case 'Редкая':
+        return const Color(0xFF2196f3);
+      case 'Экзотическая':
+        return const Color(0xFF9c27b0);
+      default:
+        return Colors.white54;
+    }
   }
 }

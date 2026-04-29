@@ -29,7 +29,7 @@ func AllTechs() []*Tech {
 		{
 			ID:          "planet_exploration",
 			Name:        "Planet Exploration",
-			Description: "Unlocks random buildings",
+			Description: "Открывает систему планетарной разведки",
 			CostFood:    100,
 			CostMoney:   100,
 			BuildTime:   60,
@@ -126,8 +126,8 @@ func AllTechs() []*Tech {
 			DependsOn:   []string{"fast_construction", "compact_storage"},
 		},
 		{
-			ID:          "expeditions",
-			Name:        "Expeditions",
+			ID:          "space_expeditions",
+			Name:        "Space Expeditions",
 			Description: "Открывает космические экспедиции",
 			CostFood:    1500,
 			CostMoney:   1000,
@@ -201,6 +201,28 @@ func AllTechs() []*Tech {
 			Tree:        TreeStandard,
 			MaxLevel:    1,
 			DependsOn:   []string{"upgraded_energy_storage"},
+		},
+		{
+			ID:          "location_buildings",
+			Name:        "Location Buildings",
+			Description: "Позволяет строить здания на локациях",
+			CostFood:    800,
+			CostMoney:   600,
+			BuildTime:   250,
+			Tree:        TreeStandard,
+			MaxLevel:    1,
+			DependsOn:   []string{"planet_exploration"},
+		},
+		{
+			ID:          "advanced_exploration",
+			Name:        "Advanced Exploration",
+			Description: "+1 слот локаций за уровень (макс. 4)",
+			CostFood:    1000,
+			CostMoney:   800,
+			BuildTime:   300,
+			Tree:        TreeStandard,
+			MaxLevel:    3,
+			DependsOn:   []string{"location_buildings"},
 		},
 	}
 }

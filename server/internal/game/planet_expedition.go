@@ -17,7 +17,7 @@ func (p *Planet) CanStartExpedition(expType expedition.Type, fleet *ship.Fleet) 
 	}
 
 	// Check if expeditions research is completed
-	if _, ok := p.Research.GetCompleted()["expeditions"]; !ok {
+	if _, ok := p.Research.GetCompleted()["space_expeditions"]; !ok {
 		return &PlanetError{PlanetID: p.ID, Reason: "expeditions_not_researched"}
 	}
 
