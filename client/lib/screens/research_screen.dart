@@ -69,125 +69,118 @@ class ResearchScreen extends StatelessWidget {
     final currentFood = (resources['food'] ?? 0) as num;
     final currentMoney = (resources['money'] ?? 0) as num;
     final currentAlien = (resources['alien_tech'] ?? 0) as num;
+    final researchPaused = gameProvider.researchPaused;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Древо исследований', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-            const SizedBox(height: 12),
-            ..._buildTree(context, Constants.techList, completedIds, inProgressIds, availableIds, researchMap, gameProvider.startResearch, null, 0, currentFood, currentMoney, currentAlien, gameProvider.researchPaused),
-          ],
-        ),
-      ),
-    );
-  }
+    final availableTechs = <Widget>[];
+    final completedTechs = <Widget>[];
 
-  bool _canAfford(num currentFood, num currentMoney, num currentAlien, double costFood, double costMoney, double costAlien) {
-    return currentFood >= costFood && currentMoney >= costMoney && currentAlien >= costAlien;
-  }
-
-  List<Widget> _buildTree(
-    BuildContext context,
-    List techList,
-    Set<String> completedIds,
-    Set<String> inProgressIds,
-    Set<String> availableIds,
-    Map<String, ResearchTech> researchMap,
-    Function(String) onResearch,
-    String? parentId,
-    int depth,
-    num currentFood,
-    num currentMoney,
-    num currentAlien,
-    bool researchPaused,
-  ) {
-    final children = <Widget>[];
-
-    for (final tech in techList) {
+    for (final tech in Constants.techList) {
       final techMap = Map<String, dynamic>.from(tech);
       final techId = techMap['id'] as String;
       final dependsOn = (techMap['depends_on'] as List).map((e) => e as String).toList();
-
-      // Filter by parent or show root nodes
-      if (parentId != null) {
-        if (!dependsOn.contains(parentId)) continue;
-      } else {
-        if (dependsOn.isNotEmpty) continue;
-      }
 
       final isCompleted = completedIds.contains(techId);
       final isInProgress = inProgressIds.contains(techId);
       final isAvailable = availableIds.contains(techId);
       final hasPrerequisites = dependsOn.every((dep) => completedIds.contains(dep));
 
-      // Hide if not visible (not completed, not in progress, prerequisites not met)
       if (!isCompleted && !isInProgress && !hasPrerequisites) continue;
 
-      Color statusColor;
-      if (isCompleted) statusColor = AppTheme.successColor;
-      else if (isInProgress) statusColor = AppTheme.warningColor;
-      else if (isAvailable && hasPrerequisites) statusColor = AppTheme.accentColor;
-      else statusColor = Colors.white24;
+      final costFood = (techMap['cost_food'] as num?)?.toDouble() ?? 0;
+      final costMoney = (techMap['cost_money'] as num?)?.toDouble() ?? 0;
+      final costAlien = (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0;
+      final buildTime = (techMap['build_time'] as num?)?.toDouble() ?? 0;
+      final canAfford = currentFood >= costFood && currentMoney >= costMoney && currentAlien >= costAlien;
+      final maxLevel = ((techMap['max_level'] as num?)?.toInt()) ?? 1;
 
       final research = researchMap[techId];
       final progressPct = research != null ? research.progressPct : 0.0;
       final totalTime = research != null ? research.totalTime : 0.0;
       final progress = research != null ? research.progress : 0.0;
+      final currentLevel = research != null ? research.level : 0;
 
-      final costFood = (techMap['cost_food'] as num?)?.toDouble() ?? 0;
-      final costMoney = (techMap['cost_money'] as num?)?.toDouble() ?? 0;
-      final costAlien = (techMap['cost_alien_tech'] as num?)?.toDouble() ?? 0;
-      final canAfford = _canAfford(currentFood, currentMoney, currentAlien, costFood, costMoney, costAlien);
-
-      children.add(
-        Padding(
-          padding: EdgeInsets.only(left: depth * 24.0, bottom: 4),
-          child: _TechNode(
+      if (isCompleted) {
+        completedTechs.add(
+          _ResearchCard(
             techId: techId,
             name: techMap['name'] as String,
             description: techMap['description'] as String,
-            dependsOn: dependsOn.toList(),
-            statusColor: statusColor,
-            isCompleted: isCompleted,
-            isInProgress: isInProgress,
-            isAvailable: isAvailable && hasPrerequisites,
-            canAfford: canAfford,
-            onResearch: () => onResearch(techId),
-            costFood: costFood,
-            costMoney: costMoney,
-            costAlien: costAlien,
-            buildTime: (techMap['build_time'] as num?)?.toDouble() ?? 0,
+            statusColor: AppTheme.successColor,
+            isCompleted: true,
+            currentLevel: currentLevel,
+            maxLevel: maxLevel,
+            buildTime: buildTime,
+          ),
+        );
+      } else if (isInProgress) {
+        availableTechs.add(
+          _ResearchCard(
+            techId: techId,
+            name: techMap['name'] as String,
+            description: techMap['description'] as String,
+            statusColor: AppTheme.warningColor,
+            isCompleted: false,
+            isInProgress: true,
+            buildTime: buildTime,
             progressPct: progressPct,
             totalTime: totalTime,
             progress: progress,
             researchPaused: researchPaused,
           ),
-        ),
-      );
-
-      // Recursively render children
-      final subChildren = _buildTree(context, techList, completedIds, inProgressIds, availableIds, researchMap, onResearch, techId, depth + 1, currentFood, currentMoney, currentAlien, researchPaused);
-      children.addAll(subChildren);
+        );
+      } else if (isAvailable && hasPrerequisites) {
+        availableTechs.add(
+          _ResearchCard(
+            techId: techId,
+            name: techMap['name'] as String,
+            description: techMap['description'] as String,
+            statusColor: AppTheme.accentColor,
+            isCompleted: false,
+            isAvailable: true,
+            canAfford: canAfford,
+            costFood: costFood,
+            costMoney: costMoney,
+            costAlien: costAlien,
+            buildTime: buildTime,
+            onResearch: () => gameProvider.startResearch(techId),
+            researchPaused: researchPaused,
+          ),
+        );
+      }
     }
 
-    return children;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (availableTechs.isNotEmpty) ...[
+          const Text('Доступные', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+          const SizedBox(height: 8),
+          ...availableTechs,
+          const SizedBox(height: 20),
+        ],
+        if (completedTechs.isNotEmpty) ...[
+          const Text('Завершённые', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+          const SizedBox(height: 8),
+          ...completedTechs,
+        ],
+        if (availableTechs.isEmpty && completedTechs.isEmpty)
+          const Center(child: Text('Нет доступных исследований', style: TextStyle(color: Colors.white54))),
+      ],
+    );
   }
 }
 
-class _TechNode extends StatelessWidget {
+class _ResearchCard extends StatelessWidget {
   final String techId;
   final String name;
   final String description;
-  final List<String> dependsOn;
   final Color statusColor;
   final bool isCompleted;
   final bool isInProgress;
   final bool isAvailable;
   final bool canAfford;
-  final VoidCallback onResearch;
+  final int currentLevel;
+  final int maxLevel;
   final double costFood;
   final double costMoney;
   final double costAlien;
@@ -196,26 +189,28 @@ class _TechNode extends StatelessWidget {
   final double totalTime;
   final double progress;
   final bool researchPaused;
+  final VoidCallback? onResearch;
 
-  const _TechNode({
+  const _ResearchCard({
     required this.techId,
     required this.name,
     required this.description,
-    required this.dependsOn,
     required this.statusColor,
     required this.isCompleted,
-    required this.isInProgress,
-    required this.isAvailable,
-    required this.canAfford,
-    required this.onResearch,
-    required this.costFood,
-    required this.costMoney,
-    required this.costAlien,
+    this.isInProgress = false,
+    this.isAvailable = false,
+    this.canAfford = true,
+    this.currentLevel = 0,
+    this.maxLevel = 1,
+    this.costFood = 0,
+    this.costMoney = 0,
+    this.costAlien = 0,
     required this.buildTime,
-    required this.progressPct,
-    required this.totalTime,
-    required this.progress,
-    required this.researchPaused,
+    this.progressPct = 0,
+    this.totalTime = 0,
+    this.progress = 0,
+    this.researchPaused = false,
+    this.onResearch,
   });
 
   String _formatCost() {
@@ -245,6 +240,7 @@ class _TechNode extends StatelessWidget {
     final iconColor = isCompleted ? Colors.white : (isDimmed ? Colors.white38 : Colors.white);
 
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         border: Border.all(color: borderColor, width: 2),
         borderRadius: BorderRadius.circular(8),
@@ -269,13 +265,24 @@ class _TechNode extends StatelessWidget {
           name,
           style: TextStyle(
             color: textColor,
-            fontWeight: isAvailable && !isDimmed ? FontWeight.bold : FontWeight.normal,
+            fontWeight: (isAvailable || isInProgress) && !isDimmed ? FontWeight.bold : FontWeight.normal,
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(description, style: TextStyle(fontSize: 11, color: isDimmed ? Colors.white24 : Colors.white54)),
+            if (isCompleted) ...[
+              const SizedBox(height: 2),
+              Text(
+                'Уровень ${currentLevel}/${maxLevel}',
+                style: TextStyle(fontSize: 11, color: AppTheme.successColor),
+              ),
+              if (currentLevel > 0 && buildTime > 0) ...[
+                const SizedBox(height: 2),
+                Text('⏱ ${(buildTime / 60).toStringAsFixed(1)} мин', style: TextStyle(fontSize: 10, color: isDimmed ? Colors.white24 : Colors.white70)),
+              ],
+            ],
             if (isInProgress) ...[
               const SizedBox(height: 2),
               Row(
@@ -300,7 +307,7 @@ class _TechNode extends StatelessWidget {
                 style: TextStyle(fontSize: 10, color: researchPaused ? Colors.orange : Colors.white70),
               ),
             ],
-            if (!isCompleted && !isInProgress) ...[
+            if (!isCompleted && !isInProgress && isAvailable) ...[
               const SizedBox(height: 2),
               Text(
                 _formatCost(),
@@ -312,11 +319,6 @@ class _TechNode extends StatelessWidget {
                 style: TextStyle(fontSize: 10, color: isDimmed ? Colors.white24 : Colors.white70),
               ),
             ],
-            if (dependsOn.isNotEmpty && !isCompleted && !isAvailable)
-              const Text(
-                '🔒 Заблокировано',
-                style: TextStyle(fontSize: 10, color: Colors.white24),
-              ),
           ],
         ),
         trailing: isAvailable && !isCompleted
