@@ -373,10 +373,8 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Widget _buildGameScreen(DrillState state) {
-    return FocusScope(
-      canRequestFocus: true,
-      child: KeyboardListener(
-        focusNode: _keyboardFocusNode,
+    return KeyboardListener(
+      focusNode: _keyboardFocusNode,
       onKeyEvent: (event) {
         if (state.isActive != true) return;
         if (event is KeyDownEvent) {
@@ -417,20 +415,31 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
           ],
         ),
-        body: Column(
-          children: [
-            _buildHUD(state),
-            Expanded(child: _buildWorld(state)),
-            _buildControls(state),
-          ],
+        body: Focus(
+          autofocus: true,
+          child: Column(
+            children: [
+              _buildHUD(state),
+              Stack(
+                children: [
+                  Expanded(child: _buildWorld(state)),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _buildStatusStrip(state),
+                  ),
+                ],
+              ),
+              _buildControls(state),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
   Widget _buildHUD(DrillState state) {
-    final provider = context.read<GameProvider>();
     return Container(
       padding: const EdgeInsets.all(8),
       color: Colors.black87,
@@ -481,28 +490,6 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
             ],
           ),
-          if (provider.drillPendingExtracting || state.pendingExtracting)
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text('🛡️ Добыча...',
-                  style: TextStyle(color: Colors.orange, fontSize: 11)),
-            ),
-          if (provider.drillPendingDirection != null && provider.drillPendingDirection != '')
-            Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text('→ ${provider.drillPendingDirection}',
-                  style: const TextStyle(color: Colors.blue, fontSize: 11)),
-            ),
           if (state.resources.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(top: 4),
@@ -539,6 +526,40 @@ class _DrillScreenState extends State<DrillScreen> {
               margin: const EdgeInsets.only(top: 2),
               child: Text(_lastMessage,
                   style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusStrip(DrillState state) {
+    final provider = context.read<GameProvider>();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      color: Colors.black87,
+      child: Column(
+        children: [
+          if (provider.drillPendingExtracting || state.pendingExtracting)
+            Container(
+              margin: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text('🛡️ Добыча...',
+                  style: TextStyle(color: Colors.orange, fontSize: 11)),
+            ),
+          if (provider.drillPendingDirection != null && provider.drillPendingDirection != '')
+            Container(
+              margin: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('→ ${provider.drillPendingDirection}',
+                  style: const TextStyle(color: Colors.blue, fontSize: 11)),
             ),
         ],
       ),
