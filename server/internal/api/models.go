@@ -21,11 +21,12 @@ type PlayerResponse struct {
 
 // PlanetResponse represents a planet in API responses.
 type PlanetResponse struct {
-	ID        string                 `json:"id"`
-	PlayerID  string                 `json:"player_id"`
-	Name      string                 `json:"name"`
-	Level     int                    `json:"level"`
-	Resources map[string]interface{} `json:"resources"`
+	ID          string                 `json:"id"`
+	PlayerID    string                 `json:"player_id"`
+	Name        string                 `json:"name"`
+	Level       int                    `json:"level"`
+	Description string                 `json:"description,omitempty"`
+	Resources   map[string]interface{} `json:"resources"`
 }
 
 // CreatePlanetRequest is the request body for creating a planet.

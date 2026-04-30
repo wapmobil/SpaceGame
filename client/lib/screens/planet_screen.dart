@@ -45,13 +45,29 @@ class _PlanetScreenState extends State<PlanetScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  planet.name,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      planet.name,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (planet.description != null && planet.description!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        planet.description!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white54,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

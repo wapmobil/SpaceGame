@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"spacegame/internal/auth"
@@ -131,6 +132,33 @@ func handleListPlanets(db *sql.DB) http.HandlerFunc {
 			planets = append(planets, p)
 		}
 
+		// Load descriptions for all planets
+		var hasDesc bool
+		descCheckErr := db.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.columns 
+				WHERE table_name = 'planets' AND column_name = 'description'
+			)
+		`).Scan(&hasDesc)
+		if descCheckErr == nil && hasDesc {
+			descRows, err := db.Query("SELECT id, description FROM planets WHERE player_id = $1", playerID)
+			if err == nil {
+				defer descRows.Close()
+				for descRows.Next() {
+					var planetID string
+					var description string
+					if err := descRows.Scan(&planetID, &description); err == nil {
+						for i := range planets {
+							if planets[i].ID == planetID {
+								planets[i].Description = description
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
 		JSON(w, http.StatusOK, planets)
 	}
 }
@@ -170,6 +198,27 @@ func handleCreatePlanet(db *sql.DB) http.HandlerFunc {
 		if g != nil {
 			planet := game.NewPlanet(planetID, playerID, req.Name, g)
 			g.AddPlanet(planet)
+
+			// Async description generation
+			resourceType := string(planet.ResourceType)
+			go func(planetID, name, resourceType string) {
+				desc := game.GenerateDescription(name, resourceType)
+				if desc == "" {
+					return
+				}
+				_, err := db.Exec(`UPDATE planets SET description = $1 WHERE id = $2`, desc, planetID)
+				if err != nil {
+					log.Printf("Error saving description for planet %s: %v", planetID, err)
+					return
+				}
+				// Update in-memory planet
+				if g != nil {
+					p := g.GetPlanet(planetID)
+					if p != nil {
+						p.Description = desc
+					}
+				}
+			}(planetID, req.Name, resourceType)
 		}
 
 		Created(w, map[string]string{"id": planetID})
@@ -192,6 +241,7 @@ func handleGetPlanet(db *sql.DB) http.HandlerFunc {
 			"player_id":   p.OwnerID,
 			"name":        p.Name,
 			"level":       p.Level,
+			"description": p.Description,
 			"resources":   p.Resources,
 			"buildings":   p.Buildings,
 		}

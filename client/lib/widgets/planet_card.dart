@@ -58,10 +58,19 @@ class PlanetCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                   Text(
-                       'Уровень ${planet.level}',
-                       style: const TextStyle(fontSize: 12, color: Colors.white54),
-                     ),
-                    const SizedBox(height: 4),
+                        'Уровень ${planet.level}',
+                        style: const TextStyle(fontSize: 12, color: Colors.white54),
+                      ),
+                     if (planet.description != null && planet.description!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          planet.description!,
+                          style: const TextStyle(fontSize: 11, color: Colors.white38),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                     const SizedBox(height: 4),
                     Row(
                       children: [
                         _ResourceDot('🍍', (planet.resources['food'] ?? 0).toInt()),

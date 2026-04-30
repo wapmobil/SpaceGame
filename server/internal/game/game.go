@@ -4,10 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
+	"math/rand"
+	"strings"
 	"sync"
+	"time"
 
 	"spacegame/internal/db"
+	"spacegame/internal/openai"
 )
 
 var globalInstance *Game
@@ -188,6 +193,17 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 		}
 	}
 
+	// Load description
+	if hasDesc, _ := g.db.ColumnExists(context.Background(), "planets", "description"); hasDesc {
+		var desc *string
+		if err := g.db.QueryRow(`SELECT description FROM planets WHERE id = $1`, planetID).Scan(&desc); err != nil {
+			log.Printf("Error loading description for planet %s: %v", planetID, err)
+		}
+		if desc != nil {
+			planet.Description = *desc
+		}
+	}
+
 	g.AddPlanet(planet)
 	return nil
 }
@@ -306,6 +322,17 @@ func (g *Game) LoadPlanetsFromDB() error {
 // Load range stats
 		if err := loadRangeStats(planet); err != nil {
 			log.Printf("Error loading range stats for planet %s: %v", id, err)
+		}
+
+		// Load description
+		if hasDesc, _ := g.db.ColumnExists(context.Background(), "planets", "description"); hasDesc {
+			var desc *string
+			if err := g.db.QueryRow(`SELECT description FROM planets WHERE id = $1`, id).Scan(&desc); err != nil {
+				log.Printf("Error loading description for planet %s: %v", id, err)
+			}
+			if desc != nil {
+				planet.Description = *desc
+			}
 		}
 
 		g.AddPlanet(planet)
@@ -577,6 +604,16 @@ func (g *Game) savePlanet(p *Planet) {
 		}
 	}
 
+	// Save description
+	if desc, _ := g.db.ColumnExists(context.Background(), "planets", "description"); desc {
+		if p.Description != "" {
+			_, err := g.db.Exec(`UPDATE planets SET description = $1, updated_at = NOW() WHERE id = $2`, p.Description, p.ID)
+			if err != nil {
+				log.Printf("Error saving description for planet %s: %v", p.ID, err)
+			}
+		}
+	}
+
 	g.saveCount[p.ID] = 0
 }
 
@@ -674,4 +711,106 @@ func loadRangeStats(p *Planet) error {
 		return nil
 	}
 	return json.Unmarshal(data, &p.RangeStats)
+}
+
+// generateDescription creates a planet description using OpenAI based on name and resource type.
+func GenerateDescription(name, resourceType string) string {
+	if name == "" {
+		return ""
+	}
+
+	tempOptions := []string{
+		"Крайне холодная (-200°C до -100°C)",
+		"Ледяная (-100°C до -50°C)",
+		"Умеренная (-50°C до 50°C)",
+		"Жаркая (50°C до 200°C)",
+		"Экстремально жаркая (200°C до 500°C)",
+	}
+	compOptions := []string{
+		"Скалистая",
+		"Газовый гигант",
+		"Ледяная",
+		"Металлическая",
+		"Океаническая",
+		"Пустынная",
+	}
+	resourceDesc := map[string]string{
+		"composite":    "производство композитных материалов",
+		"mechanisms":   "производство механизмов",
+		"reagents":     "производство реагентов",
+	}
+	resourceText := resourceDesc[resourceType]
+	if resourceText == "" {
+		resourceText = "уникальная ресурсная специализация"
+	}
+	temp := tempOptions[rand.Intn(len(tempOptions))]
+	comp := compOptions[rand.Intn(len(compOptions))]
+	prompt := fmt.Sprintf("Создай краткое (2-3 предложения) описание космической планеты '%s'. Температура: %s. Состав: %s. Ресурсная специализация: %s. Опиши атмосферу и ландшафт планеты. Ответь только описанием на русском языке без кавычек и дополнительных комментариев.", name, temp, comp, resourceText)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Second)
+	defer cancel()
+
+	client := openai.New()
+	result, err := client.Chat(ctx, prompt)
+	if err != nil {
+		log.Printf("Failed to generate description for planet '%s': %v", name, err)
+		return ""
+	}
+
+	// Clean up the response
+	result = strings.TrimSpace(result)
+	result = strings.Trim(result, "\"'`")
+	// Remove any leading "Вот описание:" or similar prefixes
+	if idx := strings.Index(result, "\n"); idx > 0 {
+		result = result[idx+1:]
+	}
+	result = strings.TrimSpace(result)
+
+	return result
+}
+
+// GenerateMissingDescriptions spawns background goroutines to generate descriptions for planets that don't have one.
+// Uses a semaphore to limit concurrency and avoid overwhelming the OpenAI API.
+func (g *Game) GenerateMissingDescriptions() {
+	g.mu.RLock()
+	planets := make([]*Planet, 0, len(g.planets))
+	for _, p := range g.planets {
+		if p.Description == "" {
+			planets = append(planets, p)
+		}
+	}
+	g.mu.RUnlock()
+
+	if len(planets) == 0 {
+		return
+	}
+
+	log.Printf("Generating descriptions for %d planets without one...", len(planets))
+
+	// Semaphore to limit concurrency
+	sem := make(chan struct{}, 3)
+
+	for _, p := range planets {
+		sem <- struct{}{}
+		go func(planet *Planet) {
+			defer func() { <-sem }()
+
+			name := planet.Name
+			resourceType := string(planet.ResourceType)
+			desc := GenerateDescription(name, resourceType)
+			if desc == "" {
+				return
+			}
+
+			_, err := g.db.Exec(`UPDATE planets SET description = $1 WHERE id = $2`, desc, planet.ID)
+			if err != nil {
+				log.Printf("Error saving description for planet %s: %v", planet.ID, err)
+				return
+			}
+
+			// Update in-memory
+			planet.Description = desc
+			log.Printf("Generated description for planet %s: %s", planet.Name, desc)
+		}(p)
+	}
 }

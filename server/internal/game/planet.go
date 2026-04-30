@@ -45,6 +45,7 @@ type Planet struct {
 	ExpeditionHistory  []planet_survey.ExpeditionHistoryEntry
 	RangeStats         map[string]*planet_survey.ExpeditionRangeStats
 	MaxExpeditions     int
+	Description        string
 	game           *Game
 }
 

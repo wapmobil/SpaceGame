@@ -66,6 +66,9 @@ func main() {
 		}
 	}()
 
+	// Generate missing descriptions in background after server starts
+	go gameEngine.GenerateMissingDescriptions()
+
 	log.Println("SpaceGame server is running")
 	<-ctx.Done()
 	log.Println("Server stopped")
