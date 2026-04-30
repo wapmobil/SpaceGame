@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"spacegame/internal/openai"
 	"spacegame/internal/web"
 
 	"github.com/go-chi/chi/v5"
@@ -125,6 +126,9 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Post("/space-expeditions/{id}/action", handleSpaceExpeditionAction(db))
 		rr.Delete("/market/orders/{id}", handleDeleteMarketOrder(db))
 	})
+
+	// OpenAI chat endpoint (no auth required)
+	r.Post("/api/chat", openai.NewChatHandler().HandleChat)
 
 	return r
 }
