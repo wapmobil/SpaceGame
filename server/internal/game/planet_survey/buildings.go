@@ -232,6 +232,48 @@ func init() {
 			Level3Production: building.ProductionResult{Energy: 150, AlienTech: 9},
 			SourceConsumption: 3.0,
 		},
+		"hydro_plant": {
+			BuildingType: "hydro_plant",
+			Level1Production: building.ProductionResult{Energy: 25},
+			Level2Production: building.ProductionResult{Energy: 50},
+			Level3Production: building.ProductionResult{Energy: 75},
+			SourceConsumption: 2.0,
+		},
+		"turbine_station": {
+			BuildingType: "turbine_station",
+			Level1Production: building.ProductionResult{Energy: 20},
+			Level2Production: building.ProductionResult{Energy: 40},
+			Level3Production: building.ProductionResult{Energy: 60},
+			SourceConsumption: 1.5,
+		},
+		"alloy_forge": {
+			BuildingType: "alloy_forge",
+			Level1Production: building.ProductionResult{Iron: 3, Composite: 2},
+			Level2Production: building.ProductionResult{Iron: 6, Composite: 4},
+			Level3Production: building.ProductionResult{Iron: 9, Composite: 6},
+			SourceConsumption: 2.0,
+		},
+		"crystal_array": {
+			BuildingType: "crystal_array",
+			Level1Production: building.ProductionResult{AlienTech: 3, Energy: 10},
+			Level2Production: building.ProductionResult{AlienTech: 6, Energy: 20},
+			Level3Production: building.ProductionResult{AlienTech: 9, Energy: 30},
+			SourceConsumption: 2.0,
+		},
+		"resonance_amplifier": {
+			BuildingType: "resonance_amplifier",
+			Level1Production: building.ProductionResult{Energy: 40, Money: 5},
+			Level2Production: building.ProductionResult{Energy: 80, Money: 10},
+			Level3Production: building.ProductionResult{Energy: 120, Money: 15},
+			SourceConsumption: 2.5,
+		},
+		"generic_extractor": {
+			BuildingType: "generic_extractor",
+			Level1Production: building.ProductionResult{Iron: 2},
+			Level2Production: building.ProductionResult{Iron: 4},
+			Level3Production: building.ProductionResult{Iron: 6},
+			SourceConsumption: 1.0,
+		},
 	}
 }
 
