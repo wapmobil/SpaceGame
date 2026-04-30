@@ -420,16 +420,10 @@ class _DrillScreenState extends State<DrillScreen> {
           child: Column(
             children: [
               _buildHUD(state),
-              Stack(
-                children: [
-                  Expanded(child: _buildWorld(state)),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: _buildStatusStrip(state),
-                  ),
-                ],
+              Expanded(child: _buildWorld(state)),
+              Container(
+                color: Colors.black87,
+                child: _buildStatusStrip(state),
               ),
               _buildControls(state),
             ],
