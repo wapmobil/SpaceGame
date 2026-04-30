@@ -25,6 +25,8 @@ Thumbs.db
 # Logs
 *.log
 /.*
+!.github
+!.github/**
 
 # Database backups
 *_backup_*.sql

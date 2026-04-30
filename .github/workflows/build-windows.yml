@@ -1,0 +1,41 @@
+name: Build Windows
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'client/**'
+      - '.github/workflows/build-windows.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'client/**'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Build Windows
+        working-directory: client
+        run: flutter build windows --release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: spacegame-windows
+          path: |
+            client/build/windows/x64/release/bundle/
+          retention-days: 30
