@@ -9,7 +9,6 @@ class GardenBedProvider extends ChangeNotifier {
   final String baseUrl;
   String? _authToken;
   GardenBedState? _gardenBedState;
-  DateTime? _cooldownEnd;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -19,10 +18,6 @@ class GardenBedProvider extends ChangeNotifier {
   GardenBedState? get gardenBedState => _gardenBedState;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get canAct => _cooldownEnd == null || DateTime.now().isAfter(_cooldownEnd!);
-  int get remainingCooldown => _cooldownEnd == null
-      ? 0
-      : (_cooldownEnd!.difference(DateTime.now()).inMilliseconds / 1000).ceil().clamp(0, 1);
 
   void setAuthToken(String token) {
     _authToken = token;
@@ -136,7 +131,6 @@ class GardenBedProvider extends ChangeNotifier {
   Future<void> gardenBedAction(String planetId, String action, int rowIndex, {String? plantType}) async {
     if (_authToken == null) return;
     _isLoading = true;
-    _cooldownEnd = DateTime.now().add(const Duration(seconds: 1));
     notifyListeners();
 
     try {
@@ -171,22 +165,27 @@ class GardenBedProvider extends ChangeNotifier {
         notifyListeners();
       } else if (response.statusCode == 400) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final rowsData = data['rows'] as List? ?? [];
+        final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
+        if (rows.isNotEmpty) {
+          _gardenBedState = GardenBedState(
+            rows: rows,
+            lastTick: data['last_tick'] as int? ?? _gardenBedState?.lastTick ?? 0,
+            rowCount: _gardenBedState?.rowCount ?? rows.length,
+          );
+        }
         final error = data['error'] as String? ?? 'Action failed';
         _setError(error);
         _isLoading = false;
-        // Revert cooldown on error
-        _cooldownEnd = null;
         notifyListeners();
       } else {
         _setError('Failed to perform action: ${response.statusCode}');
         _isLoading = false;
-        _cooldownEnd = null;
         notifyListeners();
       }
     } catch (e) {
       _setError('Error: $e');
       _isLoading = false;
-      _cooldownEnd = null;
       notifyListeners();
     }
   }
@@ -202,13 +201,7 @@ class GardenBedProvider extends ChangeNotifier {
         rowCount: _gardenBedState?.rowCount ?? rows.length,
       );
 
-      // Update cooldown from server
-      final cooldownEnd = data['cooldown_end'] as int?;
-      if (cooldownEnd != null && cooldownEnd > 0) {
-        _cooldownEnd = DateTime.fromMillisecondsSinceEpoch(cooldownEnd * 1000);
-      } else if (_cooldownEnd == null) {
-        _errorMessage = null;
-      }
+      _errorMessage = null;
       notifyListeners();
     } catch (e) {
       debugPrint('Failed to process garden bed update: $e');
@@ -218,31 +211,23 @@ class GardenBedProvider extends ChangeNotifier {
   void onGardenBedWSActionResult(Map<String, dynamic> data) {
     try {
       final success = data['success'] as bool? ?? false;
-      final cooldownEnd = data['cooldown_end'] as int?;
+      final rowsData = data['rows'] as List? ?? [];
+      final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
 
-      if (success) {
-        final rowsData = data['rows'] as List? ?? [];
-        final rows = rowsData.map((r) => GardenBedRow.fromJson(r as Map<String, dynamic>)).toList();
-
+      if (rows.isNotEmpty) {
         _gardenBedState = GardenBedState(
           rows: rows,
           lastTick: data['last_tick'] as int? ?? _gardenBedState?.lastTick ?? 0,
           rowCount: _gardenBedState?.rowCount ?? rows.length,
         );
-        if (cooldownEnd != null && cooldownEnd > 0) {
-          _cooldownEnd = DateTime.fromMillisecondsSinceEpoch(cooldownEnd * 1000);
-        }
+      }
+
+      if (success) {
         _errorMessage = null;
-        notifyListeners();
       } else {
         _setError(data['error'] as String? ?? 'Action failed');
-        if (cooldownEnd != null && cooldownEnd > 0) {
-          _cooldownEnd = DateTime.fromMillisecondsSinceEpoch(cooldownEnd * 1000);
-        } else {
-          _cooldownEnd = null;
-        }
-        notifyListeners();
       }
+      notifyListeners();
     } catch (e) {
       debugPrint('Failed to process garden bed WS action result: $e');
     }

@@ -77,7 +77,6 @@ wsBroadcast.BroadcastGardenBedUpdate(ownerID, map[string]interface{}{
 		"seed_cost":    result.SeedCost,
 		"unlock_level": result.UnlockLevel,
 		"wither_timer": result.WitherTimer,
-		"cooldown_end": result.CooldownEnd,
 	})
 
 		JSON(w, http.StatusOK, result)

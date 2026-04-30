@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"math/rand"
 	"strconv"
-	"sync"
-	"time"
 )
 
 // Plant types
@@ -76,7 +74,7 @@ type GardenBedRow struct {
 	Stage            int     `json:"stage,omitempty"`
 	Weeds            int     `json:"weeds"`
 	WaterTimer       int     `json:"water_timer"`
-	LastTick         int64   // internal: dedup within a tick call
+	LastTick         int64   `json:"-"` // internal: dedup within a tick call
 	GardenBedTicksSinceLast int   `json:"-"` // internal: garden bed ticks since last growth check
 	WitherTimer      int     `json:"wither_timer,omitempty"`
 	StageProgress    int     `json:"stage_progress"` // internal: progress within current stage
@@ -130,9 +128,6 @@ func NewGardenBedStateFromJSON(data []byte, rowCount int) *GardenBedState {
 	for i := range state.Rows {
 		if state.Rows[i].Status == "" {
 			state.Rows[i].Status = GardenBedRowEmpty
-		}
-		if state.Rows[i].WitherTimer == 0 {
-			state.Rows[i].WitherTimer = 0
 		}
 	}
 
@@ -237,10 +232,25 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				}
 			}
 
-			// Calculate ticks to mature
+			// Wither trigger: when weeds reach 3
 			if row.Weeds >= 3 {
-				row.TicksToMature = -1 // blocked
+				witherTicks := int64(1000)
+				if row.WaterTimer > 0 {
+					witherTicks = 1500
+				}
+				row.WitherTimer++
+				if row.WitherTimer >= int(witherTicks) {
+					row.Status = GardenBedRowWithered
+					changed = true
+				}
+				// TicksToMature = remaining wither time
+				remainingWither := int(witherTicks) - row.WitherTimer
+				if remainingWither < 0 {
+					remainingWither = 0
+				}
+				row.TicksToMature = remainingWither
 			} else {
+				// Calculate ticks to mature
 				remainingStages := (plant.Stages - 1) - row.Stage
 				if remainingStages <= 0 {
 					row.TicksToMature = 0
@@ -256,7 +266,7 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 			row.LastTick = gardenBedTickNum
 			continue
 		} else if row.Status == GardenBedRowMature {
-			// --- Mature rows: wither check ---
+			// --- Mature rows: no wither, just tick ---
 			plant := gardenBedPlants[row.PlantType]
 			if plant == nil {
 				row.Status = GardenBedRowEmpty
@@ -273,40 +283,17 @@ func GardenBedTick(gb *GardenBedState, gardenBedTickNum int64) bool {
 				continue
 			}
 
-			// Calculate wither time based on water status
-			witherTicks := int64(300) // default 300 ticks (50 min)
+			// Calculate remaining wither time (watered mature plants last longer)
+			witherTicks := int64(1000)
 			if row.WaterTimer > 0 {
-				witherTicks = 500 // watered: 500 ticks (83 min)
+				witherTicks = 1500
 			}
-			if row.Weeds >= 1 {
-				if witherTicks > 150 {
-					witherTicks = 150
-				}
-			}
-			if row.Weeds >= 2 {
-				if witherTicks > 100 {
-					witherTicks = 100
-				}
-			}
-			if row.Weeds >= 3 {
-				if witherTicks > 50 {
-					witherTicks = 50
-				}
-			}
-
-			// Increment wither timer
-			row.WitherTimer++
-			if row.WitherTimer >= int(witherTicks) {
-				row.Status = GardenBedRowWithered
-				changed = true
-			}
-
-			// TicksToMature = remaining wither time
 			remainingWither := int(witherTicks) - row.WitherTimer
 			if remainingWither < 0 {
 				remainingWither = 0
 			}
 			row.TicksToMature = remainingWither
+			row.WitherTimer++
 
 			row.LastTick = gardenBedTickNum
 			continue
@@ -332,61 +319,22 @@ func ProcessGardenBedTick(planet *Planet, gameTick int64) {
 
 	gardenBedTickNum := gameTick / gardenBedTickInterval
 	GardenBedTick(planet.GardenBedState, gardenBedTickNum)
-
-	// Save garden bed state to DB
-	SaveGardenBedToDB(planet)
 }
 
 // GardenBedActionResult is the result of a garden bed action
 type GardenBedActionResult struct {
-	Success      bool           `json:"success"`
-	Error        string         `json:"error,omitempty"`
-	Rows         []GardenBedRow `json:"rows"`
-	FoodGain     float64        `json:"food_gain,omitempty"`
-	MoneyGain    float64        `json:"money_gain,omitempty"`
-	FoodCost     float64        `json:"food_cost,omitempty"`
-	SeedCost     float64        `json:"seed_cost,omitempty"`
-	UnlockLevel  int            `json:"unlock_level,omitempty"`
-	WitherTimer  int            `json:"wither_timer,omitempty"`
-	CooldownEnd  int64          `json:"cooldown_end"`
+	Success     bool           `json:"success"`
+	Error       string         `json:"error,omitempty"`
+	Rows        []GardenBedRow `json:"rows"`
+	FoodGain    float64        `json:"food_gain,omitempty"`
+	MoneyGain   float64        `json:"money_gain,omitempty"`
+	FoodCost    float64        `json:"food_cost,omitempty"`
+	SeedCost    float64        `json:"seed_cost,omitempty"`
+	UnlockLevel int            `json:"unlock_level,omitempty"`
+	WitherTimer int            `json:"wither_timer,omitempty"`
 }
 
-// GardenBedActionCooldown is the cooldown between garden bed actions in seconds
-const GardenBedActionCooldown = 1 * time.Second
-
-// gardenBedLastActionTime stores the last action time per planet
-var gardenBedLastActionTime = make(map[string]time.Time)
-var gardenBedActionMu = &sync.Mutex{}
-
-// getGardenBedActionKey returns the cache key for a planet's garden bed action cooldown
-func getGardenBedActionKey(planetID string) string {
-	return "garden_bed:" + planetID
-}
-
-// GetGardenBedCooldownEnd returns the Unix timestamp (seconds) when the cooldown expires,
-// or 0 if no cooldown is active.
-func GetGardenBedCooldownEnd(planetID string) int64 {
-	gardenBedActionMu.Lock()
-	defer gardenBedActionMu.Unlock()
-	lastAction, exists := gardenBedLastActionTime[getGardenBedActionKey(planetID)]
-	if !exists {
-		return 0
-	}
-	remaining := GardenBedActionCooldown - time.Since(lastAction)
-	if remaining <= 0 {
-		return 0
-	}
-	return time.Now().Add(remaining).Unix()
-}
-
-// ClearGardenBedCooldown clears the cooldown for a planet (for testing)
-func ClearGardenBedCooldown(planetID string) {
-	gardenBedActionMu.Lock()
-	delete(gardenBedLastActionTime, getGardenBedActionKey(planetID))
-	gardenBedActionMu.Unlock()
-}
-
-// gardenBedAction handles player garden bed actions with cooldown enforcement
+// gardenBedAction handles player garden bed actions
 // Returns the result as JSON bytes
 func gardenBedAction(planet *Planet, action string, rowIndex int, plantType string) (*GardenBedActionResult, error) {
 	if planet == nil || planet.GardenBedState == nil {
@@ -399,22 +347,6 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 			Success: false,
 			Error:   "Invalid row index",
 			Rows:    gb.Rows,
-		}, nil
-	}
-
-	// Check cooldown
-	gardenBedActionMu.Lock()
-	lastAction, exists := gardenBedLastActionTime[getGardenBedActionKey(planet.ID)]
-	gardenBedActionMu.Unlock()
-
-	if exists && time.Since(lastAction) < GardenBedActionCooldown {
-		remaining := GardenBedActionCooldown - time.Since(lastAction)
-		cooldownEnd := time.Now().Add(remaining).Unix()
-		return &GardenBedActionResult{
-			Success:     false,
-			Error:       "Cooldown active. Try again in " + remaining.Round(time.Second).String(),
-			Rows:        gb.Rows,
-			CooldownEnd: cooldownEnd,
 		}, nil
 	}
 
@@ -459,7 +391,8 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		row.LastTick = 0
 		row.GardenBedTicksSinceLast = 0
 		row.StageProgress = 0
-		row.TicksToMature = 0
+		ticksPerStage := plant.GrowthTicks / (plant.Stages - 1)
+		row.TicksToMature = (plant.Stages - 1) * ticksPerStage
 		result.Success = true
 
 	case "weed":
@@ -568,13 +501,6 @@ func gardenBedAction(planet *Planet, action string, rowIndex int, plantType stri
 		result.Error = "Unknown action: " + action
 		return result, nil
 	}
-
-	// Update cooldown
-	gardenBedActionMu.Lock()
-	gardenBedLastActionTime[getGardenBedActionKey(planet.ID)] = time.Now()
-	gardenBedActionMu.Unlock()
-
-	result.CooldownEnd = time.Now().Add(GardenBedActionCooldown).Unix()
 
 	// Save to DB
 	SaveGardenBedToDB(planet)

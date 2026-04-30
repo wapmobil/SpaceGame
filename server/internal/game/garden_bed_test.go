@@ -134,7 +134,6 @@ func TestGardenBedAction_PlantOnNonEmptyRow(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "plant", 0, PlantBerries)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -160,7 +159,6 @@ func TestGardenBedAction_Weed(t *testing.T) {
 		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "weed", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -192,7 +190,6 @@ func TestGardenBedAction_Water(t *testing.T) {
 		Buildings: []BuildingEntry{{Type: "farm", Level: 1, Enabled: true}},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "water", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -223,7 +220,6 @@ func TestGardenBedAction_Harvest(t *testing.T) {
 		Resources: PlanetResources{Food: 100, Money: 50},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "harvest", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -260,7 +256,6 @@ func TestGardenBedAction_HarvestNonMature(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "harvest", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -285,7 +280,6 @@ func TestGardenBedAction_InvalidRowIndex(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "plant", 5, PlantWheat)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -310,7 +304,6 @@ func TestGardenBedAction_UnknownAction(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "dig", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -323,7 +316,7 @@ func TestGardenBedAction_UnknownAction(t *testing.T) {
 	}
 }
 
-func TestGardenBedAction_Cooldown(t *testing.T) {
+func TestGardenBedAction_MultipleActions(t *testing.T) {
 	planet := &Planet{
 		ID: "test-planet-base",
 		GardenBedState: &GardenBedState{
@@ -342,11 +335,11 @@ func TestGardenBedAction_Cooldown(t *testing.T) {
 	}
 
 	result, _ = GardenBedActionInternal(planet, "water", 0, "")
-	if result.Success {
-		t.Error("Second action should fail due to cooldown")
+	if !result.Success {
+		t.Errorf("Second action should succeed without cooldown, got error: %s", result.Error)
 	}
-	if result.Error == "" {
-		t.Error("Expected cooldown error message")
+	if result.Rows[0].WaterTimer != 100 {
+		t.Errorf("Expected water_timer 100, got %d", result.Rows[0].WaterTimer)
 	}
 }
 
@@ -445,7 +438,6 @@ func TestGardenBedAction_PlantInvalidType(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "plant", 0, "tomato")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -470,7 +462,6 @@ func TestGardenBedAction_WeedEmptyRow(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "weed", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -495,7 +486,6 @@ func TestGardenBedAction_WaterEmptyRow(t *testing.T) {
 		Resources: PlanetResources{Food: 100},
 	}
 
-	ClearGardenBedCooldown("test-planet-base")
 	result, err := GardenBedActionInternal(planet, "water", 0, "")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)

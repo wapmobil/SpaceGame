@@ -118,18 +118,6 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                             style: const TextStyle(color: AppTheme.accentColor, fontWeight: FontWeight.w600),
                           ),
                           const Spacer(),
-                          if (!gardenBedProvider.canAct)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${gardenBedProvider.remainingCooldown}с',
-                                style: const TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -196,7 +184,9 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
               ? AppTheme.successColor.withValues(alpha: 0.4)
               : row.isWithered
                   ? AppTheme.dangerColor.withValues(alpha: 0.3)
-                  : Colors.white.withValues(alpha: 0.08),
+                  : row.isWeedyEmpty
+                      ? Colors.orange.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.08),
         ),
       ),
       child: Column(
@@ -230,37 +220,37 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
             ),
           ),
           // Action buttons
-          if (row.isEmpty) ...[
+          if (row.isWeedyEmpty) ...[
             const Divider(height: 1, color: Colors.white12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  if (row.weeds > 0)
-                    _buildActionChip(
-                      context,
-                      gardenBedProvider,
-                      'weed',
-                      rowIndex,
-                      '🌿',
-                      'Прополоть',
-                      AppTheme.dangerColor,
-                      weedCost: 10,
-                    ),
-                  if (row.weeds == 0)
-                    Center(
-                      child: _buildActionChip(
-                        context,
-                        gardenBedProvider,
-                        'plant',
-                        rowIndex,
-                        '+',
-                        'Посадить',
-                        AppTheme.accentColor,
-                      ),
-                    ),
-                ],
+              child: Center(
+                child: _buildActionChip(
+                  context,
+                  gardenBedProvider,
+                  'weed',
+                  rowIndex,
+                  '🌿',
+                  'Прополоть',
+                  AppTheme.dangerColor,
+                  weedCost: 10,
+                ),
+              ),
+            ),
+          ] else if (row.isEmpty) ...[
+            const Divider(height: 1, color: Colors.white12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Center(
+                child: _buildActionChip(
+                  context,
+                  gardenBedProvider,
+                  'plant',
+                  rowIndex,
+                  '+',
+                  'Посадить',
+                  AppTheme.accentColor,
+                ),
               ),
             ),
           ] else if (row.isWithered) ...[
@@ -271,7 +261,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                 child: _buildActionChip(
                   context,
                   gardenBedProvider,
-                  'weed',
+                  'clear',
                   rowIndex,
                   '🧹',
                   'Очистить',
@@ -288,15 +278,17 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   if (row.weeds > 0)
-                    _buildActionChip(
-                      context,
-                      gardenBedProvider,
-                      'weed',
-                      rowIndex,
-                      '🌿',
-                      'Прополоть',
-                      AppTheme.dangerColor,
-                      weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat') * 10,
+                    Center(
+                      child: _buildActionChip(
+                        context,
+                        gardenBedProvider,
+                        'weed',
+                        rowIndex,
+                        '🌿',
+                        'Прополоть',
+                        AppTheme.dangerColor,
+                        weedCost: gardenBedProvider.getWeedCost(row.plantType ?? 'wheat') * 10,
+                      ),
                     ),
                   _buildActionChip(
                     context,
@@ -337,46 +329,101 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
       );
     }
 
-   if (row.isEmpty && row.weeds > 0) {
-    return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Text('🌱', style: TextStyle(fontSize: 16)),
-              SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Заросло',
-                  style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-         if (row.weeds > 0) ...[
-            const SizedBox(height: 2),
-            const Row(
-              children: [
-                Text(
-                  'Увядшее',
-                  style: TextStyle(color: AppTheme.dangerColor, fontSize: 13, fontWeight: FontWeight.w600),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 2),
-          const Text(
-            'Нужно очистить',
-            style: TextStyle(color: Colors.white54, fontSize: 11),
-          ),
-        ],
-      );
+  if (row.isEmpty && row.weeds > 0) {
+     return Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           const Row(
+             children: [
+               Text('🌱', style: TextStyle(fontSize: 16)),
+               SizedBox(width: 6),
+               Expanded(
+                 child: Text(
+                   'Заросло',
+                   style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
+                   overflow: TextOverflow.ellipsis,
+                 ),
+               ),
+             ],
+           ),
+           const SizedBox(height: 2),
+           const Text(
+             'Нужно прополоть',
+             style: TextStyle(color: Colors.white54, fontSize: 11),
+           ),
+         ],
+       );
     }
 
-    // Planted or mature
-    return Column(
+     if (row.isWithered) {
+       return Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           Row(
+             children: [
+               Text(
+                 gardenBedProvider.getPlantIcon(row.plantType ?? ''),
+                 style: const TextStyle(fontSize: 18),
+               ),
+               const SizedBox(width: 6),
+               Expanded(
+                 child: Text(
+                   gardenBedProvider.getPlantName(row.plantType ?? ''),
+                   style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                   overflow: TextOverflow.ellipsis,
+                 ),
+               ),
+             ],
+           ),
+           const SizedBox(height: 2),
+           Row(
+             children: [
+               const Text('🥀', style: TextStyle(fontSize: 11)),
+               const SizedBox(width: 2),
+               Text(
+                 'Увядшее',
+                 style: TextStyle(color: AppTheme.dangerColor, fontSize: 11, fontWeight: FontWeight.w600),
+               ),
+             ],
+           ),
+           if (row.ticksToMature > 0) ...[
+             const SizedBox(height: 2),
+             Row(
+               children: [
+                 const Text('⏱', style: TextStyle(fontSize: 11)),
+                 const SizedBox(width: 2),
+                 Text(
+                    gardenBedProvider.getTicksToMatureText(row.ticksToMature),
+                    style: TextStyle(color: AppTheme.dangerColor, fontSize: 10),
+                  ),
+               ],
+             ),
+           ],
+           if (row.weeds > 0) ...[
+             const SizedBox(height: 2),
+             Row(
+               children: [
+                 Text(
+                   List.filled(row.weeds, '🌿').join(),
+                   style: const TextStyle(fontSize: 11),
+                 ),
+                 const SizedBox(width: 4),
+                 Text(
+                   '${row.weeds}/3',
+                   style: TextStyle(
+                     color: AppTheme.dangerColor,
+                     fontSize: 10,
+                   ),
+                 ),
+               ],
+             ),
+           ],
+         ],
+       );
+     }
+
+     // Planted or mature
+     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -521,24 +568,21 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
     double moneyReward = 0,
     double foodReward = 0,
   }) {
-    final canAct = gardenBedProvider.canAct;
     String fullLabel = label;
     if (weedCost > 0) fullLabel = '$label (🍍${weedCost.toInt()})';
     if (waterCost > 0) fullLabel = '$label (🍍${waterCost.toInt()})';
     if (moneyReward > 0 && foodReward > 0) fullLabel = '$label (💰${moneyReward.toInt()} 🍍${foodReward.toInt()})';
 
     return ElevatedButton(
-      onPressed: canAct
-          ? () => _handleAction(context, gardenBedProvider, action, rowIndex)
-          : null,
+      onPressed: () => _handleAction(context, gardenBedProvider, action, rowIndex),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color.withValues(alpha: canAct ? 0.2 : 0.1),
-        foregroundColor: canAct ? color : color.withValues(alpha: 0.5),
+        backgroundColor: color.withValues(alpha: 0.2),
+        foregroundColor: color,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         minimumSize: const Size(0, 32),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: color.withValues(alpha: canAct ? 0.4 : 0.2)),
+          side: BorderSide(color: color.withValues(alpha: 0.4)),
         ),
         elevation: 0,
       ),
@@ -560,7 +604,7 @@ class _GardenBedScreenState extends State<GardenBedScreen> {
       if (selectedPlant != null) {
         await gardenBedProvider.gardenBedAction(widget.planetId, 'plant', rowIndex, plantType: selectedPlant);
       }
-    } else if (action == 'weed' && gardenBedProvider.gardenBedState?.rows[rowIndex].isWithered == true) {
+    } else if (action == 'clear') {
       await gardenBedProvider.gardenBedAction(widget.planetId, 'clear', rowIndex);
     } else {
       await gardenBedProvider.gardenBedAction(widget.planetId, action, rowIndex);

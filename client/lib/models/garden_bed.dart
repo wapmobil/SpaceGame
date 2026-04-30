@@ -54,6 +54,7 @@ class GardenBedRow {
   bool get isPlanted => status == 'planted';
   bool get isMature => status == 'mature';
   bool get isWithered => status == 'withered';
+  bool get isWeedyEmpty => isEmpty && weeds > 0;
   bool get isGrowing => isPlanted && !isMature;
   bool get isWeedy => weeds > 0;
   bool get isAtMaxWeeds => weeds >= 3;
