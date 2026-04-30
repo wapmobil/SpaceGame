@@ -40,5 +40,5 @@ jobs:
         with:
           name: spacegame-windows
           path: |
-            client/build/windows/x64/release/bundle/
+            client/build/windows/x64/runner/Release/
           retention-days: 30
