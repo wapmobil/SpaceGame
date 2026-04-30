@@ -413,9 +413,12 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
           ?.map((e) => e as Map<String, dynamic>)
           .toList() ?? [];
       _rangeStats = stateData['range_stats'] as Map<String, dynamic>? ?? {};
-      _expeditionHistory = (stateData['expedition_history'] as List?)
-          ?.map((e) => e as Map<String, dynamic>)
-          .toList() ?? [];
+      if (stateData['expedition_history'] is List &&
+          (stateData['expedition_history'] as List).length > _expeditionHistory.length) {
+        _expeditionHistory = (stateData['expedition_history'] as List)
+            .map((e) => e as Map<String, dynamic>)
+            .toList();
+      }
       _maxSurfaceExpeditions = stateData['max_surface_expeditions'] as int?;
       _canStartPlanetSurvey = stateData['can_start_planet_survey'] as bool?;
       _canStartSpaceExpedition = stateData['can_start_space_expedition'] as bool?;
