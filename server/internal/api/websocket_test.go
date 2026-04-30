@@ -723,34 +723,6 @@ func TestToJSON(t *testing.T) {
 	}
 }
 
-func TestWSClientStartHeartbeat(t *testing.T) {
-	cm := NewWSConnectionManager()
-	defer cm.Close()
-
-	client := cm.NewClient(nil, "player1", "planet1", "conn1", "token1")
-	cm.AddClient("player1", "conn1", client)
-
-	// Start heartbeat with short interval - just verify it doesn't panic
-	// The actual heartbeat test would require mocking the connection
-	client.mu.Lock()
-	client.closed = true
-	client.mu.Unlock()
-
-	// Should not panic
-	done := make(chan struct{})
-	go func() {
-		client.StartHeartbeat(cm, "conn1")
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// Good, heartbeat exited
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("heartbeat did not exit promptly for closed client")
-	}
-}
-
 func TestWSClientStartWritePump(t *testing.T) {
 	cm := NewWSConnectionManager()
 	defer cm.Close()

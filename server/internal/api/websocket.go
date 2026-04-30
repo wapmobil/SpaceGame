@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -155,7 +156,7 @@ type WSConnectionManager struct {
 	rateLimiter *WSRateLimiter
 	messageQueue *WSMessageQueue
 	clients     map[string]*WSClient // connID -> client
-	connCounter int
+	connCounter atomic.Int64
 }
 
 // NewWSConnectionManager creates a new connection manager.
@@ -382,30 +383,6 @@ func (c *WSClient) WriteMessage(msgType int, data []byte) error {
 	return c.conn.WriteMessage(msgType, data)
 }
 
-// StartHeartbeat starts the ping/pong heartbeat for a client.
-func (c *WSClient) StartHeartbeat(cm *WSConnectionManager, connID string) {
-	ticker := time.NewTicker(WSPingInterval)
-	go func() {
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				c.mu.Lock()
-				if c.closed {
-					c.mu.Unlock()
-					return
-				}
-				err := c.conn.WriteMessage(websocket.PingMessage, nil)
-				c.mu.Unlock()
-				if err != nil {
-					cm.RemoveClient(connID)
-					return
-				}
-			}
-		}
-	}()
-}
-
 // StartWritePump starts the write pump goroutine for a client.
 func (c *WSClient) StartWritePump(cm *WSConnectionManager, connID string) {
 	ticker := time.NewTicker(WSPingInterval)
@@ -435,7 +412,6 @@ func (c *WSClient) StartWritePump(cm *WSConnectionManager, connID string) {
 					c.mu.Unlock()
 					return
 				}
-				c.conn.SetWriteDeadline(time.Now().Add(WPCloseGracePeriod))
 				if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					c.mu.Unlock()
 					return
@@ -743,9 +719,6 @@ func handleWebSocket(db *sql.DB) http.HandlerFunc {
 		client := wsManager.NewClient(conn, playerID, "", connID, authToken)
 		wsManager.AddClient(playerID, connID, client)
 
-		// Start heartbeat
-		client.StartHeartbeat(wsManager, connID)
-
 		// Start write pump
 		client.StartWritePump(wsManager, connID)
 
@@ -784,6 +757,8 @@ func (c *WSClient) readPump(cm *WSConnectionManager, connID string) {
 		cm.RemoveClient(connID)
 	}()
 
+	c.conn.SetReadDeadline(time.Now().Add(WSPingInterval * 2))
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -792,6 +767,7 @@ func (c *WSClient) readPump(cm *WSConnectionManager, connID string) {
 			}
 			break
 		}
+		c.conn.SetReadDeadline(time.Now().Add(WSPingInterval * 2))
 
 		// Rate limiting check
 		if !cm.rateLimiter.ConsumeToken(c.playerID) {
@@ -1040,8 +1016,8 @@ func extractPlayerIDFromToken(db *sql.DB, token string) (string, error) {
 
 // generateConnID generates a unique connection ID.
 func generateConnID() string {
-	wsManager.connCounter++
-	return fmt.Sprintf("conn_%d_%d", time.Now().UnixNano(), wsManager.connCounter)
+	wsManager.connCounter.Add(1)
+	return fmt.Sprintf("conn_%d_%d", time.Now().UnixNano(), wsManager.connCounter.Load())
 }
 
 // randomEventMessages contains messages for random events.
