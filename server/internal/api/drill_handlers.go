@@ -46,7 +46,15 @@ func handleStartDrill(db *sql.DB) http.HandlerFunc {
 		p.Resources.Iron -= float64(cost)
 		game.Instance().SavePlanet(p)
 
-		dg := game.NewDrillGame(planetID, playerID, mineLevel)
+		var speed int = 1
+		var req DrillStartRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
+			if req.Speed == 1 || req.Speed == 2 {
+				speed = req.Speed
+			}
+		}
+
+		dg := game.NewDrillGame(planetID, playerID, mineLevel, speed)
 		session := dg.GetSession()
 
 		dg.SetBroadcastFn(func(result *game.MoveResult) {

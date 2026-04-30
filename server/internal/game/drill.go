@@ -148,12 +148,13 @@ type DrillConfig struct {
 
 // DrillGame is the main engine for the drill mini-game
 type DrillGame struct {
-	config      DrillConfig
-	session     DrillSession
-	mineLevel   int
-	broadcastFn func(*MoveResult)
-	cellsCache  map[string]Cell
-	done        chan struct{}
+	config       DrillConfig
+	session      DrillSession
+	mineLevel    int
+	tickInterval time.Duration
+	broadcastFn  func(*MoveResult)
+	cellsCache   map[string]Cell
+	done         chan struct{}
 }
 
 // activeSessions stores all active drill sessions in memory
@@ -162,8 +163,11 @@ var (
 	activeSessions   = make(map[string]*DrillGame)
 )
 
-// autoDescentInterval is how often the drill descends automatically
-const autoDescentInterval = 1 * time.Second
+// Speed intervals for drill auto-descent
+const (
+	speed1xInterval = 1 * time.Second
+	speed2xInterval = 500 * time.Millisecond
+)
 
 // ActiveSessions returns all active drill sessions
 func ActiveSessions() map[string]*DrillGame {
@@ -204,7 +208,7 @@ const (
 )
 
 // NewDrillGame creates a new drill game session
-func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
+func NewDrillGame(planetID, playerID string, mineLevel, tickInterval int) *DrillGame {
 	maxHP := 10 + 100*mineLevel
 	session := DrillSession{
 		ID:             uuid.New().String(),
@@ -227,12 +231,21 @@ func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
 		Seed: rand.Int63(),
 	}
 
+	var interval time.Duration
+	switch tickInterval {
+	case 2:
+		interval = speed2xInterval
+	default:
+		interval = speed1xInterval
+	}
+
 	game := &DrillGame{
-		config:     config,
-		session:    session,
-		mineLevel:  mineLevel,
-		cellsCache: make(map[string]Cell),
-		done:       make(chan struct{}),
+		config:       config,
+		session:      session,
+		mineLevel:    mineLevel,
+		tickInterval: interval,
+		cellsCache:   make(map[string]Cell),
+		done:         make(chan struct{}),
 	}
 
 	game.generateInitialWorld()
@@ -246,7 +259,7 @@ func NewDrillGame(planetID, playerID string, mineLevel int) *DrillGame {
 }
 
 func (g *DrillGame) autoDescentTicker() {
-	ticker := time.NewTicker(autoDescentInterval)
+	ticker := time.NewTicker(g.tickInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -668,6 +681,11 @@ func ParseDrillDirection(s string) (MoveDirection, error) {
 // GetSeed returns the session seed
 func (g *DrillGame) GetSeed() int64 {
 	return g.config.Seed
+}
+
+// GetTickInterval returns the tick interval duration for this drill game
+func (g *DrillGame) GetTickInterval() time.Duration {
+	return g.tickInterval
 }
 
 // Destroy sets drill HP to 0 triggering game over

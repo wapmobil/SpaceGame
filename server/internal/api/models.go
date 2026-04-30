@@ -263,6 +263,11 @@ type EnergyBalanceDetail struct {
 // PlanetResources is an alias for the game package's PlanetResources.
 type PlanetResources = game.PlanetResources
 
+// DrillStartRequest is the request body for starting a drill session.
+type DrillStartRequest struct {
+	Speed int `json:"speed"` // 1 = 1x, 2 = 2x
+}
+
 // DrillCommandRequest is the request body for drill commands.
 type DrillCommandRequest struct {
 	Direction string `json:"direction"` // "left", "right", ""

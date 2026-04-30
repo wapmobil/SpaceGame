@@ -68,7 +68,12 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Future<void> _startDrill() async {
-    await context.read<GameProvider>().startDrill();
+    await context.read<GameProvider>().startDrill(speed: 1);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _startDrill2x() async {
+    await context.read<GameProvider>().startDrill(speed: 2);
     if (mounted) setState(() {});
   }
 
@@ -148,6 +153,7 @@ class _DrillScreenState extends State<DrillScreen> {
     final ironAvailable = (provider.selectedPlanet?.resources['iron'] ?? 0) as num? ?? 0;
     final canAfford = ironAvailable >= cost;
     final color = canAfford ? Colors.amber : Colors.red;
+    final canAfford2x = canAfford && mineLevel >= 4;
 
     return Scaffold(
       appBar: AppBar(
@@ -200,6 +206,57 @@ class _DrillScreenState extends State<DrillScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
               ),
+              if (mineLevel >= 1) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: canAfford2x ? _startDrill2x : null,
+                  icon: const Icon(Icons.speed),
+                  label: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('Начать бурение'),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade700,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              '2x',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('🪨', style: TextStyle(fontSize: 12)),
+                          const SizedBox(width: 2),
+                          Text(
+                            cost.toString(),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: canAfford2x ? Colors.amber : Colors.red),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            mineLevel >= 4 ? '(ур.шахты >= 4)' : '(нужен ур.шахты 4)',
+                            style: const TextStyle(fontSize: 11, color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: canAfford2x ? Colors.orange.shade700 : Colors.grey.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),

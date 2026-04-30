@@ -10,7 +10,7 @@ func boolPtr(b bool) *bool {
 }
 
 func TestNewDrillGame(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	session := game.GetSession()
 
 	if session.DrillMaxHP != 110 { // 10 + 100*1
@@ -37,7 +37,7 @@ func TestNewDrillGame(t *testing.T) {
 }
 
 func TestWorldIs5x5(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	session := game.GetSession()
 
 	if len(session.World) != 5 {
@@ -63,7 +63,7 @@ func TestDrillGameWithDifferentLevels(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		game := NewDrillGame("planet-1", "player-1", tt.level)
+		game := NewDrillGame("planet-1", "player-1", tt.level, 1)
 		session := game.GetSession()
 		if session.DrillMaxHP != tt.expectedHP {
 			t.Errorf("Level %d: expected HP %d, got %d", tt.level, tt.expectedHP, session.DrillHP)
@@ -72,7 +72,7 @@ func TestDrillGameWithDifferentLevels(t *testing.T) {
 }
 
 func TestSetCommand_StoresCommand(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	initialX := game.GetSession().DrillX
 	initialDepth := game.GetSession().Depth
 
@@ -98,7 +98,7 @@ func TestSetCommand_StoresCommand(t *testing.T) {
 }
 
 func TestSetCommand_Extract(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.SetCommand("", boolPtr(true))
 
 	if !game.session.PendingExtract {
@@ -110,7 +110,7 @@ func TestSetCommand_Extract(t *testing.T) {
 }
 
 func TestSetCommand_Combo(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.SetCommand("right", boolPtr(true))
 
 	if game.session.PendingDirection != "right" {
@@ -122,7 +122,7 @@ func TestSetCommand_Combo(t *testing.T) {
 }
 
 func TestApplyCommand_Left(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	initialX := game.GetSession().DrillX
 
 	game.SetCommand("left", boolPtr(false))
@@ -140,7 +140,7 @@ func TestApplyCommand_Left(t *testing.T) {
 }
 
 func TestApplyCommand_Right(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	initialX := game.GetSession().DrillX
 
 	game.SetCommand("right", boolPtr(false))
@@ -155,7 +155,7 @@ func TestApplyCommand_Right(t *testing.T) {
 }
 
 func TestApplyCommand_NoDirection(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	initialX := game.GetSession().DrillX
 
 	game.SetCommand("", boolPtr(false))
@@ -174,7 +174,7 @@ func TestApplyCommand_NoDirection(t *testing.T) {
 }
 
 func TestApplyCommand_Extract(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	// Force a resource at the current position
 	game.session.ExtractedCells = make(map[string]bool)
@@ -192,7 +192,7 @@ func TestApplyCommand_Extract(t *testing.T) {
 }
 
 func TestApplyCommand_Combo(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	initialX := game.GetSession().DrillX
 
 	game.SetCommand("left", boolPtr(true))
@@ -216,7 +216,7 @@ func TestApplyCommand_Combo(t *testing.T) {
 }
 
 func TestApplyCommand_ResetsPending(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.SetCommand("left", boolPtr(false))
 
 	// First apply
@@ -242,7 +242,7 @@ func TestApplyCommand_ResetsPending(t *testing.T) {
 }
 
 func TestApplyCommand_OnEndedGame(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.session.Status = "failed"
 
 	result := game.ApplyCommand()
@@ -255,7 +255,7 @@ func TestApplyCommand_OnEndedGame(t *testing.T) {
 }
 
 func TestAutoDescentAppliesCommand(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10) // high HP to survive
+	game := NewDrillGame("planet-1", "player-1", 10, 1) // high HP to survive
 	game.SetCommand("left", boolPtr(false))
 
 	initialX := game.GetSession().DrillX
@@ -276,7 +276,7 @@ func TestAutoDescentAppliesCommand(t *testing.T) {
 }
 
 func TestBroadcastCallback(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	broadcastCalled := false
 	var lastResult *MoveResult
 
@@ -297,7 +297,7 @@ func TestBroadcastCallback(t *testing.T) {
 }
 
 func TestGetChunk(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	chunk := game.GetChunk(0, 0, 5, 5)
 
@@ -312,7 +312,7 @@ func TestGetChunk(t *testing.T) {
 }
 
 func TestGetChunk_Deterministic(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	chunk1 := game.GetChunk(2, 10, 5, 5)
 	chunk2 := game.GetChunk(2, 10, 5, 5)
@@ -327,7 +327,7 @@ func TestGetChunk_Deterministic(t *testing.T) {
 }
 
 func TestGetChunk_Coordinates(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	// Get chunk centered at (5, 100)
 	chunk := game.GetChunk(5, 100, 3, 3)
@@ -344,7 +344,7 @@ func TestGetChunk_Coordinates(t *testing.T) {
 }
 
 func TestGetChunk_VsSessionWorld(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	session := game.GetSession()
 
 	// The world spans from depth to depth+4 vertically, drill at top center (row 0)
@@ -363,7 +363,7 @@ func TestGetChunk_VsSessionWorld(t *testing.T) {
 }
 
 func TestGetChunk_VsSessionWorld_AfterMove(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	// Apply a move
 	game.SetCommand("left", boolPtr(false))
@@ -386,7 +386,7 @@ func TestGetChunk_VsSessionWorld_AfterMove(t *testing.T) {
 
 func TestMoveBoundaries(t *testing.T) {
 	// Move left from position 0 should succeed (no boundary)
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.session.DrillX = 0
 	game.SetCommand("left", boolPtr(false))
 	game.ApplyCommand()
@@ -395,7 +395,7 @@ func TestMoveBoundaries(t *testing.T) {
 	}
 
 	// Move right from position 4 should succeed (no boundary)
-	game2 := NewDrillGame("planet-2", "player-2", 1)
+	game2 := NewDrillGame("planet-2", "player-2", 1, 1)
 	game2.session.DrillX = DefaultWorldWidth - 1
 	game2.SetCommand("right", boolPtr(false))
 	game2.ApplyCommand()
@@ -405,7 +405,7 @@ func TestMoveBoundaries(t *testing.T) {
 }
 
 func TestMoveDown_Damage(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10) // high HP
+	game := NewDrillGame("planet-1", "player-1", 10, 1) // high HP
 	initialHP := game.GetSession().DrillHP
 
 	// Move down repeatedly
@@ -426,7 +426,7 @@ func TestMoveDown_Damage(t *testing.T) {
 }
 
 func TestMoveDown_CellDamage(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10) // high HP to survive
+	game := NewDrillGame("planet-1", "player-1", 10, 1) // high HP to survive
 	initialHP := game.GetSession().DrillHP
 
 	// Move down 10 cells
@@ -445,7 +445,7 @@ func TestMoveDown_CellDamage(t *testing.T) {
 }
 
 func TestDrillDestroyed(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	game.session.DrillHP = 1
 
 	result := game.ApplyCommand()
@@ -461,7 +461,7 @@ func TestDrillDestroyed(t *testing.T) {
 }
 
 func TestAvailableDirections(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	dirs := game.GetAvailableDirections()
 
 	if len(dirs) != 3 { // left, right, down
@@ -544,7 +544,7 @@ func TestDrillDirectionString(t *testing.T) {
 }
 
 func TestDisplayWorld(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	display := game.GetDisplayWorld()
 
 	if len(display) != DefaultViewHeight {
@@ -580,7 +580,7 @@ func TestResourceDefinitions(t *testing.T) {
 }
 
 func TestDrillGameGeneratesResources(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	world := game.GetSession().World
 
 	resourceCount := 0
@@ -607,7 +607,7 @@ func TestDrillGameGeneratesResources(t *testing.T) {
 }
 
 func TestDrillGameDepthProgression(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 5)
+	game := NewDrillGame("planet-1", "player-1", 5, 1)
 
 	for i := 0; i < 20; i++ {
 		game.SetCommand("", boolPtr(false))
@@ -623,7 +623,7 @@ func TestDrillGameDepthProgression(t *testing.T) {
 }
 
 func TestWorldIsAlways5x5(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 5)
+	game := NewDrillGame("planet-1", "player-1", 5, 1)
 
 	// Move down 10 times and check world is always 5x5
 	for i := 0; i < 10; i++ {
@@ -641,7 +641,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 	}
 
 	// Move left/right and check world is still 5x5
-	game2 := NewDrillGame("planet-2", "player-2", 5)
+	game2 := NewDrillGame("planet-2", "player-2", 5, 1)
 	for i := 0; i < 5; i++ {
 		game2.SetCommand("left", boolPtr(false))
 		game2.ApplyCommand()
@@ -651,7 +651,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 		}
 	}
 
-	game3 := NewDrillGame("planet-3", "player-3", 5)
+	game3 := NewDrillGame("planet-3", "player-3", 5, 1)
 	for i := 0; i < 5; i++ {
 		game3.SetCommand("right", boolPtr(false))
 		game3.ApplyCommand()
@@ -663,7 +663,7 @@ func TestWorldIsAlways5x5(t *testing.T) {
 }
 
 func TestDrillXAlwaysAtCenter(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	// Drill X should always be at center (2) after move down
 	for i := 0; i < 10; i++ {
@@ -677,8 +677,8 @@ func TestDrillXAlwaysAtCenter(t *testing.T) {
 
 func TestDeterministicCellGeneration(t *testing.T) {
 	// Two games with same seed should produce same cells
-	game1 := NewDrillGame("planet-1", "player-1", 1)
-	game2 := NewDrillGame("planet-1", "player-2", 1)
+	game1 := NewDrillGame("planet-1", "player-1", 1, 1)
+	game2 := NewDrillGame("planet-1", "player-2", 1, 1)
 
 	// Both use same planet ID, so last char is same, but time.Now() differs
 	// Instead, test that getCellAt is deterministic by calling it directly
@@ -706,7 +706,7 @@ func TestDeterministicCellGeneration(t *testing.T) {
 }
 
 func TestGetSeed(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 	seed := game.GetSeed()
 	if seed <= 0 {
 		t.Errorf("Expected positive seed, got %d", seed)
@@ -714,7 +714,7 @@ func TestGetSeed(t *testing.T) {
 }
 
 func TestExtractResources(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10) // high HP
+	game := NewDrillGame("planet-1", "player-1", 10, 1) // high HP
 
 	// Move down several times
 	for i := 0; i < 5; i++ {
@@ -739,7 +739,7 @@ func TestExtractResources(t *testing.T) {
 }
 
 func TestMultipleCommandsBeforeApply(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	// Set multiple commands (only last one should stick)
 	game.SetCommand("left", boolPtr(false))
@@ -758,7 +758,7 @@ func TestMultipleCommandsBeforeApply(t *testing.T) {
 }
 
 func TestExtractPersistsAcrossTicks(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10)
+	game := NewDrillGame("planet-1", "player-1", 10, 1)
 
 	// Set extract on
 	game.SetCommand("", boolPtr(true))
@@ -789,7 +789,7 @@ func TestExtractPersistsAcrossTicks(t *testing.T) {
 }
 
 func TestExtractOnNewCell(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10)
+	game := NewDrillGame("planet-1", "player-1", 10, 1)
 
 	// Set extract on
 	game.SetCommand("", boolPtr(true))
@@ -815,7 +815,7 @@ func TestExtractOnNewCell(t *testing.T) {
 }
 
 func TestDirectionResetsAfterApply(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 1)
+	game := NewDrillGame("planet-1", "player-1", 1, 1)
 
 	game.SetCommand("left", boolPtr(false))
 	if game.session.PendingDirection != "left" {
@@ -829,7 +829,7 @@ func TestDirectionResetsAfterApply(t *testing.T) {
 }
 
 func TestExtractFalseDoesNotCollectResources(t *testing.T) {
-	game := NewDrillGame("planet-extract-false-1", "player-extract-false-1", 10)
+	game := NewDrillGame("planet-extract-false-1", "player-extract-false-1", 10, 1)
 
 	// Move down to find cells
 	for i := 0; i < 5; i++ {
@@ -851,7 +851,7 @@ func TestExtractFalseDoesNotCollectResources(t *testing.T) {
 }
 
 func TestExtractTrueCollectsResources(t *testing.T) {
-	game := NewDrillGame("planet-extract-true-1", "player-extract-true-1", 10)
+	game := NewDrillGame("planet-extract-true-1", "player-extract-true-1", 10, 1)
 
 	// Move down to find cells
 	for i := 0; i < 5; i++ {
@@ -876,7 +876,7 @@ func TestExtractTrueCollectsResources(t *testing.T) {
 }
 
 func TestDirectionDoesNotAffectExtract(t *testing.T) {
-	game := NewDrillGame("planet-1", "player-1", 10)
+	game := NewDrillGame("planet-1", "player-1", 10, 1)
 
 	// Turn on extract
 	game.SetCommand("", boolPtr(true))
@@ -895,7 +895,7 @@ func TestDirectionDoesNotAffectExtract(t *testing.T) {
 }
 
 func TestDestroyRemovesFromActiveSessions(t *testing.T) {
-	game := NewDrillGame("planet-destroy-1", "player-destroy-1", 1)
+	game := NewDrillGame("planet-destroy-1", "player-destroy-1", 1, 1)
 
 	// Verify session is in activeSessions
 	sess := game.GetSession()
@@ -918,7 +918,7 @@ func TestDestroyRemovesFromActiveSessions(t *testing.T) {
 }
 
 func TestCompleteRemovesFromActiveSessions(t *testing.T) {
-	game := NewDrillGame("planet-complete-1", "player-complete-1", 1)
+	game := NewDrillGame("planet-complete-1", "player-complete-1", 1, 1)
 
 	// Verify session is in activeSessions
 	sess := game.GetSession()
@@ -941,7 +941,7 @@ func TestCompleteRemovesFromActiveSessions(t *testing.T) {
 }
 
 func TestDestroyStopsTicker(t *testing.T) {
-	game := NewDrillGame("planet-ticker-destroy-1", "player-ticker-destroy-1", 10) // high HP so drill doesn't die
+	game := NewDrillGame("planet-ticker-destroy-1", "player-ticker-destroy-1", 10, 1) // high HP so drill doesn't die
 
 	sess := game.GetSession()
 	if ActiveSessions()[sess.SessionID] == nil {
@@ -968,7 +968,7 @@ func TestDestroyStopsTicker(t *testing.T) {
 }
 
 func TestCompleteStopsTicker(t *testing.T) {
-	game := NewDrillGame("planet-ticker-complete-1", "player-ticker-complete-1", 10) // high HP so drill doesn't die
+	game := NewDrillGame("planet-ticker-complete-1", "player-ticker-complete-1", 10, 1) // high HP so drill doesn't die
 
 	sess := game.GetSession()
 	if ActiveSessions()[sess.SessionID] == nil {
@@ -989,7 +989,7 @@ func TestCompleteStopsTicker(t *testing.T) {
 }
 
 func TestDestroyPreventsResourceCollection(t *testing.T) {
-	game := NewDrillGame("planet-nocollect-1", "player-nocollect-1", 10) // high HP
+	game := NewDrillGame("planet-nocollect-1", "player-nocollect-1", 10, 1) // high HP
 
 	// Set extract on
 	game.SetCommand("", boolPtr(true))
@@ -1009,7 +1009,7 @@ func TestDestroyPreventsResourceCollection(t *testing.T) {
 }
 
 func TestMultipleDestroyCalls(t *testing.T) {
-	game := NewDrillGame("planet-multiple-destroy-1", "player-multiple-destroy-1", 1)
+	game := NewDrillGame("planet-multiple-destroy-1", "player-multiple-destroy-1", 1, 1)
 
 	// First destroy should work
 	game.Destroy()
@@ -1024,7 +1024,7 @@ func TestMultipleDestroyCalls(t *testing.T) {
 }
 
 func TestFindActiveSessionAfterDestroy(t *testing.T) {
-	game := NewDrillGame("planet-find-destroy-1", "player-find-destroy-1", 1)
+	game := NewDrillGame("planet-find-destroy-1", "player-find-destroy-1", 1, 1)
 
 	// Verify we can find the session
 	found := FindActiveSession("planet-find-destroy-1", "player-find-destroy-1")
@@ -1039,5 +1039,46 @@ func TestFindActiveSessionAfterDestroy(t *testing.T) {
 	found = FindActiveSession("planet-find-destroy-1", "player-find-destroy-1")
 	if found != nil {
 		t.Error("Expected FindActiveSession to return nil after Destroy()")
+	}
+}
+
+func TestNewDrillGame_TickInterval_1x(t *testing.T) {
+	game := NewDrillGame("planet-tick-1x-1", "player-tick-1x-1", 1, 1)
+
+	interval := game.GetTickInterval()
+	if interval != speed1xInterval {
+		t.Errorf("Expected tick interval %v for speed 1x, got %v", speed1xInterval, interval)
+	}
+}
+
+func TestNewDrillGame_TickInterval_2x(t *testing.T) {
+	game := NewDrillGame("planet-tick-2x-1", "player-tick-2x-1", 1, 2)
+
+	interval := game.GetTickInterval()
+	if interval != speed2xInterval {
+		t.Errorf("Expected tick interval %v for speed 2x, got %v", speed2xInterval, interval)
+	}
+}
+
+func TestNewDrillGame_TickInterval_InvalidSpeed(t *testing.T) {
+	tests := []struct {
+		name string
+		speed int
+	}{
+		{"invalid speed 0", 0},
+		{"invalid speed 3", 3},
+		{"invalid speed -1", -1},
+		{"invalid speed 100", 100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			game := NewDrillGame("planet-tick-invalid-1", "player-tick-invalid-1", 1, tt.speed)
+
+			interval := game.GetTickInterval()
+			if interval != speed1xInterval {
+				t.Errorf("Expected invalid speed to default to %v, got %v", speed1xInterval, interval)
+			}
+		})
 	}
 }

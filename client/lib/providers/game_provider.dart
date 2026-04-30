@@ -1210,7 +1210,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     super.dispose();
   }
 
- Future<void> startDrill() async {
+ Future<void> startDrill({int speed = 1}) async {
     if (_player == null || _selectedPlanet == null) return;
     try {
       final response = await http.post(
@@ -1219,6 +1219,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
           'Content-Type': 'application/json',
           'X-Auth-Token': _player!.authToken,
         },
+        body: jsonEncode({'speed': speed}),
       );
 
       if (response.statusCode == 201) {
