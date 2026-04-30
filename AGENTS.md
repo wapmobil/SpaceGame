@@ -103,7 +103,7 @@ flutter build web --release --wasm       # production web build
 - **No Makefile / no CI / no pre-commit** — raw `go` / `flutter` commands only.
 - **Circular import guard**: `game` package cannot import `api`. Uses callback pattern (`RegisterBroadcastHandler`) for WebSocket broadcast.
 - **TriggerRandomEvents() called twice**: once in `game.Tick()` and once in scheduler's `randomEventsTick()`. Be careful modifying either.
-- **Drill mini-game**: cooldown is flat 30s (`GetDrillCooldown()` in `drill.go`). Active sessions cleaned up on WebSocket disconnect.
+- **Drill mini-game**: no cooldown between sessions. Only one active session per player/planet at a time. Active sessions cleaned up on WebSocket disconnect.
 - **Garden bed**: 5s cooldown between actions (`GardenBedActionCooldown` in `garden_bed.go`). State persisted to both `garden_bed` table and `planets.garden_bed_grid`.
 - **Marketplace**: NPC traders refresh every 20 minutes. NPC order count scales with total market building level across all planets.
 - **Energy system**: `calculateEnergy()` returns (production, consumption). Solar buildings produce negative consumption. Auto-disable logic turns off non-essential buildings when energy is insufficient.
