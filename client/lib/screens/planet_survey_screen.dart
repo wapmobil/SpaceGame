@@ -502,8 +502,8 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('Забрать локацию', style: TextStyle(color: Colors.white)),
-        content: Text('Вы уверены, что хотите забрать "${location['name'] ?? location['type'] ?? 'локацию'}"? Здание и локация будут удалены.', style: const TextStyle(color: Colors.white70)),
+        title: const Text('Покинуть локацию', style: TextStyle(color: Colors.white)),
+        content: Text('Вы уверены, что хотите покинуть "${location['name'] ?? location['type'] ?? 'локацию'}"? Здание и локация будут удалены.', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -514,7 +514,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
               Navigator.pop(context);
               context.read<GameProvider>().abandonLocation(widget.planetId, location['id'] as String? ?? '');
             },
-            child: const Text('Забрать', style: TextStyle(color: AppTheme.dangerColor)),
+            child: const Text('Покинуть', style: TextStyle(color: AppTheme.dangerColor)),
           ),
         ],
       ),

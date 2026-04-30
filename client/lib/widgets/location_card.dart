@@ -270,7 +270,7 @@ class LocationCard extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: onAbandon,
                     icon: const Icon(Icons.close, size: 14),
-                    label: const Text('Забрать', style: TextStyle(fontSize: 11)),
+                    label: const Text('Покинуть', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.dangerColor,
                       side: const BorderSide(color: AppTheme.dangerColor),

@@ -78,6 +78,7 @@ class _DrillScreenState extends State<DrillScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         title: Text(state.isCompleted ? 'Добыча завершена!' : 'Бур разрушен!'),
         content: Column(
@@ -102,19 +103,16 @@ class _DrillScreenState extends State<DrillScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () async {
-              final dialogContext = ctx;
-              final localContext = context;
-              final dialogNavigator = Navigator.of(dialogContext);
-              final localNavigator = Navigator.of(localContext);
-              final gameProvider = localContext.read<GameProvider>();
-              await gameProvider.cleanupDrill();
-              if (!mounted || !dialogNavigator.canPop() || !localNavigator.canPop()) return;
-              gameProvider.clearDrillState();
-              _resultShown = false;
-              dialogNavigator.pop();
-              localNavigator.pop();
-            },
+          onPressed: () async {
+               final dialogContext = ctx;
+               final dialogNavigator = Navigator.of(dialogContext);
+               final gameProvider = context.read<GameProvider>();
+               await gameProvider.cleanupDrill();
+               if (!mounted || !dialogNavigator.canPop()) return;
+               gameProvider.clearDrillState();
+               _resultShown = false;
+               dialogNavigator.pop();
+             },
             child: const Text('Закрыть'),
           ),
         ],
@@ -180,34 +178,28 @@ class _DrillScreenState extends State<DrillScreen> {
               ElevatedButton.icon(
                 onPressed: canAfford ? _startDrill : null,
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('Начать бурение'),
+                label: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Начать бурение'),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('🪨', style: TextStyle(fontSize: 12)),
+                        const SizedBox(width: 2),
+                        Text(
+                          cost.toString(),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                  textStyle: const TextStyle(fontSize: 18),
                 ),
               ),
-              if (cost > 0) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('🪨', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 4),
-                      Text(
-                        cost.toString(),
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               const SizedBox(height: 24),
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 32),
