@@ -6,18 +6,6 @@ ALTER TABLE planets ADD COLUMN location_buildings JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE planets ADD COLUMN expedition_history JSONB NOT NULL DEFAULT '[]';
 ALTER TABLE planets ADD COLUMN range_stats JSONB NOT NULL DEFAULT '{}';
 
-CREATE TABLE IF NOT EXISTS surface_expeditions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    planet_id UUID NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
-    status TEXT NOT NULL DEFAULT 'active',
-    progress REAL NOT NULL DEFAULT 0,
-    duration REAL NOT NULL DEFAULT 1800,
-    elapsed_time REAL NOT NULL DEFAULT 0,
-    discovered_location_id UUID REFERENCES surface_locations(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS surface_locations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     planet_id UUID NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
@@ -32,6 +20,18 @@ CREATE TABLE IF NOT EXISTS surface_locations (
     source_remaining REAL NOT NULL,
     active BOOLEAN NOT NULL DEFAULT true,
     discovered_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS surface_expeditions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    planet_id UUID NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'active',
+    progress REAL NOT NULL DEFAULT 0,
+    duration REAL NOT NULL DEFAULT 1800,
+    elapsed_time REAL NOT NULL DEFAULT 0,
+    discovered_location_id UUID REFERENCES surface_locations(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

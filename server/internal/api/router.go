@@ -98,7 +98,7 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Delete("/{id}/locations/{build}/building", handleRemoveBuilding(db))
 		rr.Post("/{id}/locations/{build}/abandon", handleAbandonLocation(db))
 
-		rr.Get("/expedition-history", handleGetExpeditionHistory(db))
+		rr.Get("/{id}/expedition-history", handleGetExpeditionHistory(db))
 		rr.Post("/{id}/market/orders", handleCreateMarketOrder(db))
 		rr.Get("/{id}/market/orders", handleGetMyOrders(db))
 		rr.Post("/{id}/sell-food", handleSellFood(db))

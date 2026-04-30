@@ -421,6 +421,7 @@ type ExpeditionHistoryResponse struct {
 	Status          string            `json:"status"`
 	Result          string            `json:"result"`
 	Discovered      string            `json:"discovered"`
+	LocationType    string            `json:"location_type"`
 	ResourcesGained map[string]float64 `json:"resources_gained"`
 	CreatedAt       time.Time         `json:"created_at"`
 	CompletedAt     time.Time         `json:"completed_at"`

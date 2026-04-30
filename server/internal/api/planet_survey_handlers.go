@@ -410,6 +410,7 @@ func handleGetExpeditionHistory(db *sql.DB) http.HandlerFunc {
 				Status:          entry.Status,
 				Result:          entry.Result,
 				Discovered:      entry.Discovered,
+				LocationType:    entry.LocationType,
 				ResourcesGained: entry.ResourcesGained,
 				CreatedAt:       entry.CreatedAt,
 				CompletedAt:     entry.CompletedAt,

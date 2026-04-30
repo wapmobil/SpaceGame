@@ -88,15 +88,9 @@ func (p *Planet) TickSurfaceExpeditions() {
 	for i := len(p.SurfaceExpeditions) - 1; i >= 0; i-- {
 		exp := p.SurfaceExpeditions[i]
 
-		if exp.Status == "completed" || exp.Status == "failed" || exp.Status == "abandoned" {
+if exp.Status == "completed" || exp.Status == "failed" || exp.Status == "abandoned" {
 			continue
 		}
-
-		if exp.Status == "discovered" {
-			continue
-		}
-
-	
 
 		planet_survey.Tick(exp, 1)
 
@@ -136,6 +130,8 @@ func (p *Planet) TickSurfaceExpeditions() {
 		}
 
 		if planet_survey.IsExpired(exp) {
+			exp.Status = "completed"
+
 			rangeStats := p.RangeStats[exp.Range]
 			if rangeStats == nil {
 				rangeStats = &planet_survey.ExpeditionRangeStats{}
@@ -171,25 +167,27 @@ func (p *Planet) TickSurfaceExpeditions() {
 			}
 
 			historyEntry := planet_survey.ExpeditionHistoryEntry{
-				ID:             exp.ID,
-				PlanetID:       p.ID,
-				ExpeditionType: "surface",
-				Status:         exp.Status,
-				Result:         "success",
-				Discovered:     "",
+				ID:              exp.ID,
+				PlanetID:        p.ID,
+				ExpeditionType:  "surface",
+				Status:          exp.Status,
+				Result:          "success",
+				Discovered:      "",
+				LocationType:    "",
 				ResourcesGained: resourceRecovery,
-				CreatedAt:      exp.CreatedAt,
-				CompletedAt:    time.Now(),
+				CreatedAt:       exp.CreatedAt,
+				CompletedAt:     time.Now(),
 			}
 
 			if exp.Discovered != nil {
 				historyEntry.Result = "success"
 				historyEntry.Discovered = exp.Discovered.Name
+				historyEntry.LocationType = exp.Discovered.Type
 			} else {
 				historyEntry.Result = "failed"
 			}
 
-		p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
+			p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
 
 		if p.game != nil {
 			p.game.SavePlanet(p)

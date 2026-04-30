@@ -9,6 +9,7 @@ type ExpeditionHistoryEntry struct {
 	Status          string
 	Result          string
 	Discovered      string
+	LocationType    string
 	ResourcesGained map[string]float64
 	CreatedAt       time.Time
 	CompletedAt     time.Time

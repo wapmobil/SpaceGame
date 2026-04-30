@@ -573,7 +573,20 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
   }
 
   Future<void> loadPlanetSurveyData(String planetId) async {
-    // All data comes from WebSocket state updates
+    if (_player == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl/api/planets/$planetId/expedition-history'),
+        headers: _authHeaders(),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        _expeditionHistory = data.map((e) => e as Map<String, dynamic>).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Failed to load expedition history: $e');
+    }
   }
 
   Future<void> loadBuildDetails(String planetId) async {

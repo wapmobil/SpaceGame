@@ -394,6 +394,11 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                 ),
               ],
             ),
+            if (entry['location_type'] != null && entry['location_type'] != '')
+              Text(
+                _formatLocationType(entry['location_type'] as String),
+                style: const TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic),
+              ),
             if ((entry['resources_gained'] as Map?)?.isNotEmpty ?? false) ...[
               const SizedBox(height: 4),
               Wrap(
@@ -424,6 +429,33 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
         ),
       ),
     );
+  }
+
+  String _formatLocationType(String type) {
+    final typeMap = <String, String>{
+      'pond': 'Пруд',
+      'waterfall': 'Водопад',
+      'salt_lake': 'Соляное озеро',
+      'hot_spring': 'Горячий источник',
+      'underground_cave': 'Подземная пещера',
+      'crystal_cavern': 'Кристальная пещера',
+      'mineral_vein': 'Минеральная жила',
+      'meteor_crater': 'Кратер метеорита',
+      'wind_pass': 'Ветровой перевал',
+      'dust_storm': 'Пылевая буря',
+      'ice_sheet': 'Ледяная равнина',
+      'geothermal_fissure': 'Геотермальная расщелина',
+      'fossil_bed': 'Слои окаменелостей',
+      'ancient_ruins': 'Древние руины',
+      'lava_flow': 'Лавовое течение',
+      'obsidian_field': 'Обсидиановое поле',
+      'silica_dunes': 'Кремнезёмные дюны',
+      'crystal_spire': 'Кристальный шпиль',
+      'gas_vents': 'Газовые фумаролы',
+      'magnetic_anomaly': 'Магнитная аномалия',
+    };
+    final name = typeMap[type] ?? type;
+    return '$name';
   }
 
   Widget _buildRangeStats(GameProvider gameProvider) {
