@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
+import '../providers/planet_survey_provider.dart';
 import '../core/app_theme.dart';
 import '../utils/constants.dart';
 import '../models/planet_survey.dart';
@@ -35,9 +36,9 @@ class PlanetSurveyScreen extends StatefulWidget {
 
 class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
 
-   Future<void> _loadData(String planetId) async {
-     await context.read<GameProvider>().loadPlanetSurveyData(planetId);
-   }
+ Future<void> _loadData(String planetId) async {
+      await context.read<GameProvider>().surveyProvider.loadPlanetSurveyData(planetId);
+    }
 
    void _checkNotifications() {
      final gameProvider = context.read<GameProvider>();
@@ -60,43 +61,44 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
      WidgetsBinding.instance.addPostFrameCallback((_) => _checkNotifications());
    }
 
-   @override
-   Widget build(BuildContext context) {
-     return Consumer<GameProvider>(
-       builder: (context, gameProvider, _) {
-         final planet = gameProvider.selectedPlanet;
-         if (planet == null) return const Center(child: Text('Планета не выбрана'));
+@override
+    Widget build(BuildContext context) {
+      return Consumer<GameProvider>(
+        builder: (context, gameProvider, _) {
+          final planet = gameProvider.selectedPlanet;
+          if (planet == null) return const Center(child: Text('Планета не выбрана'));
+          final survey = gameProvider.surveyProvider;
 
-         return Scaffold(
-           appBar: AppBar(title: const Text('Разведка')),
-          body: RefreshIndicator(
-            onRefresh: () => _loadData(planet.id),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildStartExpedition(gameProvider),
-                  const SizedBox(height: 16),
-                  _buildExpeditionList(gameProvider),
-                  const SizedBox(height: 16),
-                  _buildLocationsList(context, gameProvider),
-                  const SizedBox(height: 16),
-                  _buildHistory(gameProvider),
-                  const SizedBox(height: 16),
-                  _buildRangeStats(gameProvider),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+          return Scaffold(
+            appBar: AppBar(title: const Text('Разведка')),
+           body: RefreshIndicator(
+             onRefresh: () => _loadData(planet.id),
+             child: SingleChildScrollView(
+               padding: const EdgeInsets.all(16),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   _buildStartExpeditionWithSurvey(gameProvider, survey),
+                   const SizedBox(height: 16),
+                   _buildExpeditionListWithSurvey(survey),
+                   const SizedBox(height: 16),
+                   _buildLocationsListWithSurvey(context, gameProvider, survey),
+                   const SizedBox(height: 16),
+                   _buildHistoryWithSurvey(survey),
+                   const SizedBox(height: 16),
+                   _buildRangeStatsWithSurvey(survey),
+                 ],
+               ),
+             ),
+           ),
+         );
+       },
+     );
+   }
 
-  Widget _buildStartExpedition(GameProvider gameProvider) {
-    final baseLevel = gameProvider.baseLevel ?? 0;
-    final canStart = gameProvider.canStartPlanetSurvey ?? false;
+  Widget _buildStartExpeditionWithSurvey(GameProvider gameProvider, PlanetSurveyProvider surveyProvider) {
+    final baseLevel = surveyProvider.baseLevel ?? 0;
+    final canStart = surveyProvider.canStartPlanetSurvey ?? false;
     final maxDuration = _getMaxDurationForBaseLevel(baseLevel);
     final costPerMin = _getCostPerMinForBaseLevel(baseLevel);
     final durations = [300, 600, 1200];
@@ -152,7 +154,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                 return ElevatedButton.icon(
                   onPressed: canStart && canAfford
                       ? () async {
-                          await gameProvider.startPlanetSurvey(widget.planetId, duration);
+                          await surveyProvider.startPlanetSurvey(widget.planetId, duration);
                         }
                       : null,
                   icon: const Icon(Icons.explore, size: 18),
@@ -178,8 +180,8 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     );
   }
 
-  Widget _buildExpeditionList(GameProvider gameProvider) {
-    final activeExpeditions = gameProvider.surfaceExpeditions.where((e) => e['status'] == 'active').toList();
+  Widget _buildExpeditionListWithSurvey(PlanetSurveyProvider surveyProvider) {
+    final activeExpeditions = surveyProvider.surfaceExpeditions.where((e) => e['status'] == 'active').toList();
 
     return Card(
       child: Padding(
@@ -192,7 +194,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
               children: [
                 const Text('Активные экспедиции', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 Text(
-                  '${activeExpeditions.length}/${gameProvider.maxSurfaceExpeditions ?? 1}',
+                  '${activeExpeditions.length}/${surveyProvider.maxSurfaceExpeditions ?? 1}',
                   style: const TextStyle(fontSize: 12, color: Colors.white54),
                 ),
               ],
@@ -277,10 +279,10 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     );
   }
 
-  Widget _buildLocationsList(BuildContext context, GameProvider gameProvider) {
-    final baseLevel = gameProvider.baseLevel ?? 0;
+  Widget _buildLocationsListWithSurvey(BuildContext context, GameProvider gameProvider, PlanetSurveyProvider surveyProvider) {
+    final baseLevel = surveyProvider.baseLevel ?? 0;
     final hasLocationBuildings = baseLevel > 0;
-    final locations = gameProvider.locations;
+    final locations = surveyProvider.locations;
 
     return Card(
       child: Padding(
@@ -309,7 +311,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                     child: LocationCard(
                       location: _mapToLocation(loc),
                       onBuild: hasLocationBuildings ? () => _showBuildDialog(context, loc) : null,
-                      onRemove: () => gameProvider.removeBuilding(widget.planetId, loc['id'] as String),
+                      onRemove: () => surveyProvider.removeBuilding(widget.planetId, loc['id'] as String),
                       onAbandon: () => _confirmAbandon(context, loc),
                     ),
                   )),
@@ -335,8 +337,8 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     );
   }
 
-  Widget _buildHistory(GameProvider gameProvider) {
-    final history = gameProvider.expeditionHistory;
+  Widget _buildHistoryWithSurvey(PlanetSurveyProvider surveyProvider) {
+    final history = surveyProvider.expeditionHistory;
 
     return Card(
       child: Padding(
@@ -455,11 +457,11 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
       'magnetic_anomaly': 'Магнитная аномалия',
     };
     final name = typeMap[type] ?? type;
-    return '$name';
+    return name;
   }
 
-  Widget _buildRangeStats(GameProvider gameProvider) {
-    final rangeStats = gameProvider.rangeStats;
+  Widget _buildRangeStatsWithSurvey(PlanetSurveyProvider surveyProvider) {
+    final rangeStats = surveyProvider.rangeStats;
     if (rangeStats.isEmpty) return const SizedBox.shrink();
 
     return Card(
@@ -513,7 +515,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
                 trailing: Text(Constants.formatTime(b.buildTime), style: const TextStyle(color: AppTheme.accentColor)),
                 onTap: () {
                   Navigator.pop(context);
-                  context.read<GameProvider>().buildOnLocation(widget.planetId, location['id'] as String, b.type);
+                  context.read<GameProvider>().surveyProvider.buildOnLocation(widget.planetId, location['id'] as String, b.type);
                 },
               );
             }).toList(),
@@ -544,7 +546,7 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              context.read<GameProvider>().abandonLocation(widget.planetId, location['id'] as String? ?? '');
+              context.read<GameProvider>().surveyProvider.abandonLocation(widget.planetId, location['id'] as String? ?? '');
             },
             child: const Text('Покинуть', style: TextStyle(color: AppTheme.dangerColor)),
           ),

@@ -46,39 +46,39 @@ class _DrillScreenState extends State<DrillScreen> {
     setState(() {
       _extracting = true;
     });
-    context.read<GameProvider>().drillCommand(extract: true);
+    context.read<GameProvider>().drillProvider.drillCommand(extract: true);
   }
 
   void _stopExtracting() {
     setState(() {
       _extracting = false;
     });
-    context.read<GameProvider>().drillCommand(extract: false);
+    context.read<GameProvider>().drillProvider.drillCommand(extract: false);
   }
 
   void _move(String direction) {
-    if (context.read<GameProvider>().drillState?.isActive != true) return;
-    context.read<GameProvider>().drillCommand(direction: direction);
+    if (context.read<GameProvider>().drillProvider.drillState?.isActive != true) return;
+    context.read<GameProvider>().drillProvider.drillCommand(direction: direction);
     if (mounted) setState(() {});
   }
 
   Future<void> _cancelDrill() async {
-    if (context.read<GameProvider>().drillState?.isActive != true) return;
-    await context.read<GameProvider>().destroyDrill();
+    if (context.read<GameProvider>().drillProvider.drillState?.isActive != true) return;
+    await context.read<GameProvider>().drillProvider.destroyDrill(widget.planetId);
   }
 
   Future<void> _startDrill() async {
-    await context.read<GameProvider>().startDrill(speed: 1);
+    await context.read<GameProvider>().drillProvider.startDrill(widget.planetId, speed: 1);
     if (mounted) setState(() {});
   }
 
   Future<void> _startDrill2x() async {
-    await context.read<GameProvider>().startDrill(speed: 2);
+    await context.read<GameProvider>().drillProvider.startDrill(widget.planetId, speed: 2);
     if (mounted) setState(() {});
   }
 
   void _showResult() {
-    final state = context.read<GameProvider>().drillState;
+    final state = context.read<GameProvider>().drillProvider.drillState;
     if (state == null) return;
 
     showDialog(
@@ -109,12 +109,12 @@ class _DrillScreenState extends State<DrillScreen> {
         actions: [
           TextButton(
           onPressed: () async {
-               final dialogContext = ctx;
-               final dialogNavigator = Navigator.of(dialogContext);
-               final gameProvider = context.read<GameProvider>();
-               await gameProvider.cleanupDrill();
-               if (!mounted || !dialogNavigator.canPop()) return;
-               gameProvider.clearDrillState();
+             final dialogContext = ctx;
+                final dialogNavigator = Navigator.of(dialogContext);
+                final drillProvider = context.read<GameProvider>().drillProvider;
+                await drillProvider.cleanupDrill(widget.planetId);
+                if (!mounted || !dialogNavigator.canPop()) return;
+                drillProvider.clearDrillState();
                _resultShown = false;
                dialogNavigator.pop();
              },
@@ -127,7 +127,7 @@ class _DrillScreenState extends State<DrillScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<GameProvider>().drillState;
+    final state = context.read<GameProvider>().drillProvider.drillState;
 
     if (state == null || state.status == 'no_session') {
       _resultShown = false;
@@ -398,14 +398,14 @@ class _DrillScreenState extends State<DrillScreen> {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              if (state.isActive || state.isGameEnded) {
-                if (_extracting) {
-                  _stopExtracting();
-                }
-                context.read<GameProvider>().clearDrillState();
-              }
-              Navigator.of(context).pop();
-            },
+               if (state.isActive || state.isGameEnded) {
+                 if (_extracting) {
+                   _stopExtracting();
+                 }
+                 context.read<GameProvider>().drillProvider.clearDrillState();
+               }
+               Navigator.of(context).pop();
+             },
           ),
           actions: [
             if (state.isActive)
@@ -528,7 +528,7 @@ class _DrillScreenState extends State<DrillScreen> {
   }
 
   Widget _buildStatusStrip(DrillState state) {
-    final provider = context.read<GameProvider>();
+    final provider = context.read<GameProvider>().drillProvider;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       color: Colors.black87,

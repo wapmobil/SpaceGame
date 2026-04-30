@@ -10,14 +10,19 @@ import '../models/ship.dart';
 import '../models/research.dart';
 import '../models/expedition.dart';
 import '../models/market.dart';
-import '../models/drill.dart';
 import '../models/rating.dart';
 import '../models/player.dart';
 import '../providers/garden_bed_provider.dart';
+import '../providers/drill_provider.dart';
+import '../providers/planet_survey_provider.dart';
+import '../providers/shipyard_info.dart';
+import '../providers/building_upgrade_info.dart';
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
   final GardenBedProvider _gardenBedProvider;
+  final DrillProvider _drillProvider;
+  final PlanetSurveyProvider _surveyProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -30,10 +35,6 @@ class GameProvider extends ChangeNotifier {
    ExpeditionsListResponse? _expeditions;
   MarketData? _marketData;
   List<MarketOrder> _myOrders = [];
-  DrillState? _drillState;
-  int? _drillSeed;
-  String? _drillPendingDirection;
-  bool _drillPendingExtracting = false;
   List<RatingEntry> _ratings = [];
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _events = [];
@@ -75,21 +76,17 @@ class GameProvider extends ChangeNotifier {
   // Completed research tech IDs with levels (from WS state updates)
   Map<String, int> _completedResearch = {};
 
-  // Planet survey data (surface expeditions, locations, range stats, history)
-  List<Map<String, dynamic>> _surfaceExpeditions = [];
-  List<Map<String, dynamic>> _locations = [];
-  Map<String, dynamic> _rangeStats = {};
-List<Map<String, dynamic>> _expeditionHistory = [];
-	int? _baseLevel;
-  int? _commandCenterLevel;
-int? _maxSurfaceExpeditions;
-   bool? _canStartPlanetSurvey;
-  bool? _canStartSpaceExpedition;
-   final List<Map<String, String>> _notifications = [];
+  final List<Map<String, String>> _notifications = [];
 
    GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
       : _baseUrl = baseUrl ?? _getBaseUri(),
-        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri());
+        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
+        _drillProvider = DrillProvider(),
+        _surveyProvider = PlanetSurveyProvider() {
+    _drillProvider.baseUrl = _baseUrl;
+    _drillProvider.websocket = websocket;
+    _surveyProvider.baseUrl = _baseUrl;
+  }
 
   static String _getBaseUri() {
     return ServerConfig.baseUri;
@@ -106,17 +103,11 @@ int? _maxSurfaceExpeditions;
   List<ShipType> get availableShipTypes => _availableShipTypes;
   ResearchState? get researchState => _researchState;
   GardenBedProvider get gardenBedProvider => _gardenBedProvider;
+  DrillProvider get drillProvider => _drillProvider;
+  PlanetSurveyProvider get surveyProvider => _surveyProvider;
   ExpeditionsListResponse? get expeditions => _expeditions;
   MarketData? get marketData => _marketData;
   List<MarketOrder> get myOrders => _myOrders;
-  DrillState? get drillState => _drillState;
-  String? get drillPendingDirection => _drillPendingDirection;
-  bool get drillPendingExtracting => _drillPendingExtracting;
-
-  void clearDrillState() {
-    _drillState = null;
-    notifyListeners();
-  }
   List<RatingEntry> get ratings => _ratings;
   Map<String, dynamic>? get stats => _stats;
   List<Map<String, dynamic>> get events => _events;
@@ -159,17 +150,7 @@ int? _maxSurfaceExpeditions;
   bool get researchPaused => _researchPaused;
   String? get authToken => _player?.authToken;
 
-  // Planet survey getters
-  List<Map<String, dynamic>> get surfaceExpeditions => _surfaceExpeditions;
-  List<Map<String, dynamic>> get locations => _locations;
-  Map<String, dynamic> get rangeStats => _rangeStats;
-List<Map<String, dynamic>> get expeditionHistory => _expeditionHistory;
-	int? get baseLevel => _baseLevel;
-  int? get commandCenterLevel => _commandCenterLevel;
-int? get maxSurfaceExpeditions => _maxSurfaceExpeditions;
-   bool? get canStartPlanetSurvey => _canStartPlanetSurvey;
-bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
-   List<Map<String, String>> get notifications => _notifications;
+  List<Map<String, String>> get notifications => _notifications;
 
    void addNotification(String title, String message) {
      _notifications.add({'title': title, 'message': message});
@@ -213,6 +194,8 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         _player = Player.fromJson(data);
         _gardenBedProvider.setAuthToken(_player!.authToken);
+        _drillProvider.setAuthToken(_player!.authToken);
+        _surveyProvider.setAuthToken(_player!.authToken);
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
@@ -258,6 +241,8 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       _baseUrl = url;
       _player = Player(id: id, authToken: token, name: name ?? '');
       _gardenBedProvider.setAuthToken(token);
+      _drillProvider.setAuthToken(token);
+      _surveyProvider.setAuthToken(token);
       notifyListeners();
       await connectWebSocket();
       await loadPlanets();
@@ -295,17 +280,20 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
         _handleNotification(data);
         break;
       case 'drill_update':
-        onDrillUpdate(data ?? {});
+        _drillProvider.onDrillUpdate(data ?? {});
+        notifyListeners();
         break;
        case 'garden_bed_update':
         _gardenBedProvider.onGardenBedUpdate(data ?? {});
         notifyListeners();
         break;
       case 'planet_survey_update':
-        _handlePlanetSurveyUpdate(data);
+        _surveyProvider.onPlanetSurveyUpdate(data);
+        notifyListeners();
         break;
       case 'location_update':
-        _handleLocationUpdate(data);
+        _surveyProvider.onLocationUpdate(data);
+        notifyListeners();
         break;
       default:
         if (message['type'] == 'garden_bed_action_result') {
@@ -406,22 +394,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
       }
 
       // Update planet survey data from state
-      _surfaceExpeditions = (stateData['surface_expeditions'] as List?)
-          ?.map((e) => e as Map<String, dynamic>)
-          .toList() ?? [];
-      _locations = (stateData['locations'] as List?)
-          ?.map((e) => e as Map<String, dynamic>)
-          .toList() ?? [];
-      _rangeStats = stateData['range_stats'] as Map<String, dynamic>? ?? {};
-      if (stateData['expedition_history'] is List &&
-          (stateData['expedition_history'] as List).length > _expeditionHistory.length) {
-        _expeditionHistory = (stateData['expedition_history'] as List)
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
-      }
-      _maxSurfaceExpeditions = stateData['max_surface_expeditions'] as int?;
-      _canStartPlanetSurvey = stateData['can_start_planet_survey'] as bool?;
-      _canStartSpaceExpedition = stateData['can_start_space_expedition'] as bool?;
+      _surveyProvider.applyStateUpdate(stateData);
       _planetSurveyUnlocked = _completedResearch['planet_exploration'] != null;
       _baseOperational = stateData['base_operational'] as bool? ?? true;
 
@@ -463,39 +436,6 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     if (message == null) return;
     if (type == 'expedition_complete') {
       addNotification('Экспедиция завершена', message);
-    }
-  }
-
-  void _handlePlanetSurveyUpdate(Map<String, dynamic>? data) {
-    if (data != null && _selectedPlanet != null) {
-      if (data['expedition_id'] != null) {
-        final expId = data['expedition_id'] as String;
-        final idx = _surfaceExpeditions.indexWhere((e) => e['id'] == expId);
-        if (idx >= 0) {
-          _surfaceExpeditions[idx] = {..._surfaceExpeditions[idx], ...data};
-        } else {
-          _surfaceExpeditions.add(data);
-        }
-        if (data['status'] == 'completed' || data['status'] == 'failed' || data['status'] == 'discovered') {
-          loadPlanetSurveyData(_selectedPlanet!.id);
-        }
-      }
-      notifyListeners();
-    }
-  }
-
-  void _handleLocationUpdate(Map<String, dynamic>? data) {
-    if (data != null && _selectedPlanet != null) {
-      if (data['location_id'] != null) {
-        final locId = data['location_id'] as String;
-        final idx = _locations.indexWhere((l) => l['id'] == locId);
-        if (idx >= 0) {
-          _locations[idx] = {..._locations[idx], ...data};
-        } else {
-          _locations.add(data);
-        }
-      }
-      notifyListeners();
     }
   }
 
@@ -549,8 +489,9 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     loadMarketData(planet.id);
     loadMyOrders(planet.id);
     _gardenBedProvider.getGardenBed(planet.id);
-    loadPlanetSurveyData(planet.id);
-        notifyListeners();
+    _drillProvider.setDrillPlanetId(planet.id);
+    _surveyProvider.loadPlanetSurveyData(planet.id);
+    notifyListeners();
   }
 
   Future<void> loadPlanetDetail(String planetId) async {
@@ -577,19 +518,8 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
 
   Future<void> loadPlanetSurveyData(String planetId) async {
     if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/expedition-history'),
-        headers: _authHeaders(),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
-        _expeditionHistory = data.map((e) => e as Map<String, dynamic>).toList();
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load expedition history: $e');
-    }
+    await _surveyProvider.loadPlanetSurveyData(planetId);
+    notifyListeners();
   }
 
   Future<void> loadBuildDetails(String planetId) async {
@@ -686,11 +616,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     }
 
     // Update planet survey fields
-    _canStartPlanetSurvey = data['can_start_planet_survey'] as bool?;
-    _canStartSpaceExpedition = data['can_start_space_expedition'] as bool?;
-    _baseLevel = data['base_level'] as int?;
-    _commandCenterLevel = data['command_center_level'] as int?;
-    _maxSurfaceExpeditions = data['max_surface_expeditions'] as int? ?? 1;
+    _surveyProvider.applyBuildDetails(data);
 
     notifyListeners();
   }
@@ -1220,343 +1146,4 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
     websocket.removeMessageListener(_onWebSocketMessage);
     super.dispose();
   }
-
- Future<void> startDrill({int speed = 1}) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/start'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'speed': speed}),
-      );
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final startResp = DrillStartResponse.fromJson(data);
-        _drillSeed = startResp.seed;
-        _drillState = DrillState(
-          sessionId: startResp.sessionId,
-          planetId: _selectedPlanet!.id,
-          drillHp: startResp.drillHp,
-          drillMaxHp: startResp.drillMaxHp,
-          depth: startResp.depth,
-          drillX: startResp.drillX,
-          worldWidth: 5,
-          world: [],
-          resources: [],
-          status: startResp.status,
-          totalEarned: 0,
-          createdAt: DateTime.now().toUtc().toIso8601String(),
-          seed: startResp.seed,
-        );
-        notifyListeners();
-      } else {
-        _setError('Не удалось начать бурение: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка бурения: $e');
-    }
-  }
-
-  void drillCommand({String? direction, bool? extract}) {
-    if (_drillState == null || _drillState!.status != 'active') return;
-    if (direction != null) _drillPendingDirection = direction;
-    if (extract != null) _drillPendingExtracting = extract;
-    _drillState = DrillState(
-      sessionId: _drillState!.sessionId,
-      planetId: _drillState!.planetId,
-      drillHp: _drillState!.drillHp,
-      drillMaxHp: _drillState!.drillMaxHp,
-      depth: _drillState!.depth,
-      drillX: _drillState!.drillX,
-      worldWidth: _drillState!.worldWidth,
-      world: _drillState!.world,
-      resources: _drillState!.resources,
-      status: _drillState!.status,
-      totalEarned: _drillState!.totalEarned,
-      createdAt: _drillState!.createdAt,
-      completedAt: _drillState!.completedAt,
-      seed: _drillState!.seed,
-      pendingDirection: _drillPendingDirection,
-      pendingExtracting: _drillPendingExtracting,
-    );
-    notifyListeners();
-    websocket.sendDrillCommand(direction: direction, extract: extract);
-  }
-
-  void onDrillUpdate(Map<String, dynamic> data) {
-    if (_player == null) return;
-    try {
-      final update = DrillUpdate.fromJson(data);
-      _drillPendingDirection = null;
-      _drillState = DrillState(
-        sessionId: update.sessionId,
-        planetId: _selectedPlanet?.id ?? '',
-        drillHp: update.drillHp,
-        drillMaxHp: update.drillMaxHp,
-        depth: update.depth,
-        drillX: update.drillX,
-        worldWidth: update.world.isNotEmpty ? update.world[0].length : 5,
-        world: update.world,
-        resources: update.resources,
-        status: update.gameEnded ? 'failed' : update.status,
-        totalEarned: update.totalEarned,
-        createdAt: _drillState?.createdAt ?? DateTime.now().toUtc().toIso8601String(),
-        completedAt: update.gameEnded ? DateTime.now().toUtc().toIso8601String() : _drillState?.completedAt,
-        seed: _drillSeed,
-        pendingDirection: null,
-        pendingExtracting: false,
-      );
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Failed to process drill update: $e');
-    }
-  }
-
-  Future<void> completeDrill() async {
-    if (_player == null || _selectedPlanet == null || _drillState == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/complete'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        List<List<DrillCell>> world = [];
-        if (data['world'] != null) {
-          world = (data['world'] as List).map((row) {
-            return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
-          }).toList();
-        }
-        List<DrillResource> resources = [];
-        if (data['resources'] != null) {
-          resources = (data['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
-        }
-        _drillState = DrillState(
-          sessionId: _drillState!.sessionId,
-          planetId: _drillState!.planetId,
-          drillHp: data['drill_hp'] as int? ?? 0,
-          drillMaxHp: data['drill_max_hp'] as int? ?? 0,
-          depth: data['depth'] as int? ?? 0,
-          drillX: data['drill_x'] as int? ?? 0,
-          worldWidth: world.isNotEmpty ? world[0].length : _drillState!.worldWidth,
-          world: world,
-          resources: resources,
-          status: 'completed',
-          totalEarned: (data['total_earned'] as num?)?.toInt() ?? 0,
-          createdAt: _drillState!.createdAt,
-          completedAt: DateTime.now().toUtc().toIso8601String(),
-          seed: _drillSeed,
-        );
-        notifyListeners();
-      } else {
-        _setError('Не удалось завершить бурение: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка завершения: $e');
-    }
-  }
-
-  Future<void> destroyDrill() async {
-    if (_player == null || _selectedPlanet == null || _drillState == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/destroy'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        List<List<DrillCell>> world = [];
-        if (data['world'] != null) {
-          world = (data['world'] as List).map((row) {
-            return (row as List).map((cell) => DrillCell.fromJson(cell as Map<String, dynamic>)).toList();
-          }).toList();
-        }
-        List<DrillResource> resources = [];
-        if (data['resources'] != null) {
-          resources = (data['resources'] as List).map((r) => DrillResource.fromJson(r as Map<String, dynamic>)).toList();
-        }
-        _drillState = DrillState(
-          sessionId: _drillState!.sessionId,
-          planetId: _drillState!.planetId,
-          drillHp: data['drill_hp'] as int? ?? 0,
-          drillMaxHp: data['drill_max_hp'] as int? ?? 0,
-          depth: data['depth'] as int? ?? 0,
-          drillX: data['drill_x'] as int? ?? 0,
-          worldWidth: world.isNotEmpty ? world[0].length : _drillState!.worldWidth,
-          world: world,
-          resources: resources,
-          status: 'failed',
-          totalEarned: (data['total_earned'] as num?)?.toInt() ?? 0,
-          createdAt: _drillState!.createdAt,
-          completedAt: DateTime.now().toUtc().toIso8601String(),
-          seed: _drillSeed,
-        );
-        notifyListeners();
-      }
-    } catch (e) {
-      _drillState = null;
-      notifyListeners();
-    }
-  }
-
-  Future<void> cleanupDrill() async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/drill/cleanup'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-      );
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  Future<void> startPlanetSurvey(String planetId, int duration) async {
-    if (_player == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/$planetId/planet-survey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'duration': duration}),
-      );
-
-      if (response.statusCode == 200) {
-        notifyListeners();
-      } else {
-        _setError('Не удалось начать разведку: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка разведки: $e');
-    }
-  }
-
-  Future<void> buildOnLocation(String planetId, String locationId, String buildingType) async {
-    if (_player == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/build'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'building_type': buildingType}),
-      );
-
-      if (response.statusCode == 200) {
-        notifyListeners();
-      } else {
-        _setError('Не удалось построить: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка строительства: $e');
-    }
-  }
-
-  Future<void> removeBuilding(String planetId, String locationId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.delete(
-        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/building'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        notifyListeners();
-      } else {
-        _setError('Не удалось снести: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка: $e');
-    }
-  }
-
-  Future<void> abandonLocation(String planetId, String locationId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/$planetId/locations/$locationId/abandon'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-      );
-
-      if (response.statusCode == 200) {
-        notifyListeners();
-      } else {
-        _setError('Не удалось забрать: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка: $e');
-    }
-  }
-}
-
-class ShipyardInfo {
-  final Map<String, dynamic> ships;
-  final int totalShips;
-  final int totalSlots;
-  final int maxSlots;
-  final double totalCargo;
-  final double totalEnergy;
-  final double totalDamage;
-  final double totalHP;
-  final int shipyardLevel;
-  final int shipyardQueueLen;
-  final double shipyardProgress;
-
-  ShipyardInfo({
-    this.ships = const {},
-    this.totalShips = 0,
-    this.totalSlots = 0,
-    this.maxSlots = 0,
-    this.totalCargo = 0,
-    this.totalEnergy = 0,
-    this.totalDamage = 0,
-    this.totalHP = 0,
-    this.shipyardLevel = 0,
-    this.shipyardQueueLen = 0,
-    this.shipyardProgress = 0,
-  });
-
-  factory ShipyardInfo.fromJson(Map<String, dynamic> json) {
-    return ShipyardInfo(
-      ships: json['ships'] as Map<String, dynamic>? ?? {},
-      totalShips: json['total_ships'] as int? ?? 0,
-      totalSlots: json['total_slots'] as int? ?? 0,
-      maxSlots: json['max_slots'] as int? ?? 0,
-      totalCargo: (json['total_cargo'] as num?)?.toDouble() ?? 0,
-      totalEnergy: (json['total_energy'] as num?)?.toDouble() ?? 0,
-      totalDamage: (json['total_damage'] as num?)?.toDouble() ?? 0,
-      totalHP: (json['total_hp'] as num?)?.toDouble() ?? 0,
-      shipyardLevel: json['shipyard_level'] as int? ?? 0,
-      shipyardQueueLen: json['shipyard_queue_len'] as int? ?? 0,
-      shipyardProgress: (json['shipyard_progress'] as num?)?.toDouble() ?? 0,
-    );
-  }
-
-  int get availableSlots => maxSlots - totalSlots;
-  double get buildProgressPercent => (shipyardProgress / (shipyardQueueLen > 0 ? 1 : 100)) * 100;
-}
-
-class BuildingUpgradeInfo {
-  final bool canUpgrade;
-  final String? reason;
-  const BuildingUpgradeInfo({required this.canUpgrade, this.reason});
 }
