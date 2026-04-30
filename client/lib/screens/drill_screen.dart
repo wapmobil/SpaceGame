@@ -292,6 +292,7 @@ class _DrillScreenState extends State<DrillScreen> {
                     _buildDamageRow('Камень', '5', Colors.grey),
                     _buildDamageRow('Металл', '10', Colors.grey),
                     _buildDamageRow('Мифрил', '15', Colors.purple),
+                    _buildDamageRow('Пещера', '0', Colors.black),
                     const SizedBox(height: 6),
                     const Text(
                       '⚠ Ресурс без добычи: +5\n⚠ Добыча без ресурса: +3',
