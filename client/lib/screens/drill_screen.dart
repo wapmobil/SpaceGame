@@ -176,7 +176,7 @@ class _DrillScreenState extends State<DrillScreen> {
               ),
               const SizedBox(height: 16),
               const Text(
-                'Бур будет погружаться глубоко под поверхность,\nсобирая ценные ресурсы. Прочность: 10+100*ур.шахты',
+                'Геологические слои, пещеры и жилы — каждый спуск уникален. Собирай ресурсы, уклоняйся от пещер, бурись глубже. Прочность: 10+100*ур.шахты',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
                 textAlign: TextAlign.center,
               ),
