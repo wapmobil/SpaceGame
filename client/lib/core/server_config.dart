@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ServerConfig extends ChangeNotifier {
   static const _key = 'server_url';
   static final ServerConfig _instance = ServerConfig._internal();
-  String _url = 'http://localhost:8088';
+  String _url = 'http://home.signalmodelling.ru:8088';
 
   factory ServerConfig() => _instance;
 
@@ -40,7 +40,7 @@ class ServerConfig extends ChangeNotifier {
   }
 
   void reset() {
-    _url = 'http://localhost:8088';
+    _url = 'http://home.signalmodelling.ru:8088';
     SharedPreferences.getInstance().then((prefs) {
       prefs.remove(_key);
     });
