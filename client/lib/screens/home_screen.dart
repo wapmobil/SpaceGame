@@ -38,7 +38,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        onDestinationSelected: (index) {
+          setState(() => _selectedIndex = index);
+          if (index == 0) {
+            context.read<GameProvider>().loadPlanets();
+          }
+        },
          destinations: const [
           NavigationDestination(icon: Icon(Icons.public), label: 'Планеты'),
           NavigationDestination(icon: Icon(Icons.language), label: 'Планета'),

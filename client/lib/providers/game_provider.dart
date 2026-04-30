@@ -216,6 +216,7 @@ bool? get canStartSpaceExpedition => _canStartSpaceExpedition;
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
+        await loadPlanets();
       } else {
         _setError('Не удалось войти: ${response.statusCode}');
       }
