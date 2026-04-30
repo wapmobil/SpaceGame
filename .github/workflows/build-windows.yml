@@ -28,6 +28,10 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Add Windows platform
+        working-directory: client
+        run: flutter create . --platforms=windows
+
       - name: Build Windows
         working-directory: client
         run: flutter build windows --release
