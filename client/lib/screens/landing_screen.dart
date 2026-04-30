@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/game_provider.dart';
-import '../providers/auth_provider.dart';
+import '../core/server_config.dart';
 import '../core/app_theme.dart';
 import '../screens/home_screen.dart';
 
@@ -18,6 +18,8 @@ class _LandingScreenState extends State<LandingScreen>
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   final _nameController = TextEditingController();
+  final _urlController = TextEditingController();
+  bool _showUrlInput = false;
 
   @override
   void initState() {
@@ -32,6 +34,7 @@ class _LandingScreenState extends State<LandingScreen>
     );
     _controller.forward();
     _loadSavedName();
+    _loadSavedUrl();
   }
 
   Future<void> _loadSavedName() async {
@@ -42,20 +45,20 @@ class _LandingScreenState extends State<LandingScreen>
     }
   }
 
+  void _loadSavedUrl() {
+    _urlController.text = ServerConfig().url;
+  }
+
   Future<void> _handleLogin() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
 
-    final authProvider = context.read<AuthProvider>();
     final gameProvider = context.read<GameProvider>();
+    await ServerConfig().setUrl(_urlController.text.trim());
 
-    final success = await authProvider.login(
-      name,
-      (n) => gameProvider.login(n),
-      (e) => debugPrint('Login failed: $e'),
-    );
+    gameProvider.login(name);
 
-    if (success && mounted) {
+    if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
@@ -66,6 +69,7 @@ class _LandingScreenState extends State<LandingScreen>
   void dispose() {
     _controller.dispose();
     _nameController.dispose();
+    _urlController.dispose();
     super.dispose();
   }
 
@@ -111,7 +115,16 @@ class _LandingScreenState extends State<LandingScreen>
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.space_dashboard, size: isSmall ? 80 : 100, color: AppTheme.accentColor),
+                      Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          Icon(Icons.space_dashboard, size: isSmall ? 80 : 100, color: AppTheme.accentColor),
+                          IconButton(
+                            icon: const Icon(Icons.settings, size: 20, color: Colors.white54),
+                            onPressed: () => setState(() => _showUrlInput = !_showUrlInput),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       Text(
                          'SpaceGame',
@@ -130,30 +143,42 @@ class _LandingScreenState extends State<LandingScreen>
                              ),
                          textAlign: TextAlign.center,
                        ),
-                      const SizedBox(height: 40),
-                      TextField(
-                        controller: _nameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Имя игрока',
-                          hintText: 'Введите ваше имя',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        onSubmitted: (_) => _handleLogin(),
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _handleLogin,
-                          child: const Text('Играть'),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'v1.0.0',
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
-                      ),
+                       const SizedBox(height: 40),
+                       if (_showUrlInput) ...[
+                         TextField(
+                           controller: _urlController,
+                           decoration: const InputDecoration(
+                             labelText: 'Адрес сервера',
+                             hintText: 'localhost:8088',
+                             prefixIcon: Icon(Icons.cloud_outlined),
+                           ),
+                           style: const TextStyle(color: Colors.white),
+                         ),
+                         const SizedBox(height: 16),
+                       ],
+                       TextField(
+                         controller: _nameController,
+                         decoration: const InputDecoration(
+                           labelText: 'Имя игрока',
+                           hintText: 'Введите ваше имя',
+                           prefixIcon: Icon(Icons.person_outline),
+                         ),
+                         onSubmitted: (_) => _handleLogin(),
+                         style: const TextStyle(color: Colors.white),
+                       ),
+                       const SizedBox(height: 16),
+                       SizedBox(
+                         width: double.infinity,
+                         child: ElevatedButton(
+                           onPressed: _handleLogin,
+                           child: const Text('Играть'),
+                         ),
+                       ),
+                       const SizedBox(height: 24),
+                       const Text(
+                         'v1.0.0',
+                         style: TextStyle(color: Colors.white38, fontSize: 12),
+                       ),
                     ],
                   ),
                 ),

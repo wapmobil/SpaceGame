@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
+import '../core/server_config.dart';
 import '../core/app_theme.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -20,6 +21,8 @@ class SettingsScreen extends StatelessWidget {
                 _buildProfileSection(context, gameProvider),
                 const SizedBox(height: 16),
                 _buildConnectionSection(context, gameProvider),
+                const SizedBox(height: 16),
+                _buildServerUrlSection(context, gameProvider),
                 const SizedBox(height: 16),
                 _buildLeaderboardSection(context, gameProvider),
                 const SizedBox(height: 16),
@@ -109,6 +112,70 @@ class SettingsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text('Server: ${gameProvider.baseUrl}', style: const TextStyle(fontSize: 12, color: Colors.white54)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServerUrlSection(BuildContext context, GameProvider gameProvider) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Сервер', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
+            const SizedBox(height: 12),
+            Consumer<ServerConfig>(
+              builder: (context, config, _) {
+                return OutlinedButton.icon(
+                  onPressed: () async {
+                    final controller = TextEditingController(text: config.url);
+                    final result = await showDialog<String>(
+                      context: context,
+                      builder: (dialogContext) {
+                        return AlertDialog(
+                          backgroundColor: AppTheme.cardColor,
+                          title: const Text('Адрес сервера'),
+                          content: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              hintText: 'localhost:8088',
+                              prefixIcon: Icon(Icons.cloud_outlined),
+                            ),
+                            style: const TextStyle(color: Colors.white),
+                            autofocus: true,
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              child: const Text('Отмена'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () => Navigator.pop(dialogContext, controller.text),
+                              child: const Text('Сохранить'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    if (result != null && result.trim().isNotEmpty) {
+                      await config.setUrl(result);
+                      if (context.mounted) {
+                        await gameProvider.logout();
+                        if (context.mounted) {
+                          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+                        }
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.cloud_outlined),
+                  label: Text(config.url),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.accentColor),
+                );
+              },
+            ),
           ],
         ),
       ),
