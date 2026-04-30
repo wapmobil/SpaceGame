@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
@@ -21,9 +22,11 @@ class SettingsScreen extends StatelessWidget {
                 _buildProfileSection(context, gameProvider),
                 const SizedBox(height: 16),
                 _buildConnectionSection(context, gameProvider),
-                const SizedBox(height: 16),
-                _buildServerUrlSection(context, gameProvider),
-                const SizedBox(height: 16),
+                if (!kIsWeb) ...[
+                  const SizedBox(height: 16),
+                  _buildServerUrlSection(context, gameProvider),
+                ],
+                if (!kIsWeb) const SizedBox(height: 16),
                 _buildLeaderboardSection(context, gameProvider),
                 const SizedBox(height: 16),
                 _buildStatsSection(context, gameProvider),
