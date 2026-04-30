@@ -8,13 +8,14 @@ import '../models/planet.dart';
 import '../models/building.dart';
 import '../models/ship.dart';
 import '../models/research.dart';
-import '../models/expedition.dart';
-import '../models/market.dart';
-import '../models/rating.dart';
 import '../models/player.dart';
 import '../providers/garden_bed_provider.dart';
 import '../providers/drill_provider.dart';
 import '../providers/planet_survey_provider.dart';
+import '../providers/rating_provider.dart';
+import '../providers/research_provider.dart';
+import '../providers/market_provider.dart';
+import '../providers/expedition_provider.dart';
 import '../providers/shipyard_info.dart';
 import '../providers/building_upgrade_info.dart';
 
@@ -23,6 +24,10 @@ class GameProvider extends ChangeNotifier {
   final GardenBedProvider _gardenBedProvider;
   final DrillProvider _drillProvider;
   final PlanetSurveyProvider _surveyProvider;
+  final RatingProvider _ratingProvider;
+  final ResearchProvider _researchProvider;
+  final MarketProvider _marketProvider;
+  final ExpeditionProvider _expeditionProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -31,13 +36,6 @@ class GameProvider extends ChangeNotifier {
   List<Ship> _ships = [];
   ShipyardInfo? _shipyardInfo;
   List<ShipType> _availableShipTypes = [];
-  ResearchState? _researchState;
-   ExpeditionsListResponse? _expeditions;
-  MarketData? _marketData;
-  List<MarketOrder> _myOrders = [];
-  List<RatingEntry> _ratings = [];
-  Map<String, dynamic>? _stats;
-  List<Map<String, dynamic>> _events = [];
   String? _errorMessage;
   int _activeConstructions = 0;
   int _maxConstructions = 1;
@@ -69,12 +67,6 @@ class GameProvider extends ChangeNotifier {
   
   // Research unlocks (planet_exploration random unlock)
   String _researchUnlocks = '';
-  
-  // Research paused status
-  bool _researchPaused = false;
-
-  // Completed research tech IDs with levels (from WS state updates)
-  Map<String, int> _completedResearch = {};
 
   final List<Map<String, String>> _notifications = [];
 
@@ -82,10 +74,18 @@ class GameProvider extends ChangeNotifier {
       : _baseUrl = baseUrl ?? _getBaseUri(),
         _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
         _drillProvider = DrillProvider(),
-        _surveyProvider = PlanetSurveyProvider() {
+        _surveyProvider = PlanetSurveyProvider(),
+        _ratingProvider = RatingProvider(),
+        _researchProvider = ResearchProvider(),
+        _marketProvider = MarketProvider(),
+        _expeditionProvider = ExpeditionProvider() {
     _drillProvider.baseUrl = _baseUrl;
     _drillProvider.websocket = websocket;
     _surveyProvider.baseUrl = _baseUrl;
+    _ratingProvider.baseUrl = _baseUrl;
+    _researchProvider.baseUrl = _baseUrl;
+    _marketProvider.baseUrl = _baseUrl;
+    _expeditionProvider.baseUrl = _baseUrl;
   }
 
   static String _getBaseUri() {
@@ -101,21 +101,17 @@ class GameProvider extends ChangeNotifier {
   List<Ship> get ships => _ships;
   ShipyardInfo? get shipyardInfo => _shipyardInfo;
   List<ShipType> get availableShipTypes => _availableShipTypes;
-  ResearchState? get researchState => _researchState;
+  ResearchProvider get researchProvider => _researchProvider;
   GardenBedProvider get gardenBedProvider => _gardenBedProvider;
   DrillProvider get drillProvider => _drillProvider;
   PlanetSurveyProvider get surveyProvider => _surveyProvider;
-  ExpeditionsListResponse? get expeditions => _expeditions;
-  MarketData? get marketData => _marketData;
-  List<MarketOrder> get myOrders => _myOrders;
-  List<RatingEntry> get ratings => _ratings;
-  Map<String, dynamic>? get stats => _stats;
-  List<Map<String, dynamic>> get events => _events;
+  RatingProvider get ratingProvider => _ratingProvider;
+  MarketProvider get marketProvider => _marketProvider;
+  ExpeditionProvider get expeditionProvider => _expeditionProvider;
   String? get errorMessage => _errorMessage;
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
   Map<String, Map<String, dynamic>> get buildingCosts => _buildingCosts;
-  Map<String, int> get completedResearch => _completedResearch;
   bool get isLoggedIn => _player != null;
 
   // Energy getters (from planet resources)
@@ -147,7 +143,9 @@ class GameProvider extends ChangeNotifier {
   bool get canExpedition => _canExpedition;
   bool get planetSurveyUnlocked => _planetSurveyUnlocked;
     String get researchUnlocks => _researchUnlocks;
-  bool get researchPaused => _researchPaused;
+  ResearchState? get researchState => _researchProvider.researchState;
+  bool get researchPaused => _researchProvider.researchPaused;
+  Map<String, int> get completedResearch => _researchProvider.completedResearch;
   String? get authToken => _player?.authToken;
 
   List<Map<String, String>> get notifications => _notifications;
@@ -196,6 +194,10 @@ class GameProvider extends ChangeNotifier {
         _gardenBedProvider.setAuthToken(_player!.authToken);
         _drillProvider.setAuthToken(_player!.authToken);
         _surveyProvider.setAuthToken(_player!.authToken);
+        _ratingProvider.setAuthToken(_player!.authToken);
+        _researchProvider.setAuthToken(_player!.authToken);
+        _marketProvider.setAuthToken(_player!.authToken);
+        _expeditionProvider.setAuthToken(_player!.authToken);
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
@@ -215,7 +217,6 @@ class GameProvider extends ChangeNotifier {
     _selectedPlanet = null;
     _buildings = [];
     _ships = [];
-    _researchState = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     notifyListeners();
@@ -239,11 +240,15 @@ class GameProvider extends ChangeNotifier {
 
     if (id != null && token != null) {
       _baseUrl = url;
-      _player = Player(id: id, authToken: token, name: name ?? '');
-      _gardenBedProvider.setAuthToken(token);
-      _drillProvider.setAuthToken(token);
-      _surveyProvider.setAuthToken(token);
-      notifyListeners();
+_player = Player(id: id, authToken: token, name: name ?? '');
+        _gardenBedProvider.setAuthToken(token);
+        _drillProvider.setAuthToken(token);
+        _surveyProvider.setAuthToken(token);
+        _ratingProvider.setAuthToken(token);
+        _researchProvider.setAuthToken(token);
+        _marketProvider.setAuthToken(token);
+        _expeditionProvider.setAuthToken(token);
+        notifyListeners();
       await connectWebSocket();
       await loadPlanets();
     }
@@ -268,16 +273,20 @@ class GameProvider extends ChangeNotifier {
         _handleBuildingUpdate(data);
         break;
       case 'research_update':
-        _handleResearchUpdate(data);
+        _researchProvider.onResearchUpdate(data);
+        notifyListeners();
         break;
        case 'space_expedition_update':
-        _handleSpaceExpeditionUpdate(data);
+        _expeditionProvider.onExpeditionUpdate();
+        notifyListeners();
         break;
       case 'market_update':
-        _handleMarketUpdate(data);
+        _marketProvider.onMarketUpdate();
+        notifyListeners();
         break;
             case 'notification':
-        _handleNotification(data);
+        _ratingProvider.onNotification(data);
+        notifyListeners();
         break;
       case 'drill_update':
         _drillProvider.onDrillUpdate(data ?? {});
@@ -303,7 +312,7 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
- void _handleStateUpdate(Map<String, dynamic>? data) {
+  void _handleStateUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
       // Backend sends {"planet_id": "...", "state": {...}}
       final stateData = data['state'] as Map<String, dynamic>? ?? data;
@@ -344,48 +353,8 @@ class GameProvider extends ChangeNotifier {
         _maxConstructions = maxConstr is int ? maxConstr : (maxConstr as num).toInt();
       }
 
-      // Update research paused status
-      final resPaused = stateData['research_paused'];
-      if (resPaused != null) {
-        _researchPaused = resPaused is bool ? resPaused : (resPaused as num).toInt() != 0;
-      }
-
-      // Update research progress from state
-      final researchList = stateData['research'] as List<dynamic>?;
-      final availableResearchList = stateData['available_research'] as List<dynamic>?;
-      if (researchList != null && _researchState != null) {
-        final updatedResearch = List<ResearchTech>.from(_researchState!.research);
-        for (final r in researchList) {
-          final techId = r['tech_id'] as String;
-          final idx = updatedResearch.indexWhere((t) => t.techId == techId);
-          if (idx >= 0) {
-            updatedResearch[idx] = updatedResearch[idx].copyWith(
-              completed: r['completed'] as bool? ?? updatedResearch[idx].completed,
-              inProgress: r['in_progress'] as bool? ?? updatedResearch[idx].inProgress,
-              progress: (r['progress'] as num?)?.toDouble() ?? updatedResearch[idx].progress,
-              totalTime: (r['total_time'] as num?)?.toDouble() ?? updatedResearch[idx].totalTime,
-              progressPct: (r['progress_pct'] as num?)?.toDouble() ?? updatedResearch[idx].progressPct,
-            );
-          }
-        }
-        var updatedAvailable = _researchState!.available;
-        if (availableResearchList != null && availableResearchList.isNotEmpty) {
-          updatedAvailable = availableResearchList.map((a) => ResearchTech.fromMap(a as Map<String, dynamic>)).toList();
-        }
-        _researchState = ResearchState(
-          research: updatedResearch,
-          available: updatedAvailable,
-        );
-      }
-
-      // Update completed research map (tech_id -> level)
-      final completedResearch = stateData['completed_research'] as Map<String, dynamic>?;
-      if (completedResearch != null) {
-        _completedResearch = {};
-        completedResearch.forEach((key, value) {
-          _completedResearch[key] = (value as num).toInt();
-        });
-      }
+      // Update research state from WS
+      _researchProvider.applyResearchStateUpdate(stateData);
 
       // Update garden bed state
       final farmStateJson = stateData['garden_bed_state'] as Map<String, dynamic>?;
@@ -395,7 +364,11 @@ class GameProvider extends ChangeNotifier {
 
       // Update planet survey data from state
       _surveyProvider.applyStateUpdate(stateData);
-      _planetSurveyUnlocked = _completedResearch['planet_exploration'] != null;
+
+      // Update expedition data
+      _expeditionProvider.applyStateUpdate(stateData);
+
+      _planetSurveyUnlocked = _researchProvider.completedResearch['planet_exploration'] != null;
       _baseOperational = stateData['base_operational'] as bool? ?? true;
 
       notifyListeners();
@@ -405,37 +378,6 @@ class GameProvider extends ChangeNotifier {
   void _handleBuildingUpdate(Map<String, dynamic>? data) {
     if (data != null && _selectedPlanet != null) {
       loadBuildDetails(_selectedPlanet!.id);
-    }
-  }
-
-  void _handleResearchUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      loadResearch(_selectedPlanet?.id ?? '');
-      notifyListeners();
-    }
-  }
-
-    void _handleSpaceExpeditionUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      notifyListeners();
-    }
-  }
-
-  void _handleMarketUpdate(Map<String, dynamic>? data) {
-    if (data != null) {
-      loadMarketData(_selectedPlanet?.id ?? '');
-      loadMyOrders(_selectedPlanet?.id ?? '');
-      notifyListeners();
-    }
-  }
-
-    void _handleNotification(Map<String, dynamic>? data) {
-    if (data == null) return;
-    final message = data['message'] as String?;
-    final type = data['type'] as String?;
-    if (message == null) return;
-    if (type == 'expedition_complete') {
-      addNotification('Экспедиция завершена', message);
     }
   }
 
@@ -484,10 +426,12 @@ class GameProvider extends ChangeNotifier {
     websocket.subscribe(planet.id);
     loadBuildDetails(planet.id);
     loadShips(planet.id);
-    loadResearch(planet.id);
-     // expedition data comes from WebSocket
-    loadMarketData(planet.id);
-    loadMyOrders(planet.id);
+    _researchProvider.setPlanetId(planet.id);
+    _researchProvider.loadResearch(planet.id);
+    _marketProvider.setPlanetId(planet.id);
+    _marketProvider.loadMarketData();
+    _marketProvider.loadMyOrders();
+    _expeditionProvider.setPlanetId(planet.id);
     _gardenBedProvider.getGardenBed(planet.id);
     _drillProvider.setDrillPlanetId(planet.id);
     _surveyProvider.loadPlanetSurveyData(planet.id);
@@ -615,8 +559,8 @@ class GameProvider extends ChangeNotifier {
       _gardenBedProvider.onGardenBedUpdate(farmStateJson);
     }
 
-    // Update planet survey fields
-    _surveyProvider.applyBuildDetails(data);
+     // Update planet survey fields
+      _surveyProvider.applyBuildDetails(data);
 
     notifyListeners();
   }
@@ -829,317 +773,6 @@ class GameProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadResearch(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/research'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _researchState = ResearchState.fromJson(data);
-        _researchPaused = data['research_paused'] as bool? ?? false;
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load research: $e');
-    }
-  }
-
-  Future<void> startResearch(String techId) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/research/start'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'tech_id': techId}),
-      );
-
-      if (response.statusCode == 201) {
-        await loadResearch(_selectedPlanet!.id);
-      } else {
-        _setError('Не удалось начать исследование: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка исследования: $e');
-    }
-  }
-
-    Future<void> startExpedition({
-    required String expeditionType,
-    String? target,
-    List<String>? shipTypes,
-    List<int>? shipCounts,
-    double? duration,
-  }) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final body = <String, dynamic>{
-        'expedition_type': expeditionType,
-        'duration': duration ?? 3600,
-      };
-      if (target != null) body['target'] = target;
-      if (shipTypes != null) body['ship_types'] = shipTypes;
-      if (shipCounts != null) body['ship_counts'] = shipCounts;
-
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/expeditions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode(body),
-      );
-
-      if (response.statusCode == 201) {
-        notifyListeners();
-      } else {
-        _setError('Не удалось начать экспедицию: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка экспедиции: $e');
-    }
-  }
-
-  Future<void> expeditionAction(String expeditionId, String action) async {
-    if (_player == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/expeditions/$expeditionId/action'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'action': action}),
-      );
-
-      if (response.statusCode == 200) {
-        notifyListeners();
-      } else {
-         _setError('Не удалось выполнить действие экспедиции: ${response.body}');
-       }
-    } catch (e) {
-      _setError('Ошибка действия экспедиции: $e');
-    }
-  }
-
-  Future<void> loadMarketData(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/market'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        _marketData = MarketData.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load market: $e');
-    }
-  }
-
-  Future<void> loadMyOrders(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/market/orders'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as List;
-        _myOrders = data.map((e) => MarketOrder.fromJson(e as Map<String, dynamic>)).toList();
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load my orders: $e');
-    }
-  }
-
-  Future<void> createMarketOrder({
-    required String resource,
-    required String orderType,
-    required double amount,
-    required double price,
-    bool isPrivate = false,
-  }) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/market/orders'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({
-          'resource': resource,
-          'order_type': orderType,
-          'amount': amount,
-          'price': price,
-          'is_private': isPrivate,
-        }),
-      );
-
-      if (response.statusCode == 201) {
-        await loadMarketData(_selectedPlanet!.id);
-        await loadMyOrders(_selectedPlanet!.id);
-      } else {
-        _setError('Не удалось создать ордер: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка создания ордера: $e');
-    }
-  }
-
-  Future<void> deleteMarketOrder(String orderId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.delete(
-        Uri.parse('$_baseUrl/api/market/orders/$orderId'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        await loadMarketData(_selectedPlanet?.id ?? '');
-        await loadMyOrders(_selectedPlanet?.id ?? '');
-      } else {
-        _setError('Не удалось удалить ордер: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка удаления ордера: $e');
-    }
-  }
-
-  Future<bool> sellFood(String planetId, double amount) async {
-    if (_player == null) return false;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/$planetId/sell-food'),
-        headers: {'X-Auth-Token': _player!.authToken},
-        body: jsonEncode({'amount': amount}),
-      );
-
-      if (response.statusCode == 200) {
-        await loadPlanetDetail(planetId);
-        return true;
-      } else {
-        _setError('Не удалось продать еду: ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      _setError('Ошибка продажи еды: $e');
-      return false;
-    }
-  }
-
-  Future<bool> sellIron(String planetId, double amount) async {
-    if (_player == null) return false;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/$planetId/sell-iron'),
-        headers: {'X-Auth-Token': _player!.authToken},
-        body: jsonEncode({'amount': amount}),
-      );
-
-      if (response.statusCode == 200) {
-        await loadPlanetDetail(planetId);
-        return true;
-      } else {
-        _setError('Не удалось продать железо: ${response.body}');
-        return false;
-      }
-    } catch (e) {
-      _setError('Ошибка продажи железа: $e');
-      return false;
-    }
-  }
-
-
-
-  Future<void> loadRatings({String category = 'score'}) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/ratings?category=$category'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final rating = RatingResponse.fromJson(data);
-        _ratings = rating.entries;
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load ratings: $e');
-    }
-  }
-
-  Future<void> loadStats(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/stats'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        _stats = jsonDecode(response.body) as Map<String, dynamic>;
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load stats: $e');
-    }
-  }
-
-  Future<void> loadEvents(String planetId) async {
-    if (_player == null) return;
-    try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/api/planets/$planetId/events'),
-        headers: {'X-Auth-Token': _player!.authToken},
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final eventsData = data['events'] as List? ?? [];
-        _events = eventsData.map((e) => e as Map<String, dynamic>).toList();
-        notifyListeners();
-      }
-    } catch (e) {
-      debugPrint('Failed to load events: $e');
-    }
-  }
-
-  Future<void> resolveEvent(String eventType) async {
-    if (_player == null || _selectedPlanet == null) return;
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/planets/${_selectedPlanet!.id}/events/resolve'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Auth-Token': _player!.authToken,
-        },
-        body: jsonEncode({'event_type': eventType}),
-      );
-
-      if (response.statusCode == 200) {
-        await loadEvents(_selectedPlanet!.id);
-      } else {
-        _setError('Не удалось решить событие: ${response.body}');
-      }
-    } catch (e) {
-      _setError('Ошибка решения события: $e');
-    }
-  }
 
   @override
   void dispose() {

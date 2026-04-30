@@ -25,8 +25,8 @@ class QuickStatsSection extends StatelessWidget {
               children: [
                 _StatItem('Уровень', gameProvider.selectedPlanet?.level.toString() ?? '1'),
                 _StatItem('Корабли', gameProvider.ships.length.toString()),
-                _StatItem('Исследования', gameProvider.researchState?.research.length.toString() ?? '0'),
-                _StatItem('Экспедиции', gameProvider.expeditions?.activeCount.toString() ?? '0'),
+                _StatItem('Исследования', gameProvider.researchProvider.researchState?.research.length.toString() ?? '0'),
+                _StatItem('Экспедиции', gameProvider.expeditionProvider.expeditions?.activeCount.toString() ?? '0'),
               ],
             ),
           ],

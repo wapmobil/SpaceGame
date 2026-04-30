@@ -197,13 +197,13 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 const Text('Таблица лидеров', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 TextButton(
-                  onPressed: () => gameProvider.loadRatings(),
+                  onPressed: () => gameProvider.ratingProvider.loadRatings(),
                   child: const Text('Обновить'),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            if (gameProvider.ratings.isEmpty)
+            if (gameProvider.ratingProvider.ratings.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -211,7 +211,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               )
             else
-              ...gameProvider.ratings.take(10).map((entry) => Padding(
+              ...gameProvider.ratingProvider.ratings.take(10).map((entry) => Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: ListTile(
                       dense: true,
@@ -244,7 +244,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildStatsSection(BuildContext context, GameProvider gameProvider) {
-    final stats = gameProvider.stats;
+    final stats = gameProvider.ratingProvider.stats;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -257,7 +257,7 @@ class SettingsScreen extends StatelessWidget {
                 const Text('Статистика', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (gameProvider.selectedPlanet != null)
                   TextButton(
-                    onPressed: () => gameProvider.loadStats(gameProvider.selectedPlanet!.id),
+                    onPressed: () => gameProvider.ratingProvider.loadStats(gameProvider.selectedPlanet!.id),
                     child: const Text('Обновить'),
                   ),
               ],
@@ -301,7 +301,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildEventsSection(BuildContext context, GameProvider gameProvider) {
-    final events = gameProvider.events;
+    final events = gameProvider.ratingProvider.events;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -314,7 +314,7 @@ class SettingsScreen extends StatelessWidget {
                 const Text('События', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
                 if (gameProvider.selectedPlanet != null)
                   TextButton(
-                    onPressed: () => gameProvider.loadEvents(gameProvider.selectedPlanet!.id),
+                    onPressed: () => gameProvider.ratingProvider.loadEvents(gameProvider.selectedPlanet!.id),
                     child: const Text('Обновить'),
                   ),
               ],
@@ -343,7 +343,7 @@ class SettingsScreen extends StatelessWidget {
                       style: const TextStyle(fontSize: 10, color: Colors.white54),
                     ),
                     trailing: OutlinedButton(
-                      onPressed: () => gameProvider.resolveEvent(event['type'] as String? ?? ''),
+                      onPressed: () => gameProvider.ratingProvider.resolveEvent(event['type'] as String? ?? ''),
                       child: const Text('Решить', style: TextStyle(fontSize: 10)),
                     ),
                   ),

@@ -36,7 +36,7 @@ class ExpeditionScreen extends StatelessWidget {
   }
 
   Widget _buildStartExpedition(BuildContext context, GameProvider gameProvider) {
-    final expeditions = gameProvider.expeditions;
+    final expeditions = gameProvider.expeditionProvider.expeditions;
     final canStart = expeditions?.canStartNew ?? false;
     final unlocked = expeditions?.expeditionsUnlocked ?? false;
 
@@ -69,8 +69,8 @@ class ExpeditionScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: ElevatedButton.icon(
                   onPressed: canStart && unlocked
-                      ? () => gameProvider.startExpedition(expeditionType: type)
-                      : null,
+                       ? () => gameProvider.expeditionProvider.startExpedition(expeditionType: type)
+                       : null,
                   icon: Text(info['icon'] as String),
                   label: Text(info['name'] as String),
                   style: ElevatedButton.styleFrom(
@@ -88,7 +88,7 @@ class ExpeditionScreen extends StatelessWidget {
   }
 
   Widget _buildExpeditionList(BuildContext context, GameProvider gameProvider) {
-    final expeditions = gameProvider.expeditions;
+    final expeditions = gameProvider.expeditionProvider.expeditions;
     if (expeditions == null) return const SizedBox.shrink();
 
     return Card(
@@ -219,7 +219,7 @@ class _ExpeditionCard extends StatelessWidget {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () async {
-                await context.read<GameProvider>().expeditionAction(expedition.id, action.type);
+                await context.read<GameProvider>().expeditionProvider.expeditionAction(expedition.id, action.type);
               },
               child: Text(action.label),
             ),

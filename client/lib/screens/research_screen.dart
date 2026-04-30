@@ -16,7 +16,7 @@ class ResearchScreen extends StatelessWidget {
           if (planet == null) return const Center(child: Text('Планета не выбрана'));
 
           return RefreshIndicator(
-            onRefresh: () async => gameProvider.loadResearch(planet.id),
+            onRefresh: () async => gameProvider.researchProvider.loadResearch(planet.id),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -57,7 +57,7 @@ class ResearchScreen extends StatelessWidget {
   }
 
   Widget _buildTreeSection(BuildContext context, GameProvider gameProvider) {
-    final state = gameProvider.researchState;
+    final state = gameProvider.researchProvider.researchState;
     if (state == null) return const Center(child: CircularProgressIndicator());
 
     final completedIds = state.research.where((t) => t.completed).map((t) => t.techId).toSet();
@@ -140,7 +140,7 @@ class ResearchScreen extends StatelessWidget {
             costMoney: costMoney,
             costAlien: costAlien,
             buildTime: buildTime,
-            onResearch: () => gameProvider.startResearch(techId),
+            onResearch: () => gameProvider.researchProvider.startResearch(techId),
             researchPaused: researchPaused,
           ),
         );

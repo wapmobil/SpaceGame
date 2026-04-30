@@ -44,8 +44,8 @@ class MarketScreen extends StatelessWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-              await gameProvider.loadMarketData(planet.id);
-              await gameProvider.loadMyOrders(planet.id);
+              await gameProvider.marketProvider.loadMarketData();
+              await gameProvider.marketProvider.loadMyOrders();
             },
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -116,7 +116,7 @@ class MarketScreen extends StatelessWidget {
   }
 
   Widget _buildMarketOverview(BuildContext context, GameProvider gameProvider) {
-    final market = gameProvider.marketData;
+    final market = gameProvider.marketProvider.marketData;
     if (market == null) return const Center(child: CircularProgressIndicator());
 
     return Card(
@@ -158,14 +158,14 @@ class MarketScreen extends StatelessWidget {
   }
 
   Widget _buildBuyOrders(BuildContext context, GameProvider gameProvider) {
-    final market = gameProvider.marketData;
+    final market = gameProvider.marketProvider.marketData;
     if (market == null) return const SizedBox.shrink();
 
     return _buildOrderList(context, market.buyOrders, 'Покупки', AppTheme.accentColor);
   }
 
   Widget _buildSellOrders(BuildContext context, GameProvider gameProvider) {
-    final market = gameProvider.marketData;
+    final market = gameProvider.marketProvider.marketData;
     if (market == null) return const SizedBox.shrink();
 
     return _buildOrderList(context, market.sellOrders, 'Продажи', AppTheme.successColor);
@@ -209,7 +209,7 @@ class MarketScreen extends StatelessWidget {
   }
 
   Widget _buildMyOrders(BuildContext context, GameProvider gameProvider) {
-    final orders = gameProvider.myOrders;
+    final orders = gameProvider.marketProvider.myOrders;
     if (orders.isEmpty) return const SizedBox.shrink();
 
     return Card(
@@ -238,7 +238,7 @@ class MarketScreen extends StatelessWidget {
                     trailing: order.isActive
                         ? IconButton(
                             icon: const Icon(Icons.close, size: 16),
-                            onPressed: () => gameProvider.deleteMarketOrder(order.id),
+                            onPressed: () => gameProvider.marketProvider.deleteMarketOrder(order.id),
                           )
                         : null,
                   ),
@@ -292,9 +292,9 @@ class _QuickSellSectionState extends State<_QuickSellSection> {
 
   Future<bool> _doSell(double amount) async {
     if (widget.resourceKey == 'food') {
-      return widget.gameProvider.sellFood(widget.planet.id, amount);
+      return widget.gameProvider.marketProvider.sellFood(amount);
     } else {
-      return widget.gameProvider.sellIron(widget.planet.id, amount);
+      return widget.gameProvider.marketProvider.sellIron(amount);
     }
   }
 
@@ -421,7 +421,7 @@ class _OrderFormState extends State<_OrderForm> {
               final amount = double.tryParse(_amountController.text);
               final price = double.tryParse(_priceController.text);
               if (amount != null && price != null && amount > 0 && price > 0) {
-                widget.gameProvider.createMarketOrder(
+                widget.gameProvider.marketProvider.createMarketOrder(
                   resource: _resource,
                   orderType: _orderType,
                   amount: amount,
