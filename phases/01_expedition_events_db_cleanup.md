@@ -69,6 +69,8 @@ CREATE TABLE IF NOT EXISTS expedition_events (
 CREATE INDEX idx_expedition_events_chain ON expedition_events(chain_id);
 ```
 
+**Примечание:** Храним весь JSON события (включая description, choices, rewards). Для UI истории нужно: event_id, description, choices (для извлечения label выбранного варианта), player_choice, rewards_received.
+
 ### 6.3 Удалить старые файлы planet_survey/
 **Удалить:** `server/internal/game/planet_survey/surface_expedition.go`
 - Все функции: NewSurfaceExpedition, Tick, IsExpired, GetCostPerMin, CalculateCost, CalculateDiscoveryChance, GetResourceChance, CalculateResourceRecovery

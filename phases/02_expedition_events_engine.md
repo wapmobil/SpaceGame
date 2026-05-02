@@ -40,7 +40,7 @@ type ExpeditionChain struct {
 type ExpeditionEvent struct {
     EventID           string
     Description       string
-    ImmediateReward   map[string]float64
+    ImmediateReward   map[string]float64 // flat: {"reagents": 30, "food": -10}
     Choices           []ExpeditionChoice
     IsEnd             bool
     LocationReward    string // тип локации, только при is_end: true
@@ -50,7 +50,7 @@ type ExpeditionEvent struct {
 type ExpeditionChoice struct {
     Label       string
     Description string
-    Reward      map[string]float64
+    Reward      map[string]float64 // flat: {"iron": 50, "composite": 20}
     NextEventID string
 }
 ```
@@ -63,6 +63,9 @@ const (
     MaxLLMRetries   = 5
     PromptFile      = "expedition_event_prompt.txt"
 )
+
+// Допустимые ресурсы инвентаря (только 5)
+var ValidInventoryResources = []string{"food", "iron", "composite", "mechanisms", "reagents"}
 ```
 
 #### Функции
@@ -70,6 +73,7 @@ const (
 **`ValidateInventory(inventory map[string]float64) error`**
 - Сумма всех ресурсов <= 1000
 - Все значения >= 0
+- Только ресурсы из `ValidInventoryResources` (food, iron, composite, mechanisms, reagents)
 - Возвращает `PlanetError` с reason "invalid_inventory"
 
 **`ReadPromptTemplate() (string, error)`**
@@ -87,10 +91,27 @@ const (
 - Читает prompt template
 - Возвращает полный prompt для LLM (template + JSON context)
 
+**`ParseReward(raw map[string]interface{}) (map[string]float64, error)`**
+- Принимает raw JSON от LLM: `{"resources": {"reagents": 50, "food": -10}}`
+- Извлекает `resources` → `map[string]float64`
+- Фильтрует: оставляет только ресурсы из `ValidInventoryResources`
+- Неизвестные ресурсы игнорируются (например, "diamond" от LLM)
+- Возвращает flat map: `{"reagents": 50, "food": -10}`
+
+**`ApplyRewardToInventory(inventory map[string]float64, reward map[string]float64)`**
+- Для каждого ресурса в reward: `inventory[res] += amount`
+- Clamp: если `inventory[res] < 0` → `inventory[res] = 0`
+- Если `GetInventorySize(inventory) > MaxInventory` → пропорционально уменьшить до 1000
+- Жёсткий clamp 1000 в любой момент
+
+**`GetInventorySize(inventory map[string]float64) float64`**
+- Сумма всех значений в inventory
+
 **`ParseEventResponse(raw string) (*ExpeditionEvent, error)`**
 - Принимает raw string от LLM
 - Парсит JSON в ExpeditionEvent
 - Валидирует: event_id не пустой, choices 2-4 шт (или 0 если is_end), is_end boolean
+- Для `immediate_reward` и `choice.reward` — вызывает `ParseReward()` (вложенный формат → flat)
 - Возвращает ошибку если JSON невалиден или поля не проходят валидацию
 - Если LLM вернул markdown-обёртку (```json ... ```), убирает
 
@@ -104,16 +125,16 @@ const (
 
 **`StartExpeditionChain(planet *Planet, inventory map[string]float64) (*ExpeditionChain, *ExpeditionEvent, error)`**
 - Валидирует inventory (`ValidateInventory`)
-- Создаёт `ExpeditionChain` с пустым inventory (ресурсы уже списаны с планеты)
+- Создаёт `ExpeditionChain` с переданным inventory (ресурсы уже списаны с планеты)
 - Генерирует промпт (`BuildPrompt` с пустыми events)
 - Генерирует первое событие с retry (`GenerateEventWithRetry`)
+- Применяет `immediate_reward` к inventory через `ApplyRewardToInventory`
 - Сохраняет событие в chain (append к internal slice)
 - Возвращает chain + первое событие
 
 **`ResolveChoice(chain *ExpeditionChain, choiceIndex int) (*ExpeditionEvent, error)`**
 - Валидирует choiceIndex (0 <= index < len(current_event.Choices))
-- Применяет награду за выбор к `chain.Inventory`:
-  - Для каждого ресурса в `choice.Reward`: `chain.Inventory[res] += amount`
+- Применяет награду за выбор к `chain.Inventory` через `ApplyRewardToInventory`:
   - Записывает выбор в историю chain
   - Записывает полученные награды в историю
 - Проверяет `is_end` текущего события:
@@ -123,6 +144,7 @@ const (
     - Возвращает nil event + chain (completed)
   - Если `is_end == false`:
     - Генерирует следующее событие с retry
+    - Применяет `immediate_reward` к inventory через `ApplyRewardToInventory`
     - Сохраняет в chain
     - Возвращает новое событие
 - При ошибке LLM — retry 5 раз, затем `FailChain(chain)`
@@ -248,13 +270,16 @@ var promptTemplate string
 ### 7.7 Тесты
 **Файл:** `server/internal/game/planet_survey/expedition_chain_test.go` (NEW)
 
-- `TestValidateInventory` — valid inventory, over limit, negative values
-- `TestParseEventResponse` — valid JSON, markdown-wrapped JSON, invalid JSON
+- `TestValidateInventory` — valid inventory, over limit, negative values, unknown resources
+- `TestParseReward` — nested format `{"resources": {"reagents": 50}}` → flat, unknown resources ignored
+- `TestApplyRewardToInventory` — add resources, clamp to 0, clamp to 1000
+- `TestGetInventorySize` — sum of all resources
+- `TestParseEventResponse` — valid JSON, markdown-wrapped JSON, invalid JSON, nested rewards parsed
 - `TestBuildPrompt` — prompt contains planet name, inventory, events
 - `TestCompleteChain` — status = "completed", location set
 - `TestFailChain` — status = "failed"
 - `TestReturnInventoryToPlanet` — resources added back to planet
-- `TestResolveChoice_ApplyReward` — inventory updated after choice
+- `TestResolveChoice_ApplyReward` — inventory updated after choice, clamp applied
 
 **Запуск:**
 ```bash

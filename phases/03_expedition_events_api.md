@@ -22,6 +22,55 @@ type StartExpeditionRequest struct {
 type ExpeditionChoiceRequest struct {
     ChoiceIndex int `json:"choice_index"`
 }
+
+type ExpeditionChainResponse struct {
+    ID                 string                  `json:"id"`
+    PlanetID           string                  `json:"planet_id"`
+    OwnerID            string                  `json:"owner_id"`
+    Status             string                  `json:"status"`
+    EventCount         int                     `json:"event_count"`
+    CurrentEventIndex  int                     `json:"current_event_index"`
+    Inventory          map[string]float64      `json:"inventory"` // flat: {"food": 100, "iron": 50}
+    DiscoveredLocation *LocationResponse       `json:"discovered_location,omitempty"`
+    CreatedAt          time.Time               `json:"created_at"`
+    UpdatedAt          time.Time               `json:"updated_at"`
+}
+
+type ExpeditionEventResponse struct {
+    EventID           string                  `json:"event_id"`
+    Description       string                  `json:"description"`
+    ImmediateReward   map[string]float64      `json:"immediate_reward"` // flat
+    Choices           []ExpeditionChoiceResp  `json:"choices"`
+    IsEnd             bool                    `json:"is_end"`
+    LocationReward    string                  `json:"location_reward,omitempty"`
+}
+
+type ExpeditionChoiceResp struct {
+    Label       string                  `json:"label"`
+    Description string                  `json:"description"`
+    Reward      map[string]float64      `json:"reward"` // flat
+    NextEventID string                  `json:"next_event_id"`
+}
+
+type ExpeditionChainListResponse struct {
+    Chains   []ExpeditionChainResponse `json:"chains"`
+    Total    int                       `json:"total"`
+}
+
+type ExpeditionChoiceResult struct {
+    Event            *ExpeditionEventResponse `json:"event"`
+    Chain            ExpeditionChainResponse  `json:"chain"`
+    Inventory        map[string]float64       `json:"inventory"`
+    Completed        bool                     `json:"completed"`
+    Failed           bool                     `json:"failed"`
+    Location         *LocationResponse        `json:"location,omitempty"`
+    LocationReward   string                   `json:"location_reward,omitempty"`
+    Error            string                   `json:"error,omitempty"`
+}
+
+type ExpeditionChoiceRequest struct {
+    ChoiceIndex int `json:"choice_index"`
+}
 ```
 
 Добавить response типы:
@@ -87,13 +136,13 @@ type ExpeditionChoiceResult struct {
 func handleStartExpedition(db *sql.DB) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         planetID := PlanetIDFromContext(r)
-        
+
         var req StartExpeditionRequest
         DecodeJSON(r.Body, &req)
-        
+
         p := ensurePlanetLoaded(planetID)
         if p == nil { return Error(...) }
-        
+
         // Проверка: can start expedition
         if !p.CanStartExpedition() {
             if !p.BaseOperational() { return Error("base_not_operational") }
@@ -101,13 +150,13 @@ func handleStartExpedition(db *sql.DB) http.HandlerFunc {
                 return Error("research_not_completed")
             }
         }
-        
+
         // Валидация inventory
-        if len(req.Inventory) == 0 {
-            return Error("inventory required")
+        if err := ValidateInventory(req.Inventory); err != nil {
+            return Error("invalid_inventory")
         }
-        
-        // Списываем ресурсы с планеты
+
+        // Списываем ресурсы с планеты (только 5 ресурсов)
         for res, amount := range req.Inventory {
             switch res {
             case "food": p.Resources.Food -= amount
@@ -117,19 +166,19 @@ func handleStartExpedition(db *sql.DB) http.HandlerFunc {
             case "reagents": p.Resources.Reagents -= amount
             }
         }
-        
+
         // Создаём цепочку
         chain, event, err := p.StartExpeditionChain(req.Inventory)
         if err != nil {
             // Возвращаем ресурсы
-            p.ReturnExpeditionInventory(chainID)
+            ReturnInventoryToPlanet(p, req.Inventory)
             return Error(...)
         }
-        
+
         // Сохраняем в БД
         SaveChainToDB(chain, db)
         SaveEventsToDB(chain.ID, GetEventHistory(chain), db)
-        
+
         // Broadcast event
         wsBroadcast.BroadcastExpeditionEvent(p.OwnerID, map[string]interface{}{
             "chain_id": chain.ID,
@@ -137,7 +186,7 @@ func handleStartExpedition(db *sql.DB) http.HandlerFunc {
             "inventory": chain.Inventory,
             "event_count": chain.EventCount,
         })
-        
+
         JSON(w, 200, map[string]interface{}{
             "chain_id": chain.ID,
             "event":    toMap(event),
@@ -292,6 +341,35 @@ func handleGetExpeditionEvents(db *sql.DB) http.HandlerFunc {
 }
 ```
 
+#### handleGetExpeditionEventLog
+**Path:** `GET /api/planets/{id}/expeditions/{chainID}/event-log`
+
+```go
+func handleGetExpeditionEventLog(db *sql.DB) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        chainID := chi.URLParam(r, "chainID")
+        planetID := PlanetIDFromContext(r)
+        
+        // Загружаем из БД expedition_events
+        rows, err := db.Query(`SELECT event_id, description, choices, player_choice, 
+            rewards_received, created_at 
+            FROM expedition_events WHERE chain_id = $1 ORDER BY created_at ASC`, chainID)
+        if err != nil { return Error(...) }
+        defer rows.Close()
+        
+        entries := make([]map[string]interface{}, 0)
+        for rows.Next() {
+            var entry map[string]interface{}
+            // Парсим choices JSON, извлекаем label для player_choice
+            // entry = {event_id, description, player_choice, choice_label, rewards_received, created_at}
+            entries = append(entries, entry)
+        }
+        
+        JSON(w, 200, entries)
+    }
+}
+```
+
 #### Оставить без изменений
 - `handleGetLocations`
 - `handleBuildOnLocation`
@@ -314,6 +392,7 @@ rr.Get("/{id}/expeditions", handleGetExpeditionChains(db))
 rr.Get("/{id}/expeditions/{chainID}/event", handleGetExpeditionEvent(db))
 rr.Post("/{id}/expeditions/{chainID}/choice", handleExpeditionChoice(db))
 rr.Get("/{id}/expeditions/{chainID}/events", handleGetExpeditionEvents(db))
+rr.Get("/{id}/expeditions/{chainID}/event-log", handleGetExpeditionEventLog(db))
 ```
 
 ### 8.4 websocket_broadcast.go — broadcast методы
@@ -348,6 +427,7 @@ func (bs *WSBroadcastService) BroadcastExpeditionComplete(playerID string, data 
 - `TestHandleExpeditionChoice` — processes valid choice
 - `TestHandleExpeditionChoice` — returns error for invalid choice index
 - `TestHandleGetExpeditionEvents` — returns event history
+- `TestHandleGetExpeditionEventLog` — returns event log with choice labels
 
 **Запуск:**
 ```bash

@@ -21,7 +21,7 @@ class ExpeditionChain {
   final String status; // "active" | "completed" | "failed"
   final int eventCount;
   final int currentEventIndex;
-  final Map<String, double> inventory;
+  final Map<String, double> inventory; // только 5 ресурсов
   final Location? discoveredLocation;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -38,7 +38,7 @@ class ExpeditionChain {
 class ExpeditionEvent {
   final String eventId;
   final String description;
-  final Map<String, double> immediateReward;
+  final Map<String, double> immediateReward; // flat: {"reagents": 30, "food": -10}
   final List<ExpeditionChoice> choices;
   final bool isEnd;
   final String? locationReward;
@@ -50,10 +50,22 @@ class ExpeditionEvent {
 class ExpeditionChoice {
   final String label;
   final String description;
-  final Map<String, double> reward;
+  final Map<String, double> reward; // flat: {"iron": 50, "composite": 20}
   final String nextEventId;
 
   factory ExpeditionChoice.fromJson(Map<String, dynamic> json);
+  Map<String, dynamic> toJson();
+}
+
+class ExpeditionEventLogEntry {
+  final String eventId;
+  final String description;
+  final int playerChoice; // индекс выбранного варианта
+  final String choiceLabel; // label выбранного варианта
+  final Map<String, double> rewardsReceived; // flat: {"iron": 50, "food": -10}
+  final DateTime createdAt;
+
+  factory ExpeditionEventLogEntry.fromJson(Map<String, dynamic> json);
   Map<String, dynamic> toJson();
 }
 
@@ -80,23 +92,31 @@ class ExpeditionProvider extends ChangeNotifier {
   String? baseUrl;
 
   List<ExpeditionChain> _chains = [];
-  ExpeditionChain? _activeChain;
+  List<ExpeditionChain> _activeChains = [];
+  List<ExpeditionChain> _completedChains = [];
+  String? _selectedChainId; // выбранная активная цепочка для отображения
   ExpeditionEvent? _currentEvent;
 
   // Getters
   List<ExpeditionChain> get chains => _chains;
-  ExpeditionChain? get activeChain => _activeChain;
+  List<ExpeditionChain> get activeChains => _activeChains;
+  List<ExpeditionChain> get completedChains => _completedChains;
+  ExpeditionChain? get selectedChain => _selectedChainId != null
+      ? _activeChains.where((c) => c.id == _selectedChainId).firstOrNull
+      : null;
   ExpeditionEvent? get currentEvent => _currentEvent;
 
   // API methods
   Future<void> loadExpeditionChains(String planetId);
   Future<ExpeditionEvent?> getExpeditionEvent(String planetId, String chainId);
   Future<ExpeditionChoiceResult> makeChoice(String planetId, String chainId, int choiceIndex);
-  Future<List<ExpeditionEvent>> getExpeditionEvents(String planetId, String chainId);
-  
-  // Inventory helper
-  Map<String, double> getMaxInventory(Map<String, double> planetResources);
-  // Возвращает inventory где sum <= 1000 и каждый ресурс <= planetResources[res]
+  Future<List<ExpeditionEventLogEntry>> getExpeditionEventLog(String planetId, String chainId);
+  // GET /api/planets/{id}/expeditions/{chainID}/event-log
+  void selectChain(String chainId);
+
+  // Inventory helpers
+  double getInventoryTotal(Map<String, double> inventory);
+  int getRemainingCapacity(double currentTotal); // 1000 - currentTotal
 
   // WebSocket handlers
   void onExpeditionEvent(Map<String, dynamic> data);
@@ -117,55 +137,48 @@ class ExpeditionProvider extends ChangeNotifier {
 - Заголовок "Подготовка экспедиции"
 - Описание: "Распределите ресурсы между экспедицией (макс. 1000 суммарно)"
 - Для каждого ресурса (food, iron, composite, mechanisms, reagents):
-  - Slider с range 0..min(available, 1000)
-  - Текущее значение
+  - Slider с range 0..min(available, 1000 - current_total)
+  - Текущее значение (целое число)
   - Доступно: {planet_resources[res]}
 - Total: {sum of all} / 1000 (красный если > 1000)
 - Кнопки:
-  - "Заполнить максимум" — заполняет все ресурсы пропорционально до 1000
-  - "Очистить" — сбрасывает всё
   - "Отмена" — закрывает диалог
   - "Отправить" — создаёт экспедицию
 
-Логика "Заполнить максимум":
-```dart
-void fillMax() {
-  final totalAvailable = resources.values.fold(0.0, (s, v) => s + v);
-  if (totalAvailable <= 1000) {
-    // Просто берём всё
-    inventory = Map.from(resources);
-  } else {
-    // Пропорциональное заполнение до 1000
-    final ratio = 1000.0 / totalAvailable;
-    inventory = resources.map((k, v) => MapEntry(k, v * ratio));
-  }
-}
-```
+Логика слайдеров:
+- Каждый слайдер ограничен: min(доступно на планете, 1000 - сумма остальных слайдеров)
+- Если сумма слайдеров > 1000 — показать предупреждение (красный текст)
+- Кнопка "Отправить" неактивна если total == 0 или total > 1000
 
 ### 9.4 expedition_events_screen.dart — основной экран
 **Файл:** `client/lib/screens/expedition_events_screen.dart` (NEW)
 
 Экран с тремя секциями:
 
-#### Секция 1: Активная экспедиция
-- Показывает текущее событие если есть активная цепочка
-- Карточка события:
-  - Номер: "Событие {index+1}/{eventCount}"
-  - Описание события (текст)
-  - Мгновенная награда (если есть): "Немедленно: +X food, +Y iron"
-  - Инвентарь экспедиции: список ресурсов с иконками
+#### Секция 1: Активные экспедиции
+- Если несколько активных цепочек — показать список карточек для переключения
+- Карточка активной экспедиции:
+  - Номер события: "Событие {index+1}/{eventCount}"
+  - Описание события (текст, 2-4 абзаца)
+  - Мгновенная награда (если есть): чипы "+X 🍍, -Y 🪨"
+  - Инвентарь экспедиции: горизонтальный список ресурсов с иконками
   - Кнопки выбора (2-4 варианта):
     - Label выбора
     - Description последствий
-    - Награда за выбор
+    - Награда за выбор (чипы)
+  - При нажатии выбора → спиннер "Обработка выбора..." (LLM 5-300 сек)
 - Если is_end:
   - Показать обнаруженную локацию
   - Показать возвращённый инвентарь
   - Кнопка "Закрыть"
 
-#### Секция 2: История экспедиций
-- Список завершённых/проваленных цепочек
-- Каждая: статус, дата, результат (успех/провал), обнаруженная локация
+#### Секция 2: История событий текущей экспедиции
+- Список карточек завершённых событий
+- Каждая карточка:
+  - Текст события (описание)
+  - Выбранный вариант (label)
+  - Чипы расходов/доходов ресурсов (+X 🍍, -Y 🪨)
+- Карточки отображаются в хронологическом порядке (сверху вниз)
 
 #### Секция 3: Кнопка запуска
 - "Новая экспедиция" → открывает InventoryDialog
@@ -244,11 +257,12 @@ void _handleExpeditionEvent(Map<String, dynamic> data) {
 void _handleExpeditionComplete(Map<String, dynamic> data) {
   final chainId = data['chain_id'] as String;
   final status = data['status'] as String;
+  final inventory = Map<String, double>.from(data['inventory'] as Map);
   
   expeditionProvider.onExpeditionComplete({
     'chain_id': chainId,
     'status': status,
-    'inventory': Map<String, double>.from(data['inventory'] as Map),
+    'inventory': inventory,
   });
   
   if (status == 'completed') {
@@ -275,6 +289,8 @@ case 'expedition_complete':
 Убедиться что:
 - `planet_exploration` tech определён
 - Нет упоминаний surface expedition duration (300s/600s/1200s)
+- Определены 5 ресурсов инвентаря: food, iron, composite, mechanisms, reagents
+- Определены иконки для ресурсов инвентаря
 
 ### 9.10 Тесты
 **Запуск:**
