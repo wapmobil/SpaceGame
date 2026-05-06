@@ -242,18 +242,46 @@ func (p *Planet) CanStartExpeditionChain() bool {
 	if _, ok := p.Research.GetCompleted()["planet_exploration"]; !ok {
 		return false
 	}
-	activeCount := 0
+	return false
+}
+
+// HasActiveOrGeneratingChain checks if there's an active or generating expedition chain.
+func (p *Planet) HasActiveOrGeneratingChain() bool {
 	for _, ch := range p.ExpeditionChains {
-		if ch.Status == "active" {
-			activeCount++
+		if ch.Status == "active" || ch.Status == "generating" {
+			return true
 		}
 	}
-	return activeCount < planet_survey.MaxActiveChains
+	return false
+}
+
+// CreateExpeditionChain creates a new expedition chain without generating an event.
+func (p *Planet) CreateExpeditionChain(inventory map[string]float64) (*planet_survey.ExpeditionChain, error) {
+	return planet_survey.CreateExpeditionChain(p, inventory)
+}
+
+// GenerateExpeditionEvent generates the first event for a chain via LLM.
+func (p *Planet) GenerateExpeditionEvent(chain *planet_survey.ExpeditionChain) (*planet_survey.ExpeditionEvent, error) {
+	return planet_survey.GenerateEvent(chain, p)
 }
 
 // StartExpeditionChain creates a new expedition chain.
 func (p *Planet) StartExpeditionChain(inventory map[string]float64) (*planet_survey.ExpeditionChain, *planet_survey.ExpeditionEvent, error) {
 	return planet_survey.StartExpeditionChain(p, inventory)
+}
+
+// RecordExpeditionChoice records the player's choice on a chain event.
+func (p *Planet) RecordExpeditionChoice(chainID string, choiceIndex int) error {
+	chain := p.GetActiveExpeditionChain(chainID)
+	if chain == nil {
+		return &PlanetError{PlanetID: p.ID, Reason: "chain_not_found"}
+	}
+	return planet_survey.RecordChoice(chain, choiceIndex)
+}
+
+// GenerateNextExpeditionEvent generates the next event after a choice has been recorded.
+func (p *Planet) GenerateNextExpeditionEvent(chain *planet_survey.ExpeditionChain) (*planet_survey.ExpeditionEvent, error) {
+	return planet_survey.GenerateNextEvent(chain, p)
 }
 
 // ResolveExpeditionChoice processes a player choice and generates next event.

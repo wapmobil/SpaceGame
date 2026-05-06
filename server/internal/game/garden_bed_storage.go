@@ -69,7 +69,6 @@ func LoadGardenBedFromDB(planet *Planet) error {
 			Rows:     rows,
 			RowCount: len(rows),
 		}
-		log.Printf("Garden bed state loaded from DB for planet %s (rows=%d)", planet.ID, len(rows))
 			return nil
 		}
 	}

@@ -76,24 +76,31 @@ class GameProvider extends ChangeNotifier {
 
   final List<Map<String, String>> _notifications = [];
 
-   GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
-      : _baseUrl = baseUrl ?? _getBaseUri(),
-        _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
-        _drillProvider = DrillProvider(),
-        _surveyProvider = PlanetSurveyProvider(),
-        _ratingProvider = RatingProvider(),
-        _researchProvider = ResearchProvider(),
-        _marketProvider = MarketProvider(),
-        _expeditionProvider = ExpeditionProvider(),
-        _expeditionChainProvider = ExpeditionChainProvider() {
-    _drillProvider.baseUrl = _baseUrl;
+  GameProvider({required this.websocket, String? baseUrl, GardenBedProvider? gardenBedProvider})
+       : _baseUrl = baseUrl ?? _getBaseUri(),
+         _gardenBedProvider = gardenBedProvider ?? GardenBedProvider(websocket: websocket, baseUrl: baseUrl ?? _getBaseUri()),
+         _drillProvider = DrillProvider(),
+         _surveyProvider = PlanetSurveyProvider(),
+         _ratingProvider = RatingProvider(),
+         _researchProvider = ResearchProvider(),
+         _marketProvider = MarketProvider(),
+         _expeditionProvider = ExpeditionProvider(),
+         _expeditionChainProvider = ExpeditionChainProvider() {
+    _expeditionChainProvider.addListener(() {
+      notifyListeners();
+    });
+    _initProviders(baseUrl);
+  }
+
+  void _initProviders(String? baseUrl) {
+    _drillProvider.baseUrl = baseUrl ?? _getBaseUri();
     _drillProvider.websocket = websocket;
-    _surveyProvider.baseUrl = _baseUrl;
-    _ratingProvider.baseUrl = _baseUrl;
-    _researchProvider.baseUrl = _baseUrl;
-    _marketProvider.baseUrl = _baseUrl;
-    _expeditionProvider.baseUrl = _baseUrl;
-    _expeditionChainProvider.baseUrl = _baseUrl;
+    _surveyProvider.baseUrl = baseUrl ?? _getBaseUri();
+    _ratingProvider.baseUrl = baseUrl ?? _getBaseUri();
+    _researchProvider.baseUrl = baseUrl ?? _getBaseUri();
+    _marketProvider.baseUrl = baseUrl ?? _getBaseUri();
+    _expeditionProvider.baseUrl = baseUrl ?? _getBaseUri();
+    _expeditionChainProvider.baseUrl = baseUrl ?? _getBaseUri();
   }
 
   static String _getBaseUri() {

@@ -153,6 +153,23 @@ class _ExpeditionEventsScreenState extends State<ExpeditionEventsScreen> {
                   )),
             if (selectedChain != null && currentEvent != null)
               _buildEventCard(selectedChain, currentEvent, isLoading, chainProvider)
+            else if (selectedChain != null && selectedChain.isGenerating)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 12),
+                      Text(
+                        'Идёт экспедиция...',
+                        style: TextStyle(color: Colors.white54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             else if (selectedChain != null && currentEvent == null && !isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
@@ -526,13 +543,14 @@ class _ExpeditionEventsScreenState extends State<ExpeditionEventsScreen> {
   }
 
   Widget _buildStartButton(ExpeditionChainProvider chainProvider) {
+    final hasActiveOrGenerating = chainProvider.activeChains.isNotEmpty;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             ElevatedButton.icon(
-              onPressed: () async {
+              onPressed: hasActiveOrGenerating ? null : () async {
                 final result = await showDialog<bool>(
                   context: context,
                   builder: (dialogContext) => InventoryDialog(
@@ -552,6 +570,14 @@ class _ExpeditionEventsScreenState extends State<ExpeditionEventsScreen> {
                 minimumSize: const Size(double.infinity, 44),
               ),
             ),
+            if (hasActiveOrGenerating)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Сначала завершите текущую экспедицию',
+                  style: TextStyle(fontSize: 11, color: Colors.white38),
+                ),
+              ),
           ],
         ),
       ),

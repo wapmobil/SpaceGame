@@ -28,6 +28,7 @@ class ExpeditionChain {
   });
 
   bool get isActive => status == 'active';
+  bool get isGenerating => status == 'generating';
   bool get isCompleted => status == 'completed';
   bool get isFailed => status == 'failed';
   double get totalInventory =>

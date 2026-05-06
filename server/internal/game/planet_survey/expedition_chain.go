@@ -223,18 +223,19 @@ func ApplyRewardToInventory(inventory map[string]float64, reward map[string]floa
 func ParseEventResponse(raw string) (*ExpeditionEvent, error) {
 	// Remove markdown code block if present
 	cleaned := strings.TrimSpace(raw)
-	markdownRe := regexp.MustCompile("```(?:json)?\\s*\\n?(.*?)\\n?```")
+	markdownRe := regexp.MustCompile("(?s)```(?:json)?\\s*\\n?(.*?)\\n?```")
 	matches := markdownRe.FindStringSubmatch(cleaned)
 	if len(matches) > 1 {
 		cleaned = strings.TrimSpace(matches[1])
 	}
 
-	// Try to find JSON in the response
-	jsonRe := regexp.MustCompile(`\{.*\}`)
-	jsonMatch := jsonRe.FindString(cleaned)
-	if jsonMatch == "" {
+	// Try to find JSON in the response (find first { to last })
+	firstBrace := strings.IndexAny(cleaned, "{")
+	lastBrace := strings.LastIndexAny(cleaned, "}")
+	if firstBrace == -1 || lastBrace == -1 || firstBrace >= lastBrace {
 		return nil, fmt.Errorf("no JSON found in LLM response")
 	}
+	jsonMatch := cleaned[firstBrace : lastBrace+1]
 
 	var rawEvt rawEventResponse
 	if err := json.Unmarshal([]byte(jsonMatch), &rawEvt); err != nil {
@@ -306,12 +307,16 @@ func GenerateEventWithRetry(prompt string) (*ExpeditionEvent, error) {
 			time.Sleep(delay)
 		}
 
+		log.Printf("LLM prompt (attempt %d, %d chars): %s", attempt+1, len(prompt), prompt)
+
 		result, err := client.Chat(ctx, prompt)
 		if err != nil {
 			lastErr = fmt.Errorf("LLM call failed: %w", err)
 			log.Printf("LLM call failed: %v", err)
 			continue
 		}
+
+		log.Printf("LLM raw response (attempt %d): %s", attempt+1, result)
 
 		event, err := ParseEventResponse(result)
 		if err != nil {
@@ -344,10 +349,11 @@ func BuildPrompt(planet ExpeditionPlanet, inventory map[string]float64, events [
 	return strings.ReplaceAll(promptTemplate, "{{CONTEXT}}", string(ctxJSON))
 }
 
-// StartExpeditionChain creates a new expedition chain and generates the first event.
-func StartExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64) (*ExpeditionChain, *ExpeditionEvent, error) {
+// CreateExpeditionChain creates a new expedition chain without generating an event.
+// The chain is saved with status "generating" and event generation is done asynchronously.
+func CreateExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64) (*ExpeditionChain, error) {
 	if err := ValidateInventory(inventory); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Deep copy inventory
@@ -360,7 +366,7 @@ func StartExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64)
 		ID:           uuid.New().String(),
 		PlanetID:     planet.GetID(),
 		OwnerID:      planet.GetOwnerID(),
-		Status:       "active",
+		Status:       "generating",
 		EventCount:   0,
 		Inventory:    invCopy,
 		Events:       make([]ExpeditionEvent, 0),
@@ -368,11 +374,17 @@ func StartExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64)
 		UpdatedAt:    time.Now(),
 	}
 
-	// Generate first event
-	prompt := BuildPrompt(planet, invCopy, chain.Events)
+	return chain, nil
+}
+
+// GenerateEvent generates the first event for a chain via LLM and updates the chain.
+// This should be called asynchronously after CreateExpeditionChain.
+func GenerateEvent(chain *ExpeditionChain, planet ExpeditionPlanet) (*ExpeditionEvent, error) {
+	prompt := BuildPrompt(planet, chain.Inventory, chain.Events)
 	event, err := GenerateEventWithRetry(prompt)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate first event: %w", err)
+		FailChain(chain)
+		return nil, fmt.Errorf("failed to generate first event: %w", err)
 	}
 
 	// Apply immediate reward
@@ -382,20 +394,37 @@ func StartExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64)
 	chain.Events = append(chain.Events, *event)
 	chain.EventCount = len(chain.Events)
 	chain.CurrentEventIndex = 0
+	chain.Status = "active"
 	chain.UpdatedAt = time.Now()
+
+	return event, nil
+}
+
+// StartExpeditionChain creates a new expedition chain and generates the first event.
+func StartExpeditionChain(planet ExpeditionPlanet, inventory map[string]float64) (*ExpeditionChain, *ExpeditionEvent, error) {
+	chain, err := CreateExpeditionChain(planet, inventory)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	event, err := GenerateEvent(chain, planet)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return chain, event, nil
 }
 
-// ResolveChoice processes a player's choice and generates the next event.
-func ResolveChoice(chain *ExpeditionChain, planet ExpeditionPlanet, choiceIndex int) (*ExpeditionEvent, error) {
+// RecordChoice records the player's choice on the current event.
+// Call this first, then GenerateNextEvent to generate the next event asynchronously.
+func RecordChoice(chain *ExpeditionChain, choiceIndex int) error {
 	if chain.CurrentEventIndex < 0 || chain.CurrentEventIndex >= len(chain.Events) {
-		return nil, fmt.Errorf("no current event")
+		return fmt.Errorf("no current event")
 	}
 
 	currentEvent := &chain.Events[chain.CurrentEventIndex]
 	if choiceIndex < 0 || choiceIndex >= len(currentEvent.Choices) {
-		return nil, fmt.Errorf("invalid choice index: %d", choiceIndex)
+		return fmt.Errorf("invalid choice index: %d", choiceIndex)
 	}
 
 	choice := currentEvent.Choices[choiceIndex]
@@ -410,7 +439,15 @@ func ResolveChoice(chain *ExpeditionChain, planet ExpeditionPlanet, choiceIndex 
 	// Apply choice reward
 	ApplyRewardToInventory(chain.Inventory, choice.Reward)
 
+	return nil
+}
+
+// GenerateNextEvent generates the next event after a choice has been recorded.
+// This should be called asynchronously after RecordChoice.
+// Returns nil if the chain ended (is_end event).
+func GenerateNextEvent(chain *ExpeditionChain, planet ExpeditionPlanet) (*ExpeditionEvent, error) {
 	// Check if this is the end event
+	currentEvent := &chain.Events[chain.CurrentEventIndex]
 	if currentEvent.IsEnd {
 		var location *Location
 		if currentEvent.LocationReward != "" {
@@ -460,9 +497,18 @@ func ResolveChoice(chain *ExpeditionChain, planet ExpeditionPlanet, choiceIndex 
 	chain.Events = append(chain.Events, *nextEvent)
 	chain.EventCount = len(chain.Events)
 	chain.CurrentEventIndex++
+	chain.Status = "active"
 	chain.UpdatedAt = time.Now()
 
 	return nextEvent, nil
+}
+
+// ResolveChoice processes a player's choice and generates the next event.
+func ResolveChoice(chain *ExpeditionChain, planet ExpeditionPlanet, choiceIndex int) (*ExpeditionEvent, error) {
+	if err := RecordChoice(chain, choiceIndex); err != nil {
+		return nil, err
+	}
+	return GenerateNextEvent(chain, planet)
 }
 
 // CompleteChain marks the chain as completed.
@@ -568,13 +614,13 @@ func SaveEventsToDB(chainID string, events []ExpeditionEvent, db *db.Database) e
 	return nil
 }
 
-// LoadActiveChains loads all active expedition chains for a planet from DB.
+// LoadActiveChains loads all active or generating expedition chains for a planet from DB.
 func LoadActiveChains(planetID string, db *db.Database) ([]*ExpeditionChain, error) {
 	rows, err := db.Query(`
 		SELECT id, planet_id, owner_id, status, event_count,
 			current_event_index, inventory, created_at, updated_at
 		FROM expedition_chains
-		WHERE planet_id = $1 AND status = 'active'
+		WHERE planet_id = $1 AND status IN ('active', 'generating')
 	`, planetID)
 	if err != nil {
 		return nil, err

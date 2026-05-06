@@ -276,75 +276,133 @@ func getLocationBuildingTypes(locationType string) []string {
 func handleStartExpedition(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		planetID := PlanetIDFromContext(r)
+		log.Printf("handleStartExpedition: planetID=%s", planetID)
 
 		var req StartExpeditionChainRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("handleStartExpedition: invalid body: %v", err)
 			Error(w, http.StatusBadRequest, "Invalid request body")
 			return
 		}
 
 		p := ensurePlanetLoaded(planetID)
 		if p == nil {
+			log.Printf("handleStartExpedition: planet not found: %s", planetID)
 			Error(w, http.StatusInternalServerError, "Failed to load planet")
 			return
 		}
 
-		if !p.CanStartExpeditionChain() {
-			if !p.BaseOperational() {
-				Error(w, http.StatusBadRequest, "Planet base requires food to operate")
-				return
-			}
-			if _, ok := p.Research.GetCompleted()["planet_exploration"]; !ok {
-				Error(w, http.StatusBadRequest, "Planet exploration research not completed")
-				return
-			}
-			Error(w, http.StatusBadRequest, "Active expedition chain already exists")
+		log.Printf("handleStartExpedition: planet=%s, baseOperational=%v, hasChain=%v, food=%.0f", p.ID, p.BaseOperational(), p.HasActiveOrGeneratingChain(), p.Resources.Food)
+
+		if !p.BaseOperational() {
+			log.Printf("handleStartExpedition: base not operational")
+			Error(w, http.StatusBadRequest, "Planet base requires food to operate")
 			return
 		}
 
+		if _, ok := p.Research.GetCompleted()["planet_exploration"]; !ok {
+			log.Printf("handleStartExpedition: planet_exploration research not completed")
+			Error(w, http.StatusBadRequest, "Planet exploration research not completed")
+			return
+		}
+
+		if p.HasActiveOrGeneratingChain() {
+			log.Printf("handleStartExpedition: active/generating chain exists, chainCount=%d", len(p.ExpeditionChains))
+			Error(w, http.StatusConflict, "An expedition is already active or being generated")
+			return
+		}
+
+		log.Printf("handleStartExpedition: validating inventory: %v", req.Inventory)
 		if err := planet_survey.ValidateInventory(req.Inventory); err != nil {
+			log.Printf("handleStartExpedition: validate inventory failed: %v", err)
 			Error(w, http.StatusBadRequest, err.Error())
 			return
 		}
 
+		log.Printf("handleStartExpedition: checking resources, inventory=%v, planetResources: food=%.0f iron=%.0f composite=%.0f mechanisms=%.0f reagents=%.0f", req.Inventory, p.Resources.Food, p.Resources.Iron, p.Resources.Composite, p.Resources.Mechanisms, p.Resources.Reagents)
 		if !hasExpeditionResources(p, req.Inventory) {
+			log.Printf("handleStartExpedition: insufficient resources")
 			Error(w, http.StatusConflict, "Insufficient resources")
 			return
 		}
 
 		deductExpeditionResources(p, req.Inventory)
+		log.Printf("handleStartExpedition: resources deducted")
 
-		chain, event, err := p.StartExpeditionChain(req.Inventory)
+		chain, err := p.CreateExpeditionChain(req.Inventory)
 		if err != nil {
+			log.Printf("handleStartExpedition: CreateExpeditionChain failed: %v", err)
 			p.ReturnInventoryToPlanetDirect(req.Inventory)
 			game.Instance().SavePlanet(p)
-			Error(w, http.StatusInternalServerError, "Failed to start expedition: "+err.Error())
+			Error(w, http.StatusInternalServerError, "Failed to create expedition: "+err.Error())
 			return
 		}
+		log.Printf("handleStartExpedition: chain created, id=%s", chain.ID)
 
 		p.ExpeditionChains = append(p.ExpeditionChains, chain)
 
-		if err := planet_survey.SaveChainToDB(chain, game.Instance().DB()); err != nil {
-			log.Printf("Error saving chain %s: %v", chain.ID, err)
-		}
-		if err := planet_survey.SaveEventsToDB(chain.ID, planet_survey.GetEventHistory(chain), game.Instance().DB()); err != nil {
-			log.Printf("Error saving events for chain %s: %v", chain.ID, err)
+		db := game.Instance().DB()
+		log.Printf("handleStartExpedition: got db=%v", db != nil)
+		if err := planet_survey.SaveChainToDB(chain, db); err != nil {
+			log.Printf("handleStartExpedition: SaveChainToDB failed: %v", err)
+			p.ReturnInventoryToPlanetDirect(req.Inventory)
+			p.ExpeditionChains = append(p.ExpeditionChains[:len(p.ExpeditionChains)-1])
+			game.Instance().SavePlanet(p)
+			Error(w, http.StatusInternalServerError, "Failed to save expedition: "+err.Error())
+			return
 		}
 
 		game.Instance().SavePlanet(p)
+		log.Printf("handleStartExpedition: planet saved, responding with chain_id=%s", chain.ID)
 
-		wsBroadcast.BroadcastExpeditionEvent(p.OwnerID, map[string]interface{}{
-			"chain_id":    chain.ID,
-			"event":       eventToResponse(event),
-			"inventory":   chain.Inventory,
-			"event_count": chain.EventCount,
-		})
+		// Start LLM generation asynchronously in a goroutine
+		go func() {
+			log.Printf("LLM generation goroutine started for chain %s, owner=%s", chain.ID, p.OwnerID)
+			defer log.Printf("LLM generation goroutine finished for chain %s", chain.ID)
+			event, genErr := p.GenerateExpeditionEvent(chain)
+
+			log.Printf("LLM event generated for chain %s, genErr=%v, event=%v", chain.ID, genErr, event != nil)
+
+			if genErr != nil {
+				planet_survey.SaveChainToDB(chain, game.Instance().DB())
+				log.Printf("Failed to generate expedition event for chain %s: %v", chain.ID, genErr)
+
+				wsBroadcast.BroadcastExpeditionComplete(p.OwnerID, map[string]interface{}{
+					"chain_id": chain.ID,
+					"status":   "failed",
+					"error":    genErr.Error(),
+				})
+				return
+			}
+
+			// Save chain with updated status
+			if err := planet_survey.SaveChainToDB(chain, game.Instance().DB()); err != nil {
+				log.Printf("Error saving chain %s: %v", chain.ID, err)
+			}
+
+			// Save events to DB
+			if err := planet_survey.SaveEventsToDB(chain.ID, planet_survey.GetEventHistory(chain), game.Instance().DB()); err != nil {
+				log.Printf("Error saving events for chain %s: %v", chain.ID, err)
+			} else {
+				log.Printf("Events saved for chain %s, count=%d", chain.ID, len(chain.Events))
+			}
+
+			game.Instance().SavePlanet(p)
+			log.Printf("Planet saved for chain %s", chain.ID)
+
+			wsBroadcast.BroadcastExpeditionEvent(p.OwnerID, map[string]interface{}{
+				"chain_id":    chain.ID,
+				"event":       eventToResponse(event),
+				"inventory":   chain.Inventory,
+				"event_count": chain.EventCount,
+			})
+			log.Printf("Broadcast expedition_event for chain %s", chain.ID)
+		}()
 
 		JSON(w, http.StatusOK, map[string]interface{}{
-			"chain_id":    chain.ID,
-			"event":       eventToResponse(event),
-			"inventory":   chain.Inventory,
-			"event_count": chain.EventCount,
+			"chain_id":  chain.ID,
+			"status":    "generating",
+			"inventory": chain.Inventory,
 		})
 	}
 }
@@ -418,69 +476,76 @@ func handleExpeditionChoice(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		event, err := p.ResolveExpeditionChoice(chainID, req.ChoiceIndex)
+		err := p.RecordExpeditionChoice(chainID, req.ChoiceIndex)
 		if err != nil {
-			p.ReturnExpeditionInventory(chainID)
-			planet_survey.SaveChainToDB(chain, game.Instance().DB())
-			game.Instance().SavePlanet(p)
-
-			wsBroadcast.BroadcastExpeditionComplete(p.OwnerID, map[string]interface{}{
-				"chain_id": chainID,
-				"status":   "failed",
-				"error":    err.Error(),
-			})
-
-			JSON(w, http.StatusOK, ExpeditionChoiceResult{
-				Chain:   chainToResponse(chain),
-				Failed:  true,
-				Error:   err.Error(),
-			})
+			Error(w, http.StatusBadRequest, "Failed to record choice: "+err.Error())
 			return
 		}
 
 		planet_survey.SaveChainToDB(chain, game.Instance().DB())
-		planet_survey.SaveEventsToDB(chain.ID, planet_survey.GetEventHistory(chain), game.Instance().DB())
+		game.Instance().SavePlanet(p)
 
-		if event != nil {
-			wsBroadcast.BroadcastExpeditionEvent(p.OwnerID, map[string]interface{}{
-				"chain_id":    chainID,
-				"event":       eventToResponse(event),
-				"inventory":   chain.Inventory,
-				"event_count": chain.EventCount,
-			})
+		// Return immediately with "generating" status
+		JSON(w, http.StatusOK, ExpeditionChoiceResult{
+			Chain:   chainToResponse(chain),
+			Inventory: chain.Inventory,
+		})
 
-			JSON(w, http.StatusOK, ExpeditionChoiceResult{
-				Event:     eventToResponse(event),
-				Chain:     chainToResponse(chain),
-				Inventory: chain.Inventory,
-			})
-		} else {
-			var locResp *LocationResponse
-			if chain.DiscoveredLocation != nil {
-				locResp = locationToResponse(chain.DiscoveredLocation)
-				p.Locations = append(p.Locations, chain.DiscoveredLocation)
+		// Start LLM generation asynchronously in a goroutine
+		go func() {
+			event, genErr := p.GenerateNextExpeditionEvent(chain)
+
+			if genErr != nil {
+				planet_survey.SaveChainToDB(chain, game.Instance().DB())
+				log.Printf("Failed to generate next expedition event for chain %s: %v", chain.ID, genErr)
+
+				wsBroadcast.BroadcastExpeditionComplete(p.OwnerID, map[string]interface{}{
+					"chain_id": chainID,
+					"status":   "failed",
+					"error":    genErr.Error(),
+				})
+				return
 			}
 
-			p.ReturnInventoryToPlanetDirect(chain.Inventory)
-			p.ReturnExpeditionInventory(chainID)
-			game.Instance().SavePlanet(p)
+			// Save chain with updated status
+			if err := planet_survey.SaveChainToDB(chain, game.Instance().DB()); err != nil {
+				log.Printf("Error saving chain %s: %v", chain.ID, err)
+			}
 
-			wsBroadcast.BroadcastExpeditionComplete(p.OwnerID, map[string]interface{}{
-				"chain_id":  chainID,
-				"status":    "completed",
-				"inventory": chain.Inventory,
-				"location":  locResp,
-			})
+			// Save events to DB
+			if err := planet_survey.SaveEventsToDB(chain.ID, planet_survey.GetEventHistory(chain), game.Instance().DB()); err != nil {
+				log.Printf("Error saving events for chain %s: %v", chain.ID, err)
+			}
 
-			lastEvent := chain.Events[len(chain.Events)-1]
-			JSON(w, http.StatusOK, ExpeditionChoiceResult{
-				Chain:          chainToResponse(chain),
-				Inventory:      chain.Inventory,
-				Completed:      true,
-				Location:       locResp,
-				LocationReward: lastEvent.LocationReward,
-			})
-		}
+			if event != nil {
+				game.Instance().SavePlanet(p)
+
+				wsBroadcast.BroadcastExpeditionEvent(p.OwnerID, map[string]interface{}{
+					"chain_id":    chainID,
+					"event":       eventToResponse(event),
+					"inventory":   chain.Inventory,
+					"event_count": chain.EventCount,
+				})
+			} else {
+				// Chain ended
+				var locResp *LocationResponse
+				if chain.DiscoveredLocation != nil {
+					locResp = locationToResponse(chain.DiscoveredLocation)
+					p.Locations = append(p.Locations, chain.DiscoveredLocation)
+				}
+
+				p.ReturnInventoryToPlanetDirect(chain.Inventory)
+				p.ReturnExpeditionInventory(chainID)
+				game.Instance().SavePlanet(p)
+
+				wsBroadcast.BroadcastExpeditionComplete(p.OwnerID, map[string]interface{}{
+					"chain_id":  chainID,
+					"status":    "completed",
+					"inventory": chain.Inventory,
+					"location":  locResp,
+				})
+			}
+		}()
 	}
 }
 

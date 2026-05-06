@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -14,7 +15,7 @@ class ExpeditionChainProvider extends ChangeNotifier {
 
   List<ExpeditionChain> get chains => _chains;
   List<ExpeditionChain> get activeChains =>
-      _chains.where((c) => c.isActive).toList();
+      _chains.where((c) => c.isActive || c.isGenerating).toList();
   List<ExpeditionChain> get completedChains =>
       _chains.where((c) => c.isCompleted || c.isFailed).toList();
   ExpeditionChain? get selectedChain => _selectedChainId != null
@@ -99,8 +100,7 @@ class ExpeditionChainProvider extends ChangeNotifier {
           'X-Auth-Token': _authToken!,
         },
         body: jsonEncode({'choice_index': choiceIndex}),
-        // Extended timeout for LLM processing
-      ).timeout(const Duration(seconds: 330));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -112,12 +112,10 @@ class ExpeditionChainProvider extends ChangeNotifier {
             _chains[chainIdx] = result.chain;
           }
           _currentEvent = null;
-        } else if (result.event != null) {
-          _currentEvent = result.event;
-          final chainIdx = _chains.indexWhere((c) => c.id == chainId);
-          if (chainIdx >= 0) {
-            _chains[chainIdx] = result.chain;
-          }
+        } else {
+          // Server is generating the next event asynchronously
+          // Event will arrive via WebSocket (expedition_event or expedition_complete)
+          _currentEvent = null;
         }
 
         notifyListeners();
@@ -177,30 +175,59 @@ class ExpeditionChainProvider extends ChangeNotifier {
           'X-Auth-Token': _authToken!,
         },
         body: jsonEncode({'inventory': inventory}),
-      ).timeout(const Duration(seconds: 330));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final event = ExpeditionEvent.fromJson(data['event'] as Map<String, dynamic>);
-        final inventoryJson = data['inventory'] as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        final chainId = data['chain_id'] as String?;
+        final inventoryJson = data['inventory'] as Map<String, dynamic>? ?? {};
         final inventory = <String, double>{};
         inventoryJson.forEach((key, value) {
           inventory[key] = (value as num).toDouble();
         });
 
-        _currentEvent = event;
-        await loadExpeditionChains(planetId);
+        // Create a chain with the generating status
+        final newChain = ExpeditionChain(
+          id: chainId ?? '',
+          planetId: planetId,
+          ownerId: '',
+          status: status ?? 'generating',
+          eventCount: 0,
+          currentEventIndex: 0,
+          inventory: inventory,
+          events: [],
+          createdAt: DateTime.now().toUtc(),
+          updatedAt: DateTime.now().toUtc(),
+        );
 
+        // Add chain to list
+        _chains.insert(0, newChain);
+        _selectedChainId = newChain.id;
+        _currentEvent = null;
+        notifyListeners();
+
+        // Periodically poll for status updates while chain is generating
+        if (status == 'generating') {
+          _startStatusPolling(planetId);
+        }
+
+        // Event will arrive via WebSocket (expedition_event or expedition_complete)
         return ExpeditionChoiceResult(
-          event: event,
-          chain: _chains.firstWhere(
-            (c) => c.id == data['chain_id'],
-            orElse: () => _chains.first,
-          ),
+          event: null,
+          chain: newChain,
           inventory: inventory,
           completed: false,
           failed: false,
         );
+      } else if (response.statusCode == 409) {
+        final body = jsonDecode(response.body) as String? ?? 'Конфликт';
+        throw Exception(body.replaceAll('"', ''));
+      } else if (response.statusCode == 400) {
+        final body = jsonDecode(response.body) as String? ?? 'Ошибка запроса';
+        throw Exception(body.replaceAll('"', ''));
+      } else {
+        throw Exception('Сервер вернул статус ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Failed to start expedition: $e');
@@ -209,8 +236,26 @@ class ExpeditionChainProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
 
-    throw Exception('Unexpected response');
+  Timer? _statusPollTimer;
+
+  void _startStatusPolling(String planetId) {
+    _stopStatusPolling();
+    _statusPollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      // Check if any chain is still generating
+      final hasGenerating = _chains.any((c) => c.isGenerating);
+      if (!hasGenerating) {
+        _stopStatusPolling();
+        return;
+      }
+      loadExpeditionChains(planetId);
+    });
+  }
+
+  void _stopStatusPolling() {
+    _statusPollTimer?.cancel();
+    _statusPollTimer = null;
   }
 
   void selectChain(String chainId) {
@@ -236,21 +281,28 @@ class ExpeditionChainProvider extends ChangeNotifier {
     }
 
     final chainIdx = _chains.indexWhere((c) => c.id == chainId);
-    if (chainIdx >= 0 && data['inventory'] != null) {
-      final inventoryJson = data['inventory'] as Map<String, dynamic>;
+    if (chainIdx >= 0) {
+      final inventoryJson = data['inventory'] as Map<String, dynamic>? ?? {};
       final inventory = <String, double>{};
       inventoryJson.forEach((key, value) {
         inventory[key] = (value as num).toDouble();
       });
+
+      // Add the new event to the chain's events list
+      final events = List<ExpeditionEvent>.from(_chains[chainIdx].events);
+      if (eventJson != null) {
+        events.add(ExpeditionEvent.fromJson(eventJson));
+      }
+
       _chains[chainIdx] = ExpeditionChain(
         id: _chains[chainIdx].id,
         planetId: _chains[chainIdx].planetId,
         ownerId: _chains[chainIdx].ownerId,
-        status: _chains[chainIdx].status,
+        status: 'active',
         eventCount: (data['event_count'] as int?) ?? _chains[chainIdx].eventCount,
-        currentEventIndex: _chains[chainIdx].currentEventIndex,
+        currentEventIndex: (data['current_event_index'] as int?) ?? 0,
         inventory: inventory,
-        events: _chains[chainIdx].events,
+        events: events,
         discoveredLocation: _chains[chainIdx].discoveredLocation,
         createdAt: _chains[chainIdx].createdAt,
         updatedAt: DateTime.now().toUtc(),
@@ -268,6 +320,12 @@ class ExpeditionChainProvider extends ChangeNotifier {
     if (status == 'completed' || status == 'failed') {
       final chainIdx = _chains.indexWhere((c) => c.id == chainId);
       if (chainIdx >= 0) {
+        final inventoryJson = data['inventory'] as Map<String, dynamic>? ?? {};
+        final inventory = <String, double>{};
+        inventoryJson.forEach((key, value) {
+          inventory[key] = (value as num).toDouble();
+        });
+
         _chains[chainIdx] = ExpeditionChain(
           id: _chains[chainIdx].id,
           planetId: _chains[chainIdx].planetId,
@@ -275,7 +333,7 @@ class ExpeditionChainProvider extends ChangeNotifier {
           status: status!,
           eventCount: _chains[chainIdx].eventCount,
           currentEventIndex: _chains[chainIdx].currentEventIndex,
-          inventory: _chains[chainIdx].inventory,
+          inventory: inventory,
           events: _chains[chainIdx].events,
           discoveredLocation: _chains[chainIdx].discoveredLocation,
           createdAt: _chains[chainIdx].createdAt,
@@ -283,6 +341,14 @@ class ExpeditionChainProvider extends ChangeNotifier {
         );
       }
       _currentEvent = null;
+
+      if (status == 'failed') {
+        final error = data['error'] as String?;
+        if (error != null) {
+          debugPrint('Expedition failed: $error');
+        }
+      }
+
       notifyListeners();
     }
   }
