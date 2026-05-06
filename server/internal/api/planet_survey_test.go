@@ -8,20 +8,20 @@ import (
 	"testing"
 )
 
-func TestHandleStartPlanetSurvey(t *testing.T) {
-	handler := handleStartPlanetSurvey(nil)
+func TestHandleStartExpedition(t *testing.T) {
+	handler := handleStartExpedition(nil)
 	if handler == nil {
-		t.Fatal("expected handleStartPlanetSurvey to be non-nil")
+		t.Fatal("expected handleStartExpedition to be non-nil")
 	}
 }
 
-func TestHandleStartPlanetSurvey_InvalidBody(t *testing.T) {
-	handler := handleStartPlanetSurvey(nil)
+func TestHandleStartExpedition_InvalidBody(t *testing.T) {
+	handler := handleStartExpedition(nil)
 	if handler == nil {
-		t.Fatal("expected handleStartPlanetSurvey to be non-nil")
+		t.Fatal("expected handleStartExpedition to be non-nil")
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/planets/test/planet-survey", bytes.NewBuffer([]byte("invalid json")))
+	req := httptest.NewRequest(http.MethodPost, "/api/planets/test/expeditions", bytes.NewBuffer([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -32,12 +32,81 @@ func TestHandleStartPlanetSurvey_InvalidBody(t *testing.T) {
 	}
 }
 
-func TestHandleGetPlanetSurvey(t *testing.T) {
-	handler := handleGetPlanetSurvey(nil)
+func TestHandleGetExpeditionChains(t *testing.T) {
+	handler := handleGetExpeditionChains(nil)
 	if handler == nil {
-		t.Fatal("expected handleGetPlanetSurvey to be non-nil")
+		t.Fatal("expected handleGetExpeditionChains to be non-nil")
 	}
 }
+
+func TestHandleGetExpeditionEvent(t *testing.T) {
+	handler := handleGetExpeditionEvent(nil)
+	if handler == nil {
+		t.Fatal("expected handleGetExpeditionEvent to be non-nil")
+	}
+}
+
+func TestHandleExpeditionChoice(t *testing.T) {
+	handler := handleExpeditionChoice(nil)
+	if handler == nil {
+		t.Fatal("expected handleExpeditionChoice to be non-nil")
+	}
+}
+
+func TestHandleExpeditionChoice_InvalidBody(t *testing.T) {
+	handler := handleExpeditionChoice(nil)
+	if handler == nil {
+		t.Fatal("expected handleExpeditionChoice to be non-nil")
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/planets/test/expeditions/chain1/choice", bytes.NewBuffer([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandleGetExpeditionEvents(t *testing.T) {
+	handler := handleGetExpeditionEvents(nil)
+	if handler == nil {
+		t.Fatal("expected handleGetExpeditionEvents to be non-nil")
+	}
+}
+
+func TestHandleGetExpeditionEventLog(t *testing.T) {
+	handler := handleGetExpeditionEventLog(nil)
+	if handler == nil {
+		t.Fatal("expected handleGetExpeditionEventLog to be non-nil")
+	}
+}
+
+func TestHandleStartExpedition_InvalidInventory(t *testing.T) {
+	handler := handleStartExpedition(nil)
+	if handler == nil {
+		t.Fatal("expected handleStartExpedition to be non-nil")
+	}
+
+	reqBody, _ := json.Marshal(map[string]interface{}{
+		"inventory": map[string]interface{}{
+			"food": "not_a_number",
+		},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/planets/test-expeditions", bytes.NewBuffer(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400 for invalid inventory type, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+
 
 func TestHandleGetLocations(t *testing.T) {
 	handler := handleGetLocations(nil)
@@ -102,53 +171,6 @@ func TestHandleAbandonLocation(t *testing.T) {
 	}
 }
 
-func TestHandleGetExpeditionHistory(t *testing.T) {
-	handler := handleGetExpeditionHistory(nil)
-	if handler == nil {
-		t.Fatal("expected handleGetExpeditionHistory to be non-nil")
-	}
-}
-
-func TestGetMaxDurationForBaseLevel(t *testing.T) {
-	tests := []struct {
-		baseLevel int
-		expected  int
-	}{
-		{1, 300},
-		{2, 600},
-		{3, 1200},
-		{5, 300},
-	}
-
-	for _, tc := range tests {
-		result := getMaxDurationForBaseLevel(tc.baseLevel)
-		if result != tc.expected {
-			t.Errorf("baseLevel %d: expected %d, got %d", tc.baseLevel, tc.expected, result)
-		}
-	}
-}
-
-func TestGetRangeForDuration(t *testing.T) {
-	tests := []struct {
-		duration int
-		expected string
-	}{
-		{300, "300s"},
-		{150, "300s"},
-		{600, "600s"},
-		{400, "600s"},
-		{1200, "1200s"},
-		{900, "1200s"},
-	}
-
-	for _, tc := range tests {
-		result := getRangeForDuration(tc.duration)
-		if result != tc.expected {
-			t.Errorf("duration %d: expected %s, got %s", tc.duration, tc.expected, result)
-		}
-	}
-}
-
 func TestGetLocationBuildingTypes(t *testing.T) {
 	types := getLocationBuildingTypes("pond")
 	if len(types) != 2 {
@@ -180,52 +202,12 @@ func TestGetLocationBuildingTypes_Unknown(t *testing.T) {
 	}
 }
 
-func TestHandleStartPlanetSurvey_ValidBody(t *testing.T) {
-	handler := handleStartPlanetSurvey(nil)
-	if handler == nil {
-		t.Fatal("expected handleStartPlanetSurvey to be non-nil")
-	}
-
-	// Send empty duration to trigger bad request before planet loading
-	reqBody, _ := json.Marshal(map[string]interface{}{
-		"duration": 0,
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/planets/test/planet-survey", bytes.NewBuffer(reqBody))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for zero duration, got %d", w.Code)
-	}
-}
-
-func TestHandleStartPlanetSurvey_MissingDuration(t *testing.T) {
-	handler := handleStartPlanetSurvey(nil)
-	if handler == nil {
-		t.Fatal("expected handleStartPlanetSurvey to be non-nil")
-	}
-
-	reqBody, _ := json.Marshal(map[string]interface{}{})
-	req := httptest.NewRequest(http.MethodPost, "/api/planets/test/planet-survey", bytes.NewBuffer(reqBody))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected status 400 for missing duration, got %d", w.Code)
-	}
-}
-
 func TestHandleBuildOnLocation_InvalidPlanetID(t *testing.T) {
 	handler := handleBuildOnLocation(nil)
 	if handler == nil {
 		t.Fatal("expected handleBuildOnLocation to be non-nil")
 	}
 
-	// Send empty body to trigger bad request before planet loading
 	req := httptest.NewRequest(http.MethodPost, "/api/planets/invalid-uuid-format/locations/some-id/build", bytes.NewBuffer([]byte("")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

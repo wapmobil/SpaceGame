@@ -127,6 +127,22 @@ func (bs *WSBroadcastService) BroadcastLocationUpdate(playerID, planetID string,
 	})
 }
 
+// BroadcastExpeditionEvent sends an expedition event update to the owning player.
+func (bs *WSBroadcastService) BroadcastExpeditionEvent(playerID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "expedition_event",
+		Data: json.RawMessage(toJSON(data)),
+	})
+}
+
+// BroadcastExpeditionComplete sends an expedition completion notification.
+func (bs *WSBroadcastService) BroadcastExpeditionComplete(playerID string, data map[string]interface{}) {
+	bs.cm.SendToPlayer(playerID, WSMessage{
+		Type: "expedition_complete",
+		Data: json.RawMessage(toJSON(data)),
+	})
+}
+
 // BroadcastMarketOrderFilled sends a market order filled notification.
 func (bs *WSBroadcastService) BroadcastMarketOrderFilled(playerID, orderID, resource string, amount, price float64) {
 	bs.cm.SendToPlayer(playerID, WSMessage{

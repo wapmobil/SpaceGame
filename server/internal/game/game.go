@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"spacegame/internal/db"
+	"spacegame/internal/game/planet_survey"
 	"spacegame/internal/openai"
 )
 
@@ -51,6 +52,11 @@ func New() *Game {
 // SetDB sets the database connection for saving planet state.
 func (g *Game) SetDB(d *db.Database) {
 	g.db = d
+}
+
+// DB returns the database connection.
+func (g *Game) DB() *db.Database {
+	return g.db
 }
 
 // AddPlanet adds a planet to the game engine.
@@ -164,33 +170,14 @@ func (g *Game) LoadPlanetFromDB(planetID string) error {
 		log.Printf("Error loading farm for planet %s: %v", planet.ID, err)
 	}
 
-	// Load surface expeditions
-	if err := loadSurfaceExpeditions(planet); err != nil {
-		log.Printf("Error loading surface expeditions for planet %s: %v", planet.ID, err)
-	}
-
 	// Load locations
 	if err := loadLocations(planet); err != nil {
 		log.Printf("Error loading locations for planet %s: %v", planet.ID, err)
 	}
 
-	// Load expedition history
-	if err := loadExpeditionHistory(planet); err != nil {
-		log.Printf("Error loading expedition history for planet %s: %v", planet.ID, err)
-	}
-
-	// Load range stats
-	if err := loadRangeStats(planet); err != nil {
-		log.Printf("Error loading range stats for planet %s: %v", planet.ID, err)
-	}
-
-// Load max_expeditions
-	if maxExp, _ := g.db.ColumnExists(context.Background(), "planets", "max_expeditions"); maxExp {
-		var maxExpVal int
-		_ = g.db.QueryRow(`SELECT max_expeditions FROM planets WHERE id = $1`, planet.ID).Scan(&maxExpVal)
-		if maxExpVal > 0 {
-			planet.MaxExpeditions = maxExpVal
-		}
+	// Load expedition chains
+	if err := loadExpeditionChains(planet); err != nil {
+		log.Printf("Error loading expedition chains for planet %s: %v", planet.ID, err)
 	}
 
 	// Load description
@@ -304,24 +291,14 @@ func (g *Game) LoadPlanetsFromDB() error {
 			log.Printf("Error loading farm for planet %s: %v", id, err)
 		}
 
-		// Load surface expeditions
-		if err := loadSurfaceExpeditions(planet); err != nil {
-			log.Printf("Error loading surface expeditions for planet %s: %v", id, err)
-		}
-
 		// Load locations
 		if err := loadLocations(planet); err != nil {
 			log.Printf("Error loading locations for planet %s: %v", id, err)
 		}
 
-		// Load expedition history
-		if err := loadExpeditionHistory(planet); err != nil {
-			log.Printf("Error loading expedition history for planet %s: %v", id, err)
-		}
-
-// Load range stats
-		if err := loadRangeStats(planet); err != nil {
-			log.Printf("Error loading range stats for planet %s: %v", id, err)
+		// Load expedition chains
+		if err := loadExpeditionChains(planet); err != nil {
+			log.Printf("Error loading expedition chains for planet %s: %v", id, err)
 		}
 
 		// Load description
@@ -516,25 +493,6 @@ func (g *Game) savePlanet(p *Planet) {
 		}
 	}
 
-	// Save surface expeditions
-	if surfaceExp, _ := g.db.ColumnExists(context.Background(), "planets", "surface_expeditions"); surfaceExp {
-		if len(p.SurfaceExpeditions) > 0 {
-			expData, err := json.Marshal(p.SurfaceExpeditions)
-			if err != nil {
-				log.Printf("Error marshaling surface expeditions for planet %s: %v", p.ID, err)
-			} else {
-				_, err = g.db.Exec(`
-					UPDATE planets 
-					SET surface_expeditions = $1::jsonb, updated_at = NOW()
-					WHERE id = $2
-				`, string(expData), p.ID)
-				if err != nil {
-					log.Printf("Error saving surface expeditions for planet %s: %v", p.ID, err)
-				}
-			}
-		}
-	}
-
 	// Save locations
 	if loc, _ := g.db.ColumnExists(context.Background(), "planets", "locations"); loc {
 		if len(p.Locations) > 0 {
@@ -549,56 +507,6 @@ func (g *Game) savePlanet(p *Planet) {
 				`, string(locData), p.ID)
 				if err != nil {
 					log.Printf("Error saving locations for planet %s: %v", p.ID, err)
-				}
-			}
-		}
-	}
-
-	// Save max_expeditions
-	if maxExp, _ := g.db.ColumnExists(context.Background(), "planets", "max_expeditions"); maxExp {
-		_, err := g.db.Exec(`
-			UPDATE planets 
-			SET max_expeditions = $1, updated_at = NOW()
-			WHERE id = $2
-		`, p.MaxExpeditions, p.ID)
-		if err != nil {
-			log.Printf("Error saving max_expeditions for planet %s: %v", p.ID, err)
-		}
-	}
-
-	// Save expedition history
-	if expHist, _ := g.db.ColumnExists(context.Background(), "planets", "expedition_history"); expHist {
-		if len(p.ExpeditionHistory) > 0 {
-			histData, err := json.Marshal(p.ExpeditionHistory)
-			if err != nil {
-				log.Printf("Error marshaling expedition history for planet %s: %v", p.ID, err)
-			} else {
-				_, err = g.db.Exec(`
-					UPDATE planets 
-					SET expedition_history = $1::jsonb, updated_at = NOW()
-					WHERE id = $2
-				`, string(histData), p.ID)
-				if err != nil {
-					log.Printf("Error saving expedition history for planet %s: %v", p.ID, err)
-				}
-			}
-		}
-	}
-
-	// Save range stats
-	if rangeStats, _ := g.db.ColumnExists(context.Background(), "planets", "range_stats"); rangeStats {
-		if len(p.RangeStats) > 0 {
-			statsData, err := json.Marshal(p.RangeStats)
-			if err != nil {
-				log.Printf("Error marshaling range stats for planet %s: %v", p.ID, err)
-			} else {
-				_, err = g.db.Exec(`
-					UPDATE planets 
-					SET range_stats = $1::jsonb, updated_at = NOW()
-					WHERE id = $2
-				`, string(statsData), p.ID)
-				if err != nil {
-					log.Printf("Error saving range stats for planet %s: %v", p.ID, err)
 				}
 			}
 		}
@@ -649,22 +557,6 @@ func (g *Game) SavePlanet(p *Planet) {
 	g.savePlanet(p)
 }
 
-func loadSurfaceExpeditions(p *Planet) error {
-	if p.game == nil || p.game.db == nil {
-		return nil
-	}
-	hasCol, err := p.game.db.ColumnExists(context.Background(), "planets", "surface_expeditions")
-	if err != nil || !hasCol {
-		return nil
-	}
-	var data []byte
-	err = p.game.db.QueryRow(`SELECT surface_expeditions FROM planets WHERE id = $1`, p.ID).Scan(&data)
-	if err != nil || len(data) == 0 || string(data) == "[]" {
-		return nil
-	}
-	return json.Unmarshal(data, &p.SurfaceExpeditions)
-}
-
 func loadLocations(p *Planet) error {
 	if p.game == nil || p.game.db == nil {
 		return nil
@@ -681,36 +573,16 @@ func loadLocations(p *Planet) error {
 	return json.Unmarshal(data, &p.Locations)
 }
 
-func loadExpeditionHistory(p *Planet) error {
+func loadExpeditionChains(p *Planet) error {
 	if p.game == nil || p.game.db == nil {
 		return nil
 	}
-	hasCol, err := p.game.db.ColumnExists(context.Background(), "planets", "expedition_history")
-	if err != nil || !hasCol {
-		return nil
+	chains, err := planet_survey.LoadActiveChains(p.ID, p.game.db)
+	if err != nil {
+		return err
 	}
-	var data []byte
-	err = p.game.db.QueryRow(`SELECT expedition_history FROM planets WHERE id = $1`, p.ID).Scan(&data)
-	if err != nil || len(data) == 0 || string(data) == "[]" {
-		return nil
-	}
-	return json.Unmarshal(data, &p.ExpeditionHistory)
-}
-
-func loadRangeStats(p *Planet) error {
-	if p.game == nil || p.game.db == nil {
-		return nil
-	}
-	hasCol, err := p.game.db.ColumnExists(context.Background(), "planets", "range_stats")
-	if err != nil || !hasCol {
-		return nil
-	}
-	var data []byte
-	err = p.game.db.QueryRow(`SELECT range_stats FROM planets WHERE id = $1`, p.ID).Scan(&data)
-	if err != nil || len(data) == 0 || string(data) == "{}" {
-		return nil
-	}
-	return json.Unmarshal(data, &p.RangeStats)
+	p.ExpeditionChains = chains
+	return nil
 }
 
 // generateDescription creates a planet description using OpenAI based on name and resource type.

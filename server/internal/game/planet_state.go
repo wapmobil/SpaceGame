@@ -90,13 +90,7 @@ func (p *Planet) GetState() map[string]interface{} {
 		"resource_type":             string(p.ResourceType),
 		"base_level":                p.GetBuildingLevel("base"),
 		"command_center_level":      p.GetBuildingLevel("command_center"),
-		"surface_expeditions":       p.GetSurfaceExpeditionState(),
-		"locations":                 p.GetLocationState(),
-		
-		"range_stats":               p.GetRangeStatsState(),
-		"expedition_history":        p.ExpeditionHistory,
-		"max_surface_expeditions":   p.GetMaxSurfaceExpeditions(),
-		"can_start_planet_survey":   p.CanStartPlanetSurvey(),
+		"can_start_expedition":      p.CanStartExpeditionChain(),
 		"can_start_space_expedition": p.CanStartSpaceExpedition(),
 	}
 	return result
@@ -119,11 +113,8 @@ type BuildDetails struct {
 	BaseOperational          bool
 	BaseLevel                int
 	CommandCenterLevel       int
-	MaxSurfaceExpeditions    int
 	CanResearch              bool
 	CanExpedition            bool
-	CanPlanetSurvey          bool
-	PlanetSurveyUnlocked     bool
 	}
 
 // GetBuildDetails returns a BuildDetails struct for the frontend.
@@ -139,13 +130,6 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 		}
 	}
 
-	planetSurveyUnlocked := false
-	if p.Research != nil {
-		if _, ok := p.Research.GetCompleted()["planet_exploration"]; ok {
-			planetSurveyUnlocked = true
-		}
-	}
-
 	return BuildDetails{
 		Resources:          p.Resources,
 		EnergyBuffer:       p.EnergyBuffer,
@@ -154,46 +138,12 @@ func (p *Planet) GetBuildDetails() BuildDetails {
 		ResourceProduction: resourceProduction,
 		ActiveConstruction: p.ActiveConstruction,
 		MaxConstruction:    p.GetMaxConcurrentBuildings(),
-		BaseOperational:          baseOperational,
-		BaseLevel:                p.GetBuildingLevel("base"),
-		CommandCenterLevel:       p.GetBuildingLevel("command_center"),
-		MaxSurfaceExpeditions:    p.GetMaxSurfaceExpeditions(),
-		CanResearch:              baseOperational,
+		BaseOperational:    baseOperational,
+		BaseLevel:          p.GetBuildingLevel("base"),
+		CommandCenterLevel: p.GetBuildingLevel("command_center"),
+		CanResearch:        baseOperational,
 		CanExpedition:      baseOperational && expeditionsUnlocked,
-		CanPlanetSurvey:      baseOperational && planetSurveyUnlocked,
-		PlanetSurveyUnlocked: planetSurveyUnlocked,
 	}
-}
-
-func (p *Planet) GetSurfaceExpeditionState() []map[string]interface{} {
-	result := make([]map[string]interface{}, 0, len(p.SurfaceExpeditions))
-	for _, exp := range p.SurfaceExpeditions {
-		state := map[string]interface{}{
-			"id":            exp.ID,
-			"planet_id":     exp.PlanetID,
-			"status":        exp.Status,
-			"progress":      exp.Progress,
-			"duration":      exp.Duration,
-			"elapsed_time":  exp.ElapsedTime,
-			"range":         exp.Range,
-			"created_at":    exp.CreatedAt.Format(time.RFC3339),
-			"updated_at":    exp.UpdatedAt.Format(time.RFC3339),
-		}
-		if exp.Discovered != nil {
-			state["discovered"] = map[string]interface{}{
-				"id":             exp.Discovered.ID,
-				"type":           exp.Discovered.Type,
-				"name":           exp.Discovered.Name,
-				"source_resource": exp.Discovered.SourceResource,
-				"source_remaining": exp.Discovered.SourceRemaining,
-				"building_type":  exp.Discovered.BuildingType,
-				"building_level": exp.Discovered.BuildingLevel,
-				"building_active": exp.Discovered.BuildingActive,
-			}
-		}
-		result = append(result, state)
-	}
-	return result
 }
 
 func (p *Planet) GetLocationState() []map[string]interface{} {
@@ -243,46 +193,6 @@ func (p *Planet) GetLocationBuildingState(locationID string) []map[string]interf
 		}
 	}
 	return result
-}
-
-func (p *Planet) GetRangeStatsState() map[string]interface{} {
-	result := make(map[string]interface{})
-	for rangeStr, stats := range p.RangeStats {
-		result[rangeStr] = map[string]interface{}{
-			"total_expeditions": stats.TotalExpeditions,
-			"locations_found":   stats.LocationsFound,
-		}
-	}
-	return result
-}
-
-func (p *Planet) CanStartPlanetSurvey() bool {
-	if !p.BaseOperational() {
-		return false
-	}
-	if _, ok := p.Research.GetCompleted()["planet_exploration"]; !ok {
-		return false
-	}
-	activeCount := 0
-	for _, exp := range p.SurfaceExpeditions {
-		if exp.Status == "active" {
-			activeCount++
-		}
-	}
-	if activeCount >= p.MaxExpeditions {
-		return false
-	}
-	return true
-}
-
-func (p *Planet) GetMaxSurfaceExpeditions() int {
-	max := 1
-	if p.Research != nil {
-		if lvl, ok := p.Research.GetCompleted()["advanced_exploration"]; ok && lvl > 0 {
-			max += lvl
-		}
-	}
-	return max
 }
 
 func (p *Planet) CanStartSpaceExpedition() bool {

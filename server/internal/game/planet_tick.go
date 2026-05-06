@@ -1,9 +1,6 @@
 package game
 
 import (
-	"fmt"
-	"math/rand"
-	"strings"
 	"time"
 
 	"spacegame/internal/game/planet_survey"
@@ -65,10 +62,7 @@ func (p *Planet) Tick(gameTick int64) {
 	// 6. Advance expeditions
 	p.TickExpeditions()
 
-	// 6.5 Tick surface expeditions
-	p.TickSurfaceExpeditions()
-
-	// 6.6 Tick location buildings
+	// 6.5 Tick location buildings
 	p.TickLocationBuildings()
 
 	// 7. Save to DB (throttled)
@@ -78,140 +72,6 @@ func (p *Planet) Tick(gameTick int64) {
 
 	// 8. Broadcast state update
 	p.broadcastPlanetUpdate()
-}
-
-func (p *Planet) TickSurfaceExpeditions() {
-	if !p.BaseOperational() {
-		return
-	}
-
-	for i := len(p.SurfaceExpeditions) - 1; i >= 0; i-- {
-		exp := p.SurfaceExpeditions[i]
-
-if exp.Status == "completed" || exp.Status == "failed" || exp.Status == "abandoned" {
-			continue
-		}
-
-		planet_survey.Tick(exp, 1)
-
-		if int(exp.ElapsedTime)%60 == 0 && exp.Discovered == nil {
-			count := len(p.Locations)
-			chance := planet_survey.CalculateDiscoveryChance(count)
-			if rand.Float64() < chance {
-				locType := planet_survey.SelectLocationType(planet_survey.PlanetResourceType(string(p.ResourceType)))
-				sourceAmount := planet_survey.CalculateSourceAmount(locType, planet_survey.PlanetResourceType(string(p.ResourceType)))
-				var sourceResource string
-				for _, lt := range planet_survey.GetLocationTypes() {
-					if lt.Type == locType {
-						sourceResource = lt.SourceResource
-						break
-					}
-				}
-				loc := &planet_survey.Location{
-					ID:              p.ID + "_loc_" + time.Now().Format("20060102150405"),
-					PlanetID:        p.ID,
-					OwnerID:         p.OwnerID,
-					Type:            locType,
-					Name:            planet_survey.GenerateName(locType),
-					SourceResource:  sourceResource,
-					SourceAmount:    sourceAmount,
-					SourceRemaining: sourceAmount,
-					Active:          true,
-					BuildingActive:  false,
-					DiscoveredAt:    time.Now(),
-					CreatedAt:       time.Now(),
-					UpdatedAt:       time.Now(),
-					Buildings:       make([]*planet_survey.LocationBuilding, 0),
-				}
-				exp.Discovered = loc
-				exp.Status = "discovered"
-				p.Locations = append(p.Locations, loc)
-			}
-		}
-
-		if planet_survey.IsExpired(exp) {
-			exp.Status = "completed"
-
-			rangeStats := p.RangeStats[exp.Range]
-			if rangeStats == nil {
-				rangeStats = &planet_survey.ExpeditionRangeStats{}
-				p.RangeStats[exp.Range] = rangeStats
-			}
-			rangeStats.TotalExpeditions++
-
-			isSuccess := exp.Discovered != nil
-			if isSuccess {
-				rangeStats.LocationsFound++
-			}
-
-			resourceRecovery := planet_survey.CalculateResourceRecovery(p.Level, rangeStats.TotalExpeditions, isSuccess)
-
-			for resName, amount := range resourceRecovery {
-				if amount <= 0 {
-					continue
-				}
-				switch resName {
-				case "food":
-					p.Resources.Food += amount
-				case "iron":
-					p.Resources.Iron += amount
-				case "money":
-					p.Resources.Money += amount
-				case "reagents":
-					p.Resources.Reagents += amount
-				case "composite":
-					p.Resources.Composite += amount
-				case "mechanisms":
-					p.Resources.Mechanisms += amount
-				}
-			}
-
-			historyEntry := planet_survey.ExpeditionHistoryEntry{
-				ID:              exp.ID,
-				PlanetID:        p.ID,
-				ExpeditionType:  "surface",
-				Status:          exp.Status,
-				Result:          "success",
-				Discovered:      "",
-				LocationType:    "",
-				ResourcesGained: resourceRecovery,
-				CreatedAt:       exp.CreatedAt,
-				CompletedAt:     time.Now(),
-			}
-
-			if exp.Discovered != nil {
-				historyEntry.Result = "success"
-				historyEntry.Discovered = exp.Discovered.Name
-				historyEntry.LocationType = exp.Discovered.Type
-			} else {
-				historyEntry.Result = "failed"
-			}
-
-			p.ExpeditionHistory = append(p.ExpeditionHistory, historyEntry)
-
-		if p.game != nil {
-			p.game.SavePlanet(p)
-		}
-
-		var notifyMsg string
-		if isSuccess {
-			var resParts []string
-			for res, amt := range resourceRecovery {
-				if amt > 0 {
-					resParts = append(resParts, fmt.Sprintf("%s: +%.0f", res, amt))
-				}
-				}
-				notifyMsg = fmt.Sprintf("Экспедиция завершена! Обнаружена локация: %s. Получено: %s", exp.Discovered.Name, strings.Join(resParts, ", "))
-			} else {
-				notifyMsg = "Экспедиция завершена без результатов."
-			}
-			if p.game != nil && p.game.notifyFunc != nil {
-				p.game.notifyFunc(p.OwnerID, notifyMsg, "expedition_complete")
-			}
-
-			p.SurfaceExpeditions = append(p.SurfaceExpeditions[:i], p.SurfaceExpeditions[i+1:]...)
-		}
-	}
 }
 
 func (p *Planet) TickLocationBuildings() {

@@ -112,27 +112,6 @@ class Constants {
     return '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  static const surfaceExpeditionDurations = [300, 600, 1200];
-
-  static const baseLevelConfig = {
-    1: {'maxDuration': 300, 'costPerMin': {'food': 100, 'iron': 100, 'money': 10}},
-    2: {'maxDuration': 600, 'costPerMin': {'food': 200, 'iron': 200, 'money': 20}},
-    3: {'maxDuration': 1200, 'costPerMin': {'food': 400, 'iron': 400, 'money': 40}},
-  };
-
-  static String getDurationLabel(int duration) {
-    switch (duration) {
-      case 300:
-        return '5 мин';
-      case 600:
-        return '10 мин';
-      case 1200:
-        return '20 мин';
-      default:
-        return '$duration с';
-    }
-  }
-
   static String getLocationRarityLabel(String type) {
     final common = ['pond', 'river', 'forest', 'mineral_deposit', 'dry_valley'];
     final uncommon = ['waterfall', 'cave', 'thermal_spring', 'salt_lake', 'wind_pass'];

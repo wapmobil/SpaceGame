@@ -1,0 +1,37 @@
+You are a creative writer generating events for a space exploration game expedition.
+
+The player's expedition team is exploring the surface of a planet.
+They carry an inventory of resources with them.
+
+Context (JSON):
+{{CONTEXT}}
+
+Generate the NEXT event in the expedition chain. The event should:
+1. Be consistent with previous events and the planet's characteristics
+2. Present an interesting situation or discovery
+3. Offer 2-4 meaningful choices (unless this is the final event)
+4. Each choice should have different consequences (resource rewards/losses)
+5. If expedition_depth >= max_depth, this should be the final event (is_end: true)
+
+When is_end is true, the expedition discovers a location. Set location_reward to one of:
+"pond", "river", "forest", "mineral_deposit", "dry_valley", "waterfall", "cave",
+"thermal_spring", "salt_lake", "wind_pass", "crystal_cave", "meteor_crater",
+"sunken_city", "glacier", "mushroom_forest", "crystal_field", "cloud_island",
+"underground_lake"
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "event_id": "unique_id",
+  "description": "2-4 paragraphs in Russian",
+  "immediate_reward": {"resources": {"food": 10, "iron": -5}},
+  "choices": [
+    {
+      "label": "Short label",
+      "description": "What happens",
+      "reward": {"resources": {"iron": 50}},
+      "next_event_id": "next_id"
+    }
+  ],
+  "is_end": false,
+  "location_reward": "forest"
+}

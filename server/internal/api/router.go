@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"io"
 	"net/http"
@@ -13,6 +14,15 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+// llmTimeout wraps a handler with an extended context timeout for LLM operations.
+func llmTimeout(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 330*time.Second)
+		defer cancel()
+		h.ServeHTTP(w, r.WithContext(ctx))
+	}
+}
 
 // SetupRouter creates and configures the chi router with all routes.
 func SetupRouter(db *sql.DB) *chi.Mux {
@@ -91,15 +101,17 @@ func SetupRouter(db *sql.DB) *chi.Mux {
 		rr.Post("/{id}/space-expeditions", handleCreateSpaceExpedition(db))
 		rr.Get("/{id}/space-expeditions", handleGetSpaceExpeditions(db))
 
-		rr.Post("/{id}/planet-survey", handleStartPlanetSurvey(db))
-		rr.Get("/{id}/planet-survey", handleGetPlanetSurvey(db))
-
 		rr.Get("/{id}/locations", handleGetLocations(db))
 		rr.Post("/{id}/locations/{build}/build", handleBuildOnLocation(db))
 		rr.Delete("/{id}/locations/{build}/building", handleRemoveBuilding(db))
 		rr.Post("/{id}/locations/{build}/abandon", handleAbandonLocation(db))
 
-		rr.Get("/{id}/expedition-history", handleGetExpeditionHistory(db))
+		rr.Post("/{id}/expeditions", llmTimeout(handleStartExpedition(db)))
+		rr.Get("/{id}/expeditions", handleGetExpeditionChains(db))
+		rr.Get("/{id}/expeditions/{chainID}/event", handleGetExpeditionEvent(db))
+		rr.Post("/{id}/expeditions/{chainID}/choice", llmTimeout(handleExpeditionChoice(db)))
+		rr.Get("/{id}/expeditions/{chainID}/events", handleGetExpeditionEvents(db))
+		rr.Get("/{id}/expeditions/{chainID}/event-log", handleGetExpeditionEventLog(db))
 		rr.Post("/{id}/market/orders", handleCreateMarketOrder(db))
 		rr.Get("/{id}/market/orders", handleGetMyOrders(db))
 		rr.Post("/{id}/sell-food", handleSellFood(db))

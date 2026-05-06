@@ -239,10 +239,8 @@ type BuildDetailsResponse struct {
 	BaseOperational         bool                       `json:"base_operational"`
 	BaseLevel               int                        `json:"base_level"`
 	CommandCenterLevel      int                        `json:"command_center_level"`
-	MaxSurfaceExpeditions   int                        `json:"max_surface_expeditions"`
 	CanResearch             bool                       `json:"can_research"`
 	CanExpedition           bool                       `json:"can_expedition"`
-	PlanetSurveyUnlocked    bool                       `json:"planet_survey_unlocked"`
 	BuildingCosts           map[string]BuildingCostDetail `json:"building_costs"`
 	ResearchUnlocks         string                     `json:"research_unlocks"`
 	GardenBedState          GardenBedStateResponse       `json:"garden_bed_state,omitempty"`
@@ -385,14 +383,79 @@ type GardenBedActionRequest struct {
 	PlantType string `json:"plant_type,omitempty"` // required for "plant"
 }
 
-// StartPlanetSurveyRequest is the request body for starting a planet survey.
-type StartPlanetSurveyRequest struct {
-	Duration int `json:"duration"`
-}
-
 // BuildOnLocationRequest is the request body for building on a location.
 type BuildOnLocationRequest struct {
 	BuildingType string `json:"building_type"`
+}
+
+// StartExpeditionChainRequest is the request body for starting an expedition chain.
+type StartExpeditionChainRequest struct {
+	Inventory map[string]float64 `json:"inventory"`
+}
+
+// ExpeditionChoiceRequest is the request body for resolving a choice.
+type ExpeditionChoiceRequest struct {
+	ChoiceIndex int `json:"choice_index"`
+}
+
+// ExpeditionChainResponse is the API response for an expedition chain.
+type ExpeditionChainResponse struct {
+	ID                 string                  `json:"id"`
+	PlanetID           string                  `json:"planet_id"`
+	OwnerID            string                  `json:"owner_id"`
+	Status             string                  `json:"status"`
+	EventCount         int                     `json:"event_count"`
+	CurrentEventIndex  int                     `json:"current_event_index"`
+	Inventory          map[string]float64      `json:"inventory"`
+	DiscoveredLocation *LocationResponse       `json:"discovered_location,omitempty"`
+	CreatedAt          time.Time               `json:"created_at"`
+	UpdatedAt          time.Time               `json:"updated_at"`
+}
+
+// ExpeditionEventResponse is the API response for a single event.
+type ExpeditionEventResponse struct {
+	EventID         string                  `json:"event_id"`
+	Description     string                  `json:"description"`
+	ImmediateReward map[string]float64      `json:"immediate_reward"`
+	Choices         []ExpeditionChoiceResp  `json:"choices"`
+	IsEnd           bool                    `json:"is_end"`
+	LocationReward  string                  `json:"location_reward,omitempty"`
+}
+
+// ExpeditionChoiceResp is a single choice within an event.
+type ExpeditionChoiceResp struct {
+	Label       string             `json:"label"`
+	Description string             `json:"description"`
+	Reward      map[string]float64 `json:"reward"`
+	NextEventID string             `json:"next_event_id"`
+}
+
+// ExpeditionChainListResponse lists chains for a planet.
+type ExpeditionChainListResponse struct {
+	Chains []ExpeditionChainResponse `json:"chains"`
+	Total  int                       `json:"total"`
+}
+
+// ExpeditionChoiceResult is the response after resolving a choice.
+type ExpeditionChoiceResult struct {
+	Event          *ExpeditionEventResponse `json:"event,omitempty"`
+	Chain          ExpeditionChainResponse  `json:"chain"`
+	Inventory      map[string]float64       `json:"inventory"`
+	Completed      bool                     `json:"completed"`
+	Failed         bool                     `json:"failed"`
+	Location       *LocationResponse        `json:"location,omitempty"`
+	LocationReward string                   `json:"location_reward,omitempty"`
+	Error          string                   `json:"error,omitempty"`
+}
+
+// ExpeditionEventLogEntry is a history entry for the event log.
+type ExpeditionEventLogEntry struct {
+	EventID         string             `json:"event_id"`
+	Description     string             `json:"description"`
+	PlayerChoice    int                `json:"player_choice"`
+	ChoiceLabel     string             `json:"choice_label"`
+	RewardsReceived map[string]float64 `json:"rewards_received"`
+	CreatedAt       time.Time          `json:"created_at"`
 }
 
 // LocationResponse represents a location in API responses.
@@ -410,20 +473,4 @@ type LocationResponse struct {
 	DiscoveredAt    time.Time `json:"discovered_at"`
 }
 
-// ExpeditionRangeStatsResponse represents range statistics for a survey range.
-type ExpeditionRangeStatsResponse struct {
-	TotalExpeditions int `json:"total_expeditions"`
-	LocationsFound   int `json:"locations_found"`
-}
 
-// ExpeditionHistoryResponse represents an expedition history entry.
-type ExpeditionHistoryResponse struct {
-	ID              string            `json:"id"`
-	Status          string            `json:"status"`
-	Result          string            `json:"result"`
-	Discovered      string            `json:"discovered"`
-	LocationType    string            `json:"location_type"`
-	ResourcesGained map[string]float64 `json:"resources_gained"`
-	CreatedAt       time.Time         `json:"created_at"`
-	CompletedAt     time.Time         `json:"completed_at"`
-}

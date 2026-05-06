@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
-import '../core/server_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/server_config.dart';
 import '../core/websocket_manager.dart';
 import '../models/planet.dart';
 import '../models/building.dart';
@@ -16,8 +17,12 @@ import '../providers/rating_provider.dart';
 import '../providers/research_provider.dart';
 import '../providers/market_provider.dart';
 import '../providers/expedition_provider.dart';
+import '../providers/expedition_chain_provider.dart';
 import '../providers/shipyard_info.dart';
 import '../providers/building_upgrade_info.dart';
+
+@JS('window.location.origin')
+external JSString? get _origin;
 
 class GameProvider extends ChangeNotifier {
   final WebSocketManager websocket;
@@ -28,6 +33,7 @@ class GameProvider extends ChangeNotifier {
   final ResearchProvider _researchProvider;
   final MarketProvider _marketProvider;
   final ExpeditionProvider _expeditionProvider;
+  final ExpeditionChainProvider _expeditionChainProvider;
   String _baseUrl;
   Player? _player;
   List<Planet> _planets = [];
@@ -78,7 +84,8 @@ class GameProvider extends ChangeNotifier {
         _ratingProvider = RatingProvider(),
         _researchProvider = ResearchProvider(),
         _marketProvider = MarketProvider(),
-        _expeditionProvider = ExpeditionProvider() {
+        _expeditionProvider = ExpeditionProvider(),
+        _expeditionChainProvider = ExpeditionChainProvider() {
     _drillProvider.baseUrl = _baseUrl;
     _drillProvider.websocket = websocket;
     _surveyProvider.baseUrl = _baseUrl;
@@ -86,9 +93,14 @@ class GameProvider extends ChangeNotifier {
     _researchProvider.baseUrl = _baseUrl;
     _marketProvider.baseUrl = _baseUrl;
     _expeditionProvider.baseUrl = _baseUrl;
+    _expeditionChainProvider.baseUrl = _baseUrl;
   }
 
   static String _getBaseUri() {
+    if (kIsWeb) {
+      final origin = _origin?.toDart;
+      if (origin != null && origin.isNotEmpty) return origin;
+    }
     return ServerConfig.baseUri;
   }
 
@@ -108,6 +120,7 @@ class GameProvider extends ChangeNotifier {
   RatingProvider get ratingProvider => _ratingProvider;
   MarketProvider get marketProvider => _marketProvider;
   ExpeditionProvider get expeditionProvider => _expeditionProvider;
+  ExpeditionChainProvider get expeditionChainProvider => _expeditionChainProvider;
   String? get errorMessage => _errorMessage;
   int get activeConstructions => _activeConstructions;
   int get maxConstructions => _maxConstructions;
@@ -198,6 +211,7 @@ class GameProvider extends ChangeNotifier {
         _researchProvider.setAuthToken(_player!.authToken);
         _marketProvider.setAuthToken(_player!.authToken);
         _expeditionProvider.setAuthToken(_player!.authToken);
+        _expeditionChainProvider.setAuthToken(_player!.authToken);
         await _savePlayer();
         notifyListeners();
         connectWebSocket();
@@ -248,6 +262,7 @@ _player = Player(id: id, authToken: token, name: name ?? '');
         _researchProvider.setAuthToken(token);
         _marketProvider.setAuthToken(token);
         _expeditionProvider.setAuthToken(token);
+        _expeditionChainProvider.setAuthToken(token);
         notifyListeners();
       await connectWebSocket();
       await loadPlanets();
@@ -297,7 +312,14 @@ _player = Player(id: id, authToken: token, name: name ?? '');
         notifyListeners();
         break;
       case 'planet_survey_update':
-        _surveyProvider.onPlanetSurveyUpdate(data);
+        _handlePlanetSurveyUpdate(data);
+        break;
+      case 'expedition_event':
+        _handleExpeditionEvent(data);
+        notifyListeners();
+        break;
+      case 'expedition_complete':
+        _handleExpeditionComplete(data);
         notifyListeners();
         break;
       case 'location_update':
@@ -381,6 +403,37 @@ _player = Player(id: id, authToken: token, name: name ?? '');
     }
   }
 
+  void _handlePlanetSurveyUpdate(Map<String, dynamic>? data) {
+    if (data != null) {
+      _expeditionChainProvider.onExpeditionEvent(data);
+    }
+  }
+
+  void _handleExpeditionEvent(Map<String, dynamic>? data) {
+    if (data != null) {
+      _expeditionChainProvider.onExpeditionEvent(data);
+      final event = _expeditionChainProvider.currentEvent;
+      if (event != null && event.description.isNotEmpty) {
+        addNotification('Событие экспедиции', event.description.length > 100 ? event.description.substring(0, 100) + '...' : event.description);
+      }
+    }
+  }
+
+  void _handleExpeditionComplete(Map<String, dynamic>? data) {
+    if (data != null) {
+      _expeditionChainProvider.onExpeditionComplete(data);
+      final status = data['status'] as String?;
+      if (status == 'completed') {
+        final location = data['location'] as Map<String, dynamic>?;
+        final locName = location?['name'] as String? ?? 'неизвестна';
+        addNotification('Экспедиция завершена', 'Обнаружена локация: $locName');
+      } else if (status == 'failed') {
+        final error = data['error'] as String? ?? 'Неизвестная ошибка';
+        addNotification('Экспедиция провалена', error);
+      }
+    }
+  }
+
   Future<void> loadPlanets() async {
     if (_player == null) return;
     try {
@@ -434,7 +487,8 @@ _player = Player(id: id, authToken: token, name: name ?? '');
     _expeditionProvider.setPlanetId(planet.id);
     _gardenBedProvider.getGardenBed(planet.id);
     _drillProvider.setDrillPlanetId(planet.id);
-    _surveyProvider.loadPlanetSurveyData(planet.id);
+    _surveyProvider.notifyListeners();
+    _expeditionChainProvider.loadExpeditionChains(planet.id);
     notifyListeners();
   }
 
@@ -458,12 +512,6 @@ _player = Player(id: id, authToken: token, name: name ?? '');
     } catch (e) {
       debugPrint('Failed to load planet detail: $e');
     }
-  }
-
-  Future<void> loadPlanetSurveyData(String planetId) async {
-    if (_player == null) return;
-    await _surveyProvider.loadPlanetSurveyData(planetId);
-    notifyListeners();
   }
 
   Future<void> loadBuildDetails(String planetId) async {

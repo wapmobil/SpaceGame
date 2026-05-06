@@ -1,5 +1,3 @@
-> **Общий план:** [surface_expeditions_design.md](../surface_expeditions_design.md)
-
 # Фаза 4: Frontend UI
 
 ## Цель
@@ -10,7 +8,8 @@
 
 ## Задачи
 
-### 9.1 expedition_chain.dart — модели
+### 4.1 expedition_chain.dart — модели
+
 **Файл:** `client/lib/models/expedition_chain.dart` (NEW)
 
 ```dart
@@ -21,7 +20,7 @@ class ExpeditionChain {
   final String status; // "active" | "completed" | "failed"
   final int eventCount;
   final int currentEventIndex;
-  final Map<String, double> inventory; // только 5 ресурсов
+  final Map<String, double> inventory;
   final Location? discoveredLocation;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -38,7 +37,7 @@ class ExpeditionChain {
 class ExpeditionEvent {
   final String eventId;
   final String description;
-  final Map<String, double> immediateReward; // flat: {"reagents": 30, "food": -10}
+  final Map<String, double> immediateReward;
   final List<ExpeditionChoice> choices;
   final bool isEnd;
   final String? locationReward;
@@ -50,7 +49,7 @@ class ExpeditionEvent {
 class ExpeditionChoice {
   final String label;
   final String description;
-  final Map<String, double> reward; // flat: {"iron": 50, "composite": 20}
+  final Map<String, double> reward;
   final String nextEventId;
 
   factory ExpeditionChoice.fromJson(Map<String, dynamic> json);
@@ -60,9 +59,9 @@ class ExpeditionChoice {
 class ExpeditionEventLogEntry {
   final String eventId;
   final String description;
-  final int playerChoice; // индекс выбранного варианта
-  final String choiceLabel; // label выбранного варианта
-  final Map<String, double> rewardsReceived; // flat: {"iron": 50, "food": -10}
+  final int playerChoice;
+  final String choiceLabel;
+  final Map<String, double> rewardsReceived;
   final DateTime createdAt;
 
   factory ExpeditionEventLogEntry.fromJson(Map<String, dynamic> json);
@@ -83,40 +82,44 @@ class ExpeditionChoiceResult {
 }
 ```
 
-### 9.2 expedition_provider.dart — state management
+### 4.2 expedition_provider.dart — state management
+
 **Файл:** `client/lib/providers/expedition_provider.dart` (NEW)
 
+Примечание: существующий `expedition_provider.dart` — для space expeditions. Новый файл переименовать существующий или создать как `expedition_chain_provider.dart`.
+
 ```dart
-class ExpeditionProvider extends ChangeNotifier {
+class ExpeditionChainProvider extends ChangeNotifier {
   String? _authToken;
   String? baseUrl;
 
   List<ExpeditionChain> _chains = [];
-  List<ExpeditionChain> _activeChains = [];
-  List<ExpeditionChain> _completedChains = [];
-  String? _selectedChainId; // выбранная активная цепочка для отображения
+  String? _selectedChainId;
   ExpeditionEvent? _currentEvent;
+  bool _isLoading = false;
 
-  // Getters
   List<ExpeditionChain> get chains => _chains;
-  List<ExpeditionChain> get activeChains => _activeChains;
-  List<ExpeditionChain> get completedChains => _completedChains;
+  List<ExpeditionChain> get activeChains =>
+      _chains.where((c) => c.isActive).toList();
+  List<ExpeditionChain> get completedChains =>
+      _chains.where((c) => c.isCompleted || c.isFailed).toList();
   ExpeditionChain? get selectedChain => _selectedChainId != null
-      ? _activeChains.where((c) => c.id == _selectedChainId).firstOrNull
+      ? _chains.where((c) => c.id == _selectedChainId).firstOrNull
       : null;
   ExpeditionEvent? get currentEvent => _currentEvent;
+  bool get isLoading => _isLoading;
 
   // API methods
   Future<void> loadExpeditionChains(String planetId);
   Future<ExpeditionEvent?> getExpeditionEvent(String planetId, String chainId);
   Future<ExpeditionChoiceResult> makeChoice(String planetId, String chainId, int choiceIndex);
   Future<List<ExpeditionEventLogEntry>> getExpeditionEventLog(String planetId, String chainId);
-  // GET /api/planets/{id}/expeditions/{chainID}/event-log
+  Future<ExpeditionChoiceResult> startExpedition(String planetId, Map<String, double> inventory);
   void selectChain(String chainId);
 
   // Inventory helpers
   double getInventoryTotal(Map<String, double> inventory);
-  int getRemainingCapacity(double currentTotal); // 1000 - currentTotal
+  int getRemainingCapacity(double currentTotal);
 
   // WebSocket handlers
   void onExpeditionEvent(Map<String, dynamic> data);
@@ -128,7 +131,8 @@ class ExpeditionProvider extends ChangeNotifier {
 }
 ```
 
-### 9.3 inventory_dialog.dart — диалог старта
+### 4.3 inventory_dialog.dart — диалог старта
+
 **Файл:** `client/lib/widgets/inventory_dialog.dart` (NEW)
 
 Диалог при нажатии "Новая экспедиция":
@@ -150,7 +154,8 @@ class ExpeditionProvider extends ChangeNotifier {
 - Если сумма слайдеров > 1000 — показать предупреждение (красный текст)
 - Кнопка "Отправить" неактивна если total == 0 или total > 1000
 
-### 9.4 expedition_events_screen.dart — основной экран
+### 4.4 expedition_events_screen.dart — основной экран
+
 **Файл:** `client/lib/screens/expedition_events_screen.dart` (NEW)
 
 Экран с тремя секциями:
@@ -160,13 +165,13 @@ class ExpeditionProvider extends ChangeNotifier {
 - Карточка активной экспедиции:
   - Номер события: "Событие {index+1}/{eventCount}"
   - Описание события (текст, 2-4 абзаца)
-  - Мгновенная награда (если есть): чипы "+X 🍍, -Y 🪨"
+  - Мгновенная награда (если есть): чипы "+X, -Y" с иконками ресурсов
   - Инвентарь экспедиции: горизонтальный список ресурсов с иконками
   - Кнопки выбора (2-4 варианта):
     - Label выбора
     - Description последствий
     - Награда за выбор (чипы)
-  - При нажатии выбора → спиннер "Обработка выбора..." (LLM 5-300 сек)
+  - При нажатии выбора → спиннер "Обработка выбора..." (LLM может занять время)
 - Если is_end:
   - Показать обнаруженную локацию
   - Показать возвращённый инвентарь
@@ -177,34 +182,36 @@ class ExpeditionProvider extends ChangeNotifier {
 - Каждая карточка:
   - Текст события (описание)
   - Выбранный вариант (label)
-  - Чипы расходов/доходов ресурсов (+X 🍍, -Y 🪨)
+  - Чипы расходов/доходов ресурсов
 - Карточки отображаются в хронологическом порядке (сверху вниз)
 
 #### Секция 3: Кнопка запуска
 - "Новая экспедиция" → открывает InventoryDialog
 - После отправки → навигация к активному событию
 
-### 9.5 Обновить planet_survey.dart — модели
+### 4.5 Обновить planet_survey.dart — модели
+
 **Файл:** `client/lib/models/planet_survey.dart`
 
 Удалить:
 - `SurfaceExpedition` class
 - `ExpeditionHistoryEntry` class
 - `RangeStats` class
-- `PlanetSurveyState` class (заменить на ExpeditionChainsState)
+- `PlanetSurveyState` class
 
 Оставить:
 - `Location` class
 - `LocationBuilding` class
 - `LocationsResponse` class
 
-### 9.6 Обновить planet_survey_provider.dart
+### 4.6 Обновить planet_survey_provider.dart
+
 **Файл:** `client/lib/providers/planet_survey_provider.dart`
 
 Удалить:
 - `_surfaceExpeditions` field
 - `surfaceExpeditions` getter
-- `rangeStats` field (если используется только для surface expeditions)
+- `rangeStats` field
 - `startPlanetSurvey()` method
 - `loadPlanetSurveyData()` method
 - `onPlanetSurveyUpdate()` method
@@ -218,7 +225,8 @@ class ExpeditionProvider extends ChangeNotifier {
 - `onLocationUpdate()`
 - `applyBuildDetails()`
 
-### 9.7 Обновить planet_survey_screen.dart
+### 4.7 Обновить planet_survey_screen.dart
+
 **Файл:** `client/lib/screens/planet_survey_screen.dart`
 
 Заменить:
@@ -230,11 +238,12 @@ class ExpeditionProvider extends ChangeNotifier {
 - `_buildLocationsListWithSurvey()` — locations остаются
 - `_buildHistoryWithSurvey()` → заменить на историю expedition chains
 
-### 9.8 Обновить game_provider.dart
+### 4.8 Обновить game_provider.dart
+
 **Файл:** `client/lib/providers/game_provider.dart`
 
 Добавить:
-- `ExpeditionProvider` как поле
+- `ExpeditionChainProvider` как поле
 - Инициализация в конструкторе
 
 Добавить WebSocket handlers:
@@ -243,32 +252,33 @@ void _handleExpeditionEvent(Map<String, dynamic> data) {
   final chainId = data['chain_id'] as String;
   final event = ExpeditionEvent.fromJson(data['event'] as Map<String, dynamic>);
   final inventory = Map<String, double>.from(data['inventory'] as Map);
-  
-  expeditionProvider.onExpeditionEvent({
+
+  expeditionChainProvider.onExpeditionEvent({
     'chain_id': chainId,
     'event': event,
     'inventory': inventory,
   });
-  
-  // Показать уведомление
-  showNotification('Новое событие экспедиции', event.description.substring(0, 100) + '...');
+
+  showNotification('Новое событие экспедиции',
+      event.description.substring(0, min(100, event.description.length)) + '...');
 }
 
 void _handleExpeditionComplete(Map<String, dynamic> data) {
   final chainId = data['chain_id'] as String;
   final status = data['status'] as String;
   final inventory = Map<String, double>.from(data['inventory'] as Map);
-  
-  expeditionProvider.onExpeditionComplete({
+
+  expeditionChainProvider.onExpeditionComplete({
     'chain_id': chainId,
     'status': status,
     'inventory': inventory,
   });
-  
+
   if (status == 'completed') {
-    showNotification('Экспедиция завершена!', 'Обнаружена локация: ${data['location']['name']}');
+    final locName = data['location'] != null ? data['location']['name'] : 'неизвестна';
+    showNotification('Экспедиция завершена!', 'Обнаружена локация: $locName');
   } else {
-    showNotification('Экспедиция провалена', data['error'] as String? ?? 'Ошибка LLM');
+    showNotification('Экспедиция провалена', data['error'] as String? ?? 'Ошибка');
   }
 }
 ```
@@ -283,7 +293,8 @@ case 'expedition_complete':
   break;
 ```
 
-### 9.9 constants.dart — обновление
+### 4.9 constants.dart — обновление
+
 **Файл:** `client/lib/utils/constants.dart`
 
 Убедиться что:
@@ -292,7 +303,8 @@ case 'expedition_complete':
 - Определены 5 ресурсов инвентаря: food, iron, composite, mechanisms, reagents
 - Определены иконки для ресурсов инвентаря
 
-### 9.10 Тесты
+### 4.10 Тесты
+
 **Запуск:**
 ```bash
 flutter test
@@ -301,11 +313,18 @@ flutter test
 Проверить что все существующие тесты проходят.
 
 ## Деплой
+
 ```bash
 ./deploy.sh
 flutter test
 ```
 
 ## Зависимости
-- Фаза 8 (API) должна быть реализована
+
+- Фаза 3 (API) должна быть реализована
 - WebSocket broadcast методы должны быть добавлены
+
+## Примечания
+
+- Новый provider назван `ExpeditionChainProvider` чтобы не конфликтовать со существующим `ExpeditionProvider` для space expeditions.
+- HTTP запросы к `makeChoice` и `startExpedition` могут занять до 330s — нужен загрузочный индикатор и обработка timeout.

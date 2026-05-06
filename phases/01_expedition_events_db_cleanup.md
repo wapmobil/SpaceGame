@@ -1,34 +1,18 @@
-> **Общий план:** [surface_expeditions_design.md](../surface_expeditions_design.md)
-
 # Фаза 1: DB migration + old code cleanup
 
 ## Цель
-Создать новую БД схему для expedition event chains, удалить старую схему surface expeditions (JSONB в planets, таблица surface_expeditions).
+Создать новую БД схему для expedition event chains, удалить старую схему surface expeditions (JSONB в planets, таблицы surface_expeditions).
 
 ## Что работает после деплоя
 Без surface expeditions. Без expedition events. Старые данные (locations, location_buildings) сохраняются.
 
 ## Задачи
 
-### 6.1 Создать migration — удаление старой схемы
-**Файл:** `server/internal/db/migrations/025_cleanup_surface_expeditions.up.sql`
+### 1.1 Создать migration — новая схема expedition chains
 
-Удаление старых JSONB-колонок из planets:
-```sql
-ALTER TABLE planets DROP COLUMN IF EXISTS surface_expeditions;
-ALTER TABLE planets DROP COLUMN IF EXISTS expedition_history;
-ALTER TABLE planets DROP COLUMN IF EXISTS range_stats;
-ALTER TABLE planets DROP COLUMN IF EXISTS max_expeditions;
-```
+**Файл:** `server/internal/db/migrations/024_expedition_chains.up.sql` (NEW)
 
-Удаление старых таблиц:
-```sql
-DROP TABLE IF EXISTS surface_expeditions;
-DROP TABLE IF EXISTS expedition_history;
-```
-
-### 6.2 Создать migration — новая схема expedition chains
-**Файл:** `server/internal/db/migrations/025_cleanup_surface_expeditions.up.sql` (продолжение)
+Сначала создаём новые таблицы, потом удаляем старые — если создание не пройдёт, старые данные не потеряны.
 
 Таблица цепочек экспедиций:
 ```sql
@@ -48,6 +32,7 @@ CREATE TABLE IF NOT EXISTS expedition_chains (
 
 CREATE INDEX idx_expedition_chains_planet ON expedition_chains(planet_id);
 CREATE INDEX idx_expedition_chains_owner ON expedition_chains(owner_id);
+CREATE INDEX idx_expedition_chains_status ON expedition_chains(status);
 ```
 
 Таблица событий экспедиции:
@@ -69,9 +54,41 @@ CREATE TABLE IF NOT EXISTS expedition_events (
 CREATE INDEX idx_expedition_events_chain ON expedition_events(chain_id);
 ```
 
-**Примечание:** Храним весь JSON события (включая description, choices, rewards). Для UI истории нужно: event_id, description, choices (для извлечения label выбранного варианта), player_choice, rewards_received.
+**Примечание:** Храним весь JSON события (description, choices, rewards). Для UI истории нужно: event_id, description, choices (для извлечения label выбранного варианта), player_choice, rewards_received.
 
-### 6.3 Удалить старые файлы planet_survey/
+### 1.2 Создать migration — удаление старой схемы
+
+**Файл:** `server/internal/db/migrations/024_expedition_chains.up.sql` (продолжение, после CREATE TABLE)
+
+Удаление старых JSONB-колонок из planets:
+```sql
+ALTER TABLE planets DROP COLUMN IF EXISTS surface_expeditions;
+ALTER TABLE planets DROP COLUMN IF EXISTS expedition_history;
+ALTER TABLE planets DROP COLUMN IF EXISTS range_stats;
+ALTER TABLE planets DROP COLUMN IF EXISTS max_expeditions;
+```
+
+Удаление старых таблиц:
+```sql
+DROP TABLE IF EXISTS surface_expeditions;
+DROP TABLE IF EXISTS expedition_history;
+```
+
+### 1.3 Создать down migration
+
+**Файл:** `server/internal/db/migrations/024_expedition_chains.down.sql` (NEW)
+
+```sql
+DROP TABLE IF EXISTS expedition_events;
+DROP TABLE IF EXISTS expedition_chains;
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS surface_expeditions JSONB DEFAULT '[]';
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS expedition_history JSONB DEFAULT '[]';
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS range_stats JSONB DEFAULT '{}';
+ALTER TABLE planets ADD COLUMN IF NOT EXISTS max_expeditions INTEGER DEFAULT 1;
+```
+
+### 1.4 Удалить старые файлы planet_survey/
+
 **Удалить:** `server/internal/game/planet_survey/surface_expedition.go`
 - Все функции: NewSurfaceExpedition, Tick, IsExpired, GetCostPerMin, CalculateCost, CalculateDiscoveryChance, GetResourceChance, CalculateResourceRecovery
 
@@ -80,15 +97,17 @@ CREATE INDEX idx_expedition_events_chain ON expedition_events(chain_id);
 **Удалить:** `server/internal/game/planet_survey/history.go`
 - ExpeditionHistoryEntry — больше не нужен, история теперь в БД
 
-### 6.4 Удалить вызовы TickSurfaceExpeditions
+### 1.5 Удалить TickSurfaceExpeditions
+
 **Файл:** `server/internal/game/planet_tick.go`
 
 Удалить функцию `TickSurfaceExpeditions()` полностью (строки 83-215).
-Удалить вызов `TickSurfaceExpeditions()` из `Tick()`.
+Удалить вызов `TickSurfaceExpeditions()` из `Tick()` (строка 69).
 
 Оставить `TickLocationBuildings()` — он не зависит от surface expeditions.
 
-### 6.5 Обновить Planet struct
+### 1.6 Обновить Planet struct
+
 **Файл:** `server/internal/game/planet.go`
 
 Удалить поля:
@@ -103,66 +122,79 @@ MaxExpeditions     int
 Добавить:
 ```go
 // ДОБАВИТЬ:
-ExpeditionChains []*ExpeditionChain
+ExpeditionChains []*planet_survey.ExpeditionChain
 ```
 
 В `NewPlanet()`:
 - Удалить инициализацию SurfaceExpeditions, ExpeditionHistory, RangeStats, MaxExpeditions
-- Добавить: `ExpeditionChains: make([]*ExpeditionChain, 0)`
+- Добавить: `ExpeditionChains: make([]*planet_survey.ExpeditionChain, 0)`
 
-### 6.6 Обновить applyResearchEffects
+### 1.7 Обновить applyResearchEffects
+
 **Файл:** `server/internal/game/planet.go`
 
-Удалить блок `advanced_exploration` → `MaxExpeditions`.
-Advanced exploration больше не нужен в текущей форме — лимит экспедиций будет управляться иначе.
+Удалить блок `advanced_exploration` → `MaxExpeditions` из `applyResearchEffects()`.
+Лимит экспедиций теперь управляется через константу (по умолчанию 1 активная цепочка на планету).
 
-### 6.7 Обновить savePlanet
+### 1.8 Обновить savePlanet
+
 **Файл:** `server/internal/game/game.go`
 
-Удалить сохранение:
-- surface_expeditions JSONB
-- expedition_history JSONB
-- range_stats JSONB
+Удалить блоки сохранения:
+- surface_expeditions JSONB (строки 520-536)
+- expedition_history JSONB (строки 570-586)
+- range_stats JSONB (строки 589-605)
+- max_expeditions (строки 558-567)
 
 Удалить функции:
-- `loadSurfaceExpeditions()`
-- `loadExpeditionHistory()`
-- `loadRangeStats()`
+- `loadSurfaceExpeditions()` (строки 652-666)
+- `loadExpeditionHistory()` (строки 684-698)
+- `loadRangeStats()` (строки 700-714)
 
 Оставить:
 - `loadLocations()` — locations остаются в JSONB
-- `loadLocationBuildings()` — location_buildings остаются в JSONB
 
-### 6.8 Обновить loadPlanetFromDB / loadPlanetsFromDB
+### 1.9 Обновить loadPlanetFromDB / loadPlanetsFromDB
+
 **Файл:** `server/internal/game/game.go`
 
 Удалить вызовы:
-- `loadSurfaceExpeditions(p)`
-- `loadExpeditionHistory(p)`
-- `loadRangeStats(p)`
+- `loadSurfaceExpeditions(p)` (строка 168)
+- `loadExpeditionHistory(p)` (строка 178)
+- `loadRangeStats(p)` (строка 183)
+- Блок загрузки max_expeditions (строки 187-194)
 
 Оставить:
 - `loadLocations(p)`
 
-### 6.9 Обновить planet_state.go
+### 1.10 Обновить planet_state.go
+
 **Файл:** `server/internal/game/planet_state.go`
 
-В `GetState()` удалить:
-- `"surface_expeditions"`
-- `"max_expeditions"`
-- `"can_start_planet_survey"` (заменится на `can_start_expedition`)
+В `GetState()` удалить ключи:
+- `"surface_expeditions"` (строка 93)
+- `"range_stats"` (строка 96)
+- `"expedition_history"` (строка 97)
+- `"max_surface_expeditions"` (строка 98)
+- `"can_start_planet_survey"` (строка 99)
+
+Удалить функции:
+- `GetSurfaceExpeditionState()` (строки 168-197)
+- `GetRangeStatsState()` (строки 248-257)
+- `CanStartPlanetSurvey()` (строки 259-276)
+- `GetMaxSurfaceExpeditions()` (строки 278-286)
+
+В `BuildDetails` struct удалить поля:
+- `MaxSurfaceExpeditions` (строка 122)
+- `CanPlanetSurvey` (строка 125)
+- `PlanetSurveyUnlocked` (строка 126)
 
 В `GetBuildDetails()` удалить:
-- `CanPlanetSurvey`
+- Вычисление `planetSurveyUnlocked` (строки 142-147)
+- Поля `MaxSurfaceExpeditions`, `CanPlanetSurvey`, `PlanetSurveyUnlocked` в возвращаемом struct
 
-### 6.10 Обновить GetExpeditionState / GetActiveExpeditionsCount
-**Файл:** `server/internal/game/planet_state.go`
+### 1.11 Тесты
 
-Удалить `GetExpeditionState()` — если он возвращает surface expeditions.
-Удалить `GetActiveExpeditionsCount()` — если он считает surface expeditions.
-Удалить `GetMaxExpeditions()`.
-
-### 6.11 Тесты
 **Запуск:**
 ```bash
 go test -timeout 10s ./internal/game/planet_survey/...
@@ -170,17 +202,19 @@ go test -timeout 10s ./internal/game/planet_survey/...
 Ожидаем ошибку — файлы удалены. Это нормально.
 
 ```bash
-go build ./cmd/server/
+go build -o /dev/null ./cmd/server/
 ```
 Проверяем что бэкенд собирается.
 
 ## Деплой
+
 ```bash
 ./deploy.sh
-go build ./cmd/server/
+go build -o /dev/null ./cmd/server/
 ```
 
 ## Риски
-- Если БД не миграция — сервер запустится без expedition_chains таблицы. Миграция применится автоматически при старте.
+
 - Старые данные surface_expeditions будут потеряны. Это намеренно.
 - Locations и location_buildings сохраняются через JSONB — не затрагиваются.
+- Migration 024 идёт сразу после 023 — номер корректен.

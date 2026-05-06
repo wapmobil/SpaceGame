@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/game_provider.dart';
 import '../providers/planet_survey_provider.dart';
+import '../providers/expedition_chain_provider.dart';
 import '../core/app_theme.dart';
 import '../utils/constants.dart';
 import '../models/planet_survey.dart';
 import '../widgets/location_card.dart';
+import '../widgets/inventory_dialog.dart';
+import '../models/expedition_chain.dart';
 
 class LocationBuildingDef {
   final String type;
@@ -37,29 +40,30 @@ class PlanetSurveyScreen extends StatefulWidget {
 class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
 
  Future<void> _loadData(String planetId) async {
-      await context.read<GameProvider>().surveyProvider.loadPlanetSurveyData(planetId);
+      final gameProvider = context.read<GameProvider>();
+      await gameProvider.expeditionChainProvider.loadExpeditionChains(planetId);
     }
 
    void _checkNotifications() {
-     final gameProvider = context.read<GameProvider>();
-     if (gameProvider.notifications.isNotEmpty) {
-       final notif = gameProvider.notifications.first;
-       ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(
-           content: Text('${notif['title']}\n${notif['message']}'),
-           duration: const Duration(seconds: 5),
-           backgroundColor: AppTheme.accentColor,
-         ),
-       );
-       gameProvider.clearNotifications();
-     }
-   }
+      final gameProvider = context.read<GameProvider>();
+      if (gameProvider.notifications.isNotEmpty) {
+        final notif = gameProvider.notifications.first;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${notif['title']}\n${notif['message']}'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: AppTheme.accentColor,
+          ),
+        );
+        gameProvider.clearNotifications();
+      }
+    }
 
    @override
    void didChangeDependencies() {
-     super.didChangeDependencies();
-     WidgetsBinding.instance.addPostFrameCallback((_) => _checkNotifications());
-   }
+      super.didChangeDependencies();
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkNotifications());
+    }
 
 @override
     Widget build(BuildContext context) {
@@ -68,42 +72,34 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
           final planet = gameProvider.selectedPlanet;
           if (planet == null) return const Center(child: Text('Планета не выбрана'));
           final survey = gameProvider.surveyProvider;
+          final chainProvider = gameProvider.expeditionChainProvider;
+          final activeChains = chainProvider.activeChains;
 
           return Scaffold(
             appBar: AppBar(title: const Text('Разведка')),
            body: RefreshIndicator(
-             onRefresh: () => _loadData(planet.id),
-             child: SingleChildScrollView(
-               padding: const EdgeInsets.all(16),
-               child: Column(
-                 crossAxisAlignment: CrossAxisAlignment.start,
-                 children: [
-                   _buildStartExpeditionWithSurvey(gameProvider, survey),
-                   const SizedBox(height: 16),
-                   _buildExpeditionListWithSurvey(survey),
-                   const SizedBox(height: 16),
-                   _buildLocationsListWithSurvey(context, gameProvider, survey),
-                   const SizedBox(height: 16),
-                   _buildHistoryWithSurvey(survey),
-                   const SizedBox(height: 16),
-                   _buildRangeStatsWithSurvey(survey),
-                 ],
-               ),
-             ),
-           ),
-         );
-       },
-     );
-   }
+              onRefresh: () => _loadData(planet.id),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildStartExpeditionWithSurvey(gameProvider, survey),
+                    const SizedBox(height: 16),
+                    _buildLocationsListWithSurvey(context, gameProvider, survey),
+                    const SizedBox(height: 16),
+                    _buildHistoryWithSurvey(chainProvider),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
 
   Widget _buildStartExpeditionWithSurvey(GameProvider gameProvider, PlanetSurveyProvider surveyProvider) {
     final baseLevel = surveyProvider.baseLevel ?? 0;
-    final canStart = surveyProvider.canStartPlanetSurvey ?? false;
-    final maxDuration = _getMaxDurationForBaseLevel(baseLevel);
-    final costPerMin = _getCostPerMinForBaseLevel(baseLevel);
-    final durations = [300, 600, 1200];
-    final availableDurations = durations.where((d) => d <= maxDuration).toList();
-    final resources = gameProvider.selectedPlanet?.resources ?? {};
 
     if (baseLevel <= 0) {
       return const Card(
@@ -138,140 +134,26 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: availableDurations.map((duration) {
-                final minutes = duration ~/ 60;
-                final totalFood = (costPerMin['food']! * minutes).toInt();
-                final totalIron = (costPerMin['iron']! * minutes).toInt();
-                final totalMoney = (costPerMin['money']! * minutes).toInt();
-                final canAfford =
-                    (resources['food'] as num? ?? 0) >= totalFood &&
-                    (resources['iron'] as num? ?? 0) >= totalIron &&
-                    (resources['money'] as num? ?? 0) >= totalMoney;
-                final costLabel = '${Constants.resourceIcons['food']}$totalFood ${Constants.resourceIcons['iron']}$totalIron ${Constants.resourceIcons['money']}$totalMoney';
-                return ElevatedButton.icon(
-                  onPressed: canStart && canAfford
-                      ? () async {
-                          await surveyProvider.startPlanetSurvey(widget.planetId, duration);
-                        }
-                      : null,
-                  icon: const Icon(Icons.explore, size: 18),
-                  label: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('$minutes мин'),
-                      Text(costLabel, style: const TextStyle(fontSize: 9, color: Colors.white70)),
-                    ],
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: canAfford ? Colors.white : Colors.white38,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final result = await showDialog<bool>(
+                  context: context,
+                  builder: (dialogContext) => InventoryDialog(
+                    planetId: widget.planetId,
+                    onSubmitted: () => _loadData(widget.planetId),
                   ),
                 );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpeditionListWithSurvey(PlanetSurveyProvider surveyProvider) {
-    final activeExpeditions = surveyProvider.surfaceExpeditions.where((e) => e['status'] == 'active').toList();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Активные экспедиции', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-                Text(
-                  '${activeExpeditions.length}/${surveyProvider.maxSurfaceExpeditions ?? 1}',
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
-                ),
-              ],
-            ),
-            if (activeExpeditions.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('Нет активных экспедиций', style: TextStyle(color: Colors.white38))),
-              )
-            else
-              ...activeExpeditions.map((exp) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildExpeditionCard(exp),
-                  )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildExpeditionCard(Map<String, dynamic> exp) {
-    final remaining = (exp['duration'] as num? ?? 0).toInt() - (exp['elapsed_time'] as num? ?? 0).toInt();
-    final rangeLabel = exp['range'] == '300s' ? '5 мин' : exp['range'] == '600s' ? '10 мин' : '20 мин';
-
-    return Card(
-      elevation: 0,
-      color: AppTheme.cardColor.withValues(alpha: 0.5),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Text('🔍', style: TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Дальность: $rangeLabel',
-                        style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
-                      ),
-                      Text(
-                        'Прогресс: ${(exp['progress'] as num? ?? 0).toDouble() * 100}%${exp['status'] == 'discovered' ? ' | Обнаружено!' : ''}',
-                        style: const TextStyle(fontSize: 11, color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: exp['status'] == 'active' ? AppTheme.successColor.withValues(alpha: 0.2) : AppTheme.accentColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    exp['status'] == 'active' ? 'Активна' : 'Обнаружено',
-                    style: const TextStyle(fontSize: 11, color: AppTheme.successColor),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Осталось: ${Constants.formatTime(remaining.toDouble())}', style: const TextStyle(fontSize: 11, color: Colors.white54)),
-              ],
-            ),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: (exp['progress'] as num? ?? 0).toDouble().clamp(0.0, 1.0),
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(3),
-              color: AppTheme.accentColor,
+                if (result == true) {
+                  await _loadData(widget.planetId);
+                }
+              },
+              icon: const Icon(Icons.explore, size: 18),
+              label: const Text('Новая экспедиция'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 40),
+              ),
             ),
           ],
         ),
@@ -337,8 +219,8 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     );
   }
 
-  Widget _buildHistoryWithSurvey(PlanetSurveyProvider surveyProvider) {
-    final history = surveyProvider.expeditionHistory;
+  Widget _buildHistoryWithSurvey(ExpeditionChainProvider chainProvider) {
+    final completedChains = chainProvider.completedChains;
 
     return Card(
       child: Padding(
@@ -347,86 +229,52 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('История экспедиций', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-            if (history.isEmpty)
+            if (completedChains.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 child: Center(child: Text('История пуста', style: TextStyle(color: Colors.white38))),
               )
             else
-              ...history.take(10).map((entry) => Padding(
+              ...completedChains.where((c) => c.isCompleted).take(10).map((chain) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _buildHistoryEntry(entry),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardColor.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                chain.discoveredLocation?.name ?? 'Неизвестно',
+                                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.successColor.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Успех',
+                                  style: TextStyle(fontSize: 10, color: AppTheme.successColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (chain.discoveredLocation != null)
+                            Text(
+                              _formatLocationType(chain.discoveredLocation!.type),
+                              style: const TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic),
+                            ),
+                        ],
+                      ),
+                    ),
                   )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryEntry(Map<String, dynamic> entry) {
-    final result = entry['result'] as String? ?? 'unknown';
-    final resultColor = result == 'success' ? AppTheme.successColor : AppTheme.dangerColor;
-    final resultLabel = result == 'success' ? 'Успех' : result == 'abandoned' ? 'Отозвана' : 'Провал';
-
-    return Card(
-      elevation: 0,
-      color: AppTheme.cardColor.withValues(alpha: 0.5),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  entry['discovered'] as String? ?? 'Неизвестно',
-                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: resultColor.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    resultLabel,
-                    style: TextStyle(fontSize: 10, color: resultColor),
-                  ),
-                ),
-              ],
-            ),
-            if (entry['location_type'] != null && entry['location_type'] != '')
-              Text(
-                _formatLocationType(entry['location_type'] as String),
-                style: const TextStyle(fontSize: 11, color: Colors.white70, fontStyle: FontStyle.italic),
-              ),
-            if ((entry['resources_gained'] as Map?)?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: (entry['resources_gained'] as Map).entries.map((e) {
-                  final value = (e.value as num?)?.toInt() ?? 0;
-                  if (value <= 0) return const SizedBox.shrink();
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.successColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${Constants.resourceNames[e.key as String] ?? e.key}: +$value',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.successColor),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            Text(
-              'Завершена: ${entry['completed_at'] ?? 'Неизвестно'}',
-              style: const TextStyle(fontSize: 10, color: Colors.white38),
-            ),
           ],
         ),
       ),
@@ -436,63 +284,28 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
   String _formatLocationType(String type) {
     final typeMap = <String, String>{
       'pond': 'Пруд',
+      'river': 'Река',
+      'forest': 'Лес',
+      'mineral_deposit': 'Минеральное месторождение',
+      'dry_valley': 'Сухая долина',
       'waterfall': 'Водопад',
+      'cave': 'Пещера',
+      'thermal_spring': 'Горячий источник',
       'salt_lake': 'Соляное озеро',
-      'hot_spring': 'Горячий источник',
-      'underground_cave': 'Подземная пещера',
-      'crystal_cavern': 'Кристальная пещера',
-      'mineral_vein': 'Минеральная жила',
-      'meteor_crater': 'Кратер метеорита',
       'wind_pass': 'Ветровой перевал',
-      'dust_storm': 'Пылевая буря',
-      'ice_sheet': 'Ледяная равнина',
-      'geothermal_fissure': 'Геотермальная расщелина',
-      'fossil_bed': 'Слои окаменелостей',
-      'ancient_ruins': 'Древние руины',
-      'lava_flow': 'Лавовое течение',
-      'obsidian_field': 'Обсидиановое поле',
-      'silica_dunes': 'Кремнезёмные дюны',
-      'crystal_spire': 'Кристальный шпиль',
-      'gas_vents': 'Газовые фумаролы',
-      'magnetic_anomaly': 'Магнитная аномалия',
+      'crystal_cave': 'Кристальная пещера',
+      'meteor_crater': 'Кратер метеорита',
+      'sunken_city': 'Затонувший город',
+      'glacier': 'Ледник',
+      'mushroom_forest': 'Грибной лес',
+      'crystal_field': 'Кристальное поле',
+      'cloud_island': 'Облачный остров',
+      'underground_lake': 'Подземное озеро',
+      'radioactive_zone': 'Радиоактивная зона',
+      'anomaly_zone': 'Аномальная зона',
     };
     final name = typeMap[type] ?? type;
     return name;
-  }
-
-  Widget _buildRangeStatsWithSurvey(PlanetSurveyProvider surveyProvider) {
-    final rangeStats = surveyProvider.rangeStats;
-    if (rangeStats.isEmpty) return const SizedBox.shrink();
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Статистика по дальности', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white70)),
-            const SizedBox(height: 8),
-            ...rangeStats.entries.map((e) {
-              final rangeLabel = e.key == '300s' ? '5 мин' : e.key == '600s' ? '10 мин' : '20 мин';
-              final stats = e.value as Map<String, dynamic>? ?? {};
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(rangeLabel, style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                    Text(
-                      '${stats['total_expeditions'] ?? 0} экспедиций, ${stats['locations_found'] ?? 0} локаций',
-                      style: const TextStyle(fontSize: 12, color: Colors.white54),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showBuildDialog(BuildContext context, Map<String, dynamic> location) {
@@ -647,23 +460,5 @@ class _PlanetSurveyScreenState extends State<PlanetSurveyScreen> {
     if (rare.contains(locationType)) return 'rare';
     if (exotic.contains(locationType)) return 'exotic';
     return 'common';
-  }
-
-  int _getMaxDurationForBaseLevel(int baseLevel) {
-    switch (baseLevel) {
-      case 1: return 300;
-      case 2: return 600;
-      case 3: return 1200;
-      default: return 300;
-    }
-  }
-
-  Map<String, double> _getCostPerMinForBaseLevel(int baseLevel) {
-    switch (baseLevel) {
-      case 1: return {'food': 100, 'iron': 100, 'money': 10};
-      case 2: return {'food': 200, 'iron': 200, 'money': 20};
-      case 3: return {'food': 400, 'iron': 400, 'money': 40};
-      default: return {'food': 100, 'iron': 100, 'money': 10};
-    }
   }
 }

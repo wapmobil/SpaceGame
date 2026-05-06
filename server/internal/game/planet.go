@@ -39,14 +39,11 @@ type Planet struct {
 	Expeditions      []*expedition.Expedition
 	ExplorationMgr   *expedition.ExplorationManager
 	GardenBedState *GardenBedState
-	ResourceType   PlanetResourceType
-	SurfaceExpeditions []*planet_survey.SurfaceExpedition
-	Locations          []*planet_survey.Location
-	ExpeditionHistory  []planet_survey.ExpeditionHistoryEntry
-	RangeStats         map[string]*planet_survey.ExpeditionRangeStats
-	MaxExpeditions     int
-	Description        string
-	game           *Game
+	ResourceType       PlanetResourceType
+	ExpeditionChains []*planet_survey.ExpeditionChain
+	Locations        []*planet_survey.Location
+	Description      string
+	game             *Game
 }
 
 // NewPlanet creates a new planet with default resources.
@@ -75,11 +72,8 @@ func NewPlanet(id, ownerID, name string, g *Game) *Planet {
 		Expeditions:      make([]*expedition.Expedition, 0),
 		ExplorationMgr:   expedition.NewExplorationManager(),
 		GardenBedState:   nil,
-		SurfaceExpeditions: make([]*planet_survey.SurfaceExpedition, 0),
+		ExpeditionChains: make([]*planet_survey.ExpeditionChain, 0),
 		Locations:        make([]*planet_survey.Location, 0),
-		ExpeditionHistory: make([]planet_survey.ExpeditionHistoryEntry, 0),
-		RangeStats:       make(map[string]*planet_survey.ExpeditionRangeStats),
-		MaxExpeditions:   1,
 		game:             g,
 	}
 	types := []PlanetResourceType{ResourceComposite, ResourceMechanisms, ResourceReagents}
@@ -134,11 +128,7 @@ func (p *Planet) RecalculateBuildSpeed() {
 
 // applyResearchEffects applies effects for newly completed research.
 func (p *Planet) applyResearchEffects() {
-	for techID := range p.Research.GetLastCompleted() {
-		if techID == "advanced_exploration" {
-			p.MaxExpeditions = p.GetMaxSurfaceExpeditions()
-		}
-	}
+	_ = p.Research.GetLastCompleted()
 }
 
 // CanBuildShip checks if the planet can build a ship of the given type.
@@ -208,4 +198,116 @@ func (e *PlanetError) Error() string {
 		return "planet error: " + e.Reason + " - " + e.Extra + " (planet: " + e.PlanetID + ")"
 	}
 	return "planet error: " + e.Reason + " (planet: " + e.PlanetID + ")"
+}
+
+// ExpeditionPlanet interface implementation
+
+func (p *Planet) GetID() string { return p.ID }
+func (p *Planet) GetOwnerID() string { return p.OwnerID }
+func (p *Planet) GetName() string { return p.Name }
+func (p *Planet) GetDescription() string { return p.Description }
+func (p *Planet) GetLevel() int { return p.Level }
+func (p *Planet) GetResourceType() string { return string(p.ResourceType) }
+
+func (p *Planet) GetResources() map[string]*float64 {
+	return map[string]*float64{
+		"food":      &p.Resources.Food,
+		"iron":      &p.Resources.Iron,
+		"composite": &p.Resources.Composite,
+		"mechanisms": &p.Resources.Mechanisms,
+		"reagents":  &p.Resources.Reagents,
+	}
+}
+
+func (p *Planet) AddResource(res string, amount float64) {
+	switch res {
+	case "food":
+		p.Resources.Food += amount
+	case "iron":
+		p.Resources.Iron += amount
+	case "composite":
+		p.Resources.Composite += amount
+	case "mechanisms":
+		p.Resources.Mechanisms += amount
+	case "reagents":
+		p.Resources.Reagents += amount
+	}
+}
+
+// CanStartExpeditionChain checks if player can start a new expedition chain.
+func (p *Planet) CanStartExpeditionChain() bool {
+	if !p.BaseOperational() {
+		return false
+	}
+	if _, ok := p.Research.GetCompleted()["planet_exploration"]; !ok {
+		return false
+	}
+	activeCount := 0
+	for _, ch := range p.ExpeditionChains {
+		if ch.Status == "active" {
+			activeCount++
+		}
+	}
+	return activeCount < planet_survey.MaxActiveChains
+}
+
+// StartExpeditionChain creates a new expedition chain.
+func (p *Planet) StartExpeditionChain(inventory map[string]float64) (*planet_survey.ExpeditionChain, *planet_survey.ExpeditionEvent, error) {
+	return planet_survey.StartExpeditionChain(p, inventory)
+}
+
+// ResolveExpeditionChoice processes a player choice and generates next event.
+func (p *Planet) ResolveExpeditionChoice(chainID string, choiceIndex int) (*planet_survey.ExpeditionEvent, error) {
+	chain := p.GetActiveExpeditionChain(chainID)
+	if chain == nil {
+		return nil, &PlanetError{PlanetID: p.ID, Reason: "chain_not_found"}
+	}
+	return planet_survey.ResolveChoice(chain, p, choiceIndex)
+}
+
+// ReturnInventoryToPlanet returns the expedition inventory back to the planet.
+func (p *Planet) ReturnInventoryToPlanetDirect(inventory map[string]float64) {
+	for res, amount := range inventory {
+		if amount <= 0 {
+			continue
+		}
+		switch res {
+		case "food":
+			p.Resources.Food += amount
+		case "iron":
+			p.Resources.Iron += amount
+		case "composite":
+			p.Resources.Composite += amount
+		case "mechanisms":
+			p.Resources.Mechanisms += amount
+		case "reagents":
+			p.Resources.Reagents += amount
+		}
+	}
+}
+
+// GetActiveExpeditionChain returns the active chain by ID.
+func (p *Planet) GetActiveExpeditionChain(chainID string) *planet_survey.ExpeditionChain {
+	for _, ch := range p.ExpeditionChains {
+		if ch.ID == chainID && ch.Status == "active" {
+			return ch
+		}
+	}
+	return nil
+}
+
+// GetExpeditionChains returns all chains (active + recent completed).
+func (p *Planet) GetExpeditionChains() []*planet_survey.ExpeditionChain {
+	return p.ExpeditionChains
+}
+
+// ReturnExpeditionInventory returns inventory to planet and removes chain from memory.
+func (p *Planet) ReturnExpeditionInventory(chainID string) {
+	for i, ch := range p.ExpeditionChains {
+		if ch.ID == chainID {
+			planet_survey.ReturnInventoryToPlanet(p, ch.Inventory)
+			p.ExpeditionChains = append(p.ExpeditionChains[:i], p.ExpeditionChains[i+1:]...)
+			return
+		}
+	}
 }
